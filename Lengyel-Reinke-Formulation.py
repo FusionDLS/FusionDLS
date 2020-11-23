@@ -1,14 +1,9 @@
 # %%
-import scipy as sp
 from scipy.optimize import fsolve
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.integrate import quad,trapz, cumtrapz, odeint, solve_ivp
 from scipy import interpolate
-from PIL import Image
-from netCDF4 import Dataset
-import os
-from natsort import natsorted
 import ThermalFrontFormulation as TF
 from unpackConfigurations import unpackConfiguration,returnzl,returnll
 
@@ -182,8 +177,9 @@ def returnImpurityFracLeng(constants,S,indexRange,dispBassum = False,dispqassum 
 
 
 # %%
-zl, TotalField, Xpoint,R0,Z0,R,Z, Spol, Bpol, S = unpackConfiguration(File = "grids/superX/balance.nc",
-    Type ="Super-X-Inner",returnSBool = True,sepadd=2)
+gridFile = "grids/superX/balance.nc"
+zl, TotalField, Xpoint,R0,Z0,R,Z, Spol, Bpol, S = unpackConfiguration(File = gridFile,
+    Type ="inner",returnSBool = True,sepadd=2)
 
 B =  interpolate.interp1d(S, TotalField, kind='cubic')
 plt.plot(S,TotalField)
@@ -193,7 +189,7 @@ plt.savefig("field.png", dpi = 400)
 plt.show()
 
 #define the range along the field line we want to calculate C for
-indexrange = np.linspace(0,Xpoint-5,35)
+indexrange = np.linspace(0,Xpoint-5,50)
 indexrange = list(indexrange.astype(int))
 
 # unpack field line data in parallel coordinate z (used for thermal front model)
@@ -227,18 +223,25 @@ Spolplot  = Spol[indexrange]/Spol[-1]
 # plt.plot(srange/LS,np.divide(np.array(Tus),Tus[0]),label="thermal front")
 # returnImpurityFracLeng(gamma_sheath,qpllu0,Tt,nu,kappa0,mi,echarge,dispBassum=False,dispqassum=False,dispUassum=False,neutralmodel=False)
 
+
+# %%
 plt.plot(Spolplot,np.divide(np.array(CoverCxTF),CoverCxTF[-1]),label="thermal front")
 plt.plot(Spolplot,C/C[-1],label="lengyel")
-
-
-TotalField =  np.add(TotalField*0,1)
-# B =  interpolate.interp1d(S, TotalField, kind='cubic')
-# returnImpurityFracLeng(gamma_sheath,qpllu0,Tt,nu,kappa0,mi,echarge)
-
 plt.xlabel("spol/Lpol")
 plt.ylabel("C/CX")
 # plt.ylabel("Tu (eV)")
 plt.legend()
 plt.savefig("ControlParameter.png",dpi=400)
+plt.show()
+
+# %%
+plt.plot(Spolplot,np.divide(np.gradient(CoverCxTF),
+    np.gradient(Spolplot)*CoverCxTF),label="thermal front")
+plt.plot(Spolplot,np.gradient(C)/(np.gradient(Spolplot)*C),label="lengyel")
+plt.xlabel("spol/Lpol")
+plt.ylabel("sensitivity")
+# plt.ylabel("Tu (eV)")
+plt.legend()
+plt.savefig("sensitivity.png",dpi=400)
 plt.show()
 # %%

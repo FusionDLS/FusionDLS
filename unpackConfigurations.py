@@ -41,7 +41,7 @@ def unpackConfiguration(File,Type,zxoverL = 0, returnSBool = False,polModulator 
     gradR = np.gradient(R)
     Xpoint = -1
     #cut off data such that it extens from the target to the x point
-    if Type == "Super-X":
+    if Type == "outer":
         Start = 0
         
         for i in range(1,len(gradR)):
@@ -76,7 +76,7 @@ def unpackConfiguration(File,Type,zxoverL = 0, returnSBool = False,polModulator 
         R = R[0:midplane+1]
         Bpol = Bpol[0:midplane+1]
     
-    if Type == "Super-X-Inner":
+    if Type == "inner":
         Start = 0
         R = R[Start:]
         Bpol = Bpol[Start:]
