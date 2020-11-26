@@ -111,7 +111,7 @@ def unpackConfiguration(File,Type,zxoverL = 0, returnSBool = False,polModulator 
     Rinterp= interpolate.interp1d(pathLength, R, kind='cubic')
     Bpolinterp =  interpolate.interp1d(pathLength, Bpol, kind='cubic')
     TotalFieldinterp =  interpolate.interp1d(pathLength, TotalField, kind='cubic')
-    path = np.linspace(np.amin(pathLength),np.amax(pathLength),1000)
+    path = np.linspace(np.amin(pathLength),np.amax(pathLength),10000)
     R = Rinterp(path)
     Z = Zinterp(path)
     Bpol = Bpolinterp(path)
