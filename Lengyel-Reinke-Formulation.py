@@ -8,12 +8,39 @@ import ThermalFrontFormulation as TF
 from unpackConfigurations import unpackConfiguration,returnzl,returnll
 
 #Nitrogen based cooling curve used in Lipschultz 2016
+#def Lfunc(T):
+#    answer = 0
+#    if T >= 1 and T<= 80:
+#        answer = 5.9E-34*(T-1)**(0.5)
+#        answer = answer*(80-T)
+#        answer = answer/(1+(3.1E-3)*(T-1)**2)
+#    else:
+#        answer = 0
+#    return answer
+
+#Ne based cooling curve produced by Matlab polynominal curve fitting "polyval" (Ryoko 2020 Nov)
+#def Lfunc(T):    
+#    answer = 0
+#    if T >= 3 and T<= 100:
+#    	answer = -2.0385E-40*T**5 + 5.4824E-38*T**4 -5.1190E-36*T**3 + 1.7347E-34*T**2 -3.4151E-34*T -3.2798E-34
+#    elif T >=2 and T < 3:
+#       answer = (8.0-1.0)*1.0E-35/(3.0-2.0)*(T-2.0)+1.0E-35
+#    elif T >=1 and T < 2:
+#       answer = 1.0E-35/(2.0-1.0)*(T-1.0)
+#    else:
+#        answer = 0
+#    return answer
+
+#plt.plot(T,Lfunc)
+#plt.show()
+
+#Ar based cooling curve produced by Matlab polynominal curve fitting "polyval" (Ryoko 2020 Nov)
 def Lfunc(T):
     answer = 0
-    if T >= 1 and T<= 80:
-        answer = 5.9E-34*(T-1)**(0.5)
-        answer = answer*(80-T)
-        answer = answer/(1+(3.1E-3)*(T-1)**2)
+    if T >= 1.5 and T<= 100:
+        answer = -4.9692e-48*T**10 + 2.8025e-45*T**9 -6.7148e-43*T**8 + 8.8636e-41*T**7 -6.9642e-39*T**6 +3.2559e-37*T**5 -8.3410e-36*T**4 +8.6011e-35*T**3 +1.9958e-34*T**2 + 4.9864e-34*T -9.9412e-34
+    elif T >= 1.0 and T< 1.5:
+        answer = 2.5E-35/(1.5-1.0)*(T-1.0)
     else:
         answer = 0
     return answer
@@ -36,6 +63,8 @@ def LengFunc(y,s,kappa0,nu,Tu,cz,qpllu0,S):
     #add a constant radial source of heat above the X point
     if s >S[Xpoint]:
         dqoverBds = ((nu**2*Tu**2)/T**2)*cz*Lfunc(T) - qpllu0/np.abs(S[-1]-S[Xpoint])
+        #dqoverBds = ((nu**2*Tu**2)/T**2)*cz*Lfunc(T) #option (a)
+        #dqoverBds = 0.0 #option (b)
     else:
         dqoverBds = ((nu**2*Tu**2)/T**2)*cz*Lfunc(T) 
     #working on neutral model
@@ -72,7 +101,8 @@ def returnImpurityFracLeng(constants,S,indexRange,dispBassum = False,dispqassum 
 
         #define our constants
         #create the nitrogen based cooling curve
-        T = np.linspace(2,80,100)
+#        T = np.linspace(2,80,100)
+        T = np.linspace(1,100,100)#should be this for Ar? Ryoko 20201209 --> almost no effect
         Lalpha = []
         for DT in T:
             Lalpha.append(Lfunc(DT))
@@ -89,8 +119,10 @@ def returnImpurityFracLeng(constants,S,indexRange,dispBassum = False,dispqassum 
         qavLguess = 0
         if s[0] < S[Xpoint]:
             qavLguess = ((qpllu0)*(S[Xpoint]-s[0]) + (qpllu0/2)*(s[-1]-S[Xpoint]))/(s[-1]-S[0])
+            #qavLguess = ((qpllu0)*(S[Xpoint]-s[0]) + (qpllu0)*(s[-1]-S[Xpoint]))/(s[-1]-S[0]) #for consistency when choosing the option (a)?
         else:
             qavLguess = (qpllu0/2)
+            #qavLguess = (qpllu0) #for consistency when choosing the option (a)(l.66)?
         #inital guess for upstream temperature based on guess of qpll ds integral
         Tu0 = ((7/2)*qavLguess*(s[-1]-s[0])/kappa0)**(2/7)
         Tu = Tu0
@@ -161,8 +193,8 @@ def returnImpurityFracLeng(constants,S,indexRange,dispBassum = False,dispqassum 
             print("the current value of U is "+str(UassumAccuracy))
         Tus.append(Tu)
         C.append(np.sqrt(cz))
-        plt.plot(s,q)
-        plt.show()
+#        plt.plot(s,q)
+#        plt.show()
     label  = 0
     if TotalField[3] == 1:
         label = "no B variation Lengyel model"
@@ -175,9 +207,8 @@ def returnImpurityFracLeng(constants,S,indexRange,dispBassum = False,dispqassum 
     return splot, C
 
 
-
 # %%
-gridFile = "grids/superX/balance.nc"
+gridFile = "/pfs/work/g2rtatsu/solps-iter/runs/Sarah_P200/P200n10e19gp1e21gpAr3e14_rsP200n20D1e21Ar3e14nEc56_nEc39_nEr1cg_c51/balance.nc"
 zl, TotalField, Xpoint,R0,Z0,R,Z, Spol, Bpol, S = unpackConfiguration(File = gridFile,
     Type ="inner",returnSBool = True,sepadd=2)
 
@@ -188,8 +219,17 @@ plt.ylabel("B (T)")
 plt.savefig("field.png", dpi = 400)
 plt.show()
 
+
+plt.plot(np.transpose(R0),np.transpose(Z0),color="C3",label="SOL ring chosen")
+plt.axes().set_aspect('equal')
+segs1 = np.stack((R,Z), axis=2)
+segs2 = segs1.transpose(1,0,2)
+plt.xlim([np.amin(R),np.amax(R)])
+plt.ylim([np.amin(Z),0])
+
+
 #define the range along the field line we want to calculate C for
-indexrange = np.linspace(0,Xpoint-5,50)
+indexrange = np.linspace(0,Xpoint-5,30)
 indexrange = list(indexrange.astype(int))
 
 # unpack field line data in parallel coordinate z (used for thermal front model)
@@ -210,12 +250,12 @@ for j in zhoverLrange:
 # %%
 constants = {
     "gamma_sheath": 7,
-    "qpllu0": 5*10**9,
-    "nu" : 1*10**19,
+    "qpllu0": 7*10**8,
+    "nu" : 1*10**20,
     "kappa0" : 1.5*10**4,
     "mi": 3*10**(-27),
     "echarge": 1.60*10**(-19),
-    "Tt": 1.1,
+    "Tt": 0.2,
 }
 
 splot,C = returnImpurityFracLeng(constants,S=S,indexRange=indexrange)
@@ -223,8 +263,6 @@ Spolplot  = Spol[indexrange]/Spol[-1]
 # plt.plot(srange/LS,np.divide(np.array(Tus),Tus[0]),label="thermal front")
 # returnImpurityFracLeng(gamma_sheath,qpllu0,Tt,nu,kappa0,mi,echarge,dispBassum=False,dispqassum=False,dispUassum=False,neutralmodel=False)
 
-
-# %%
 plt.plot(Spolplot,np.divide(np.array(CoverCxTF),CoverCxTF[-1]),label="thermal front")
 plt.plot(Spolplot,C/C[-1],label="lengyel")
 plt.xlabel("spol/Lpol")

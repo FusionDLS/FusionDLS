@@ -78,11 +78,17 @@ def unpackConfiguration(File,Type,zxoverL = 0, returnSBool = False,polModulator 
     
     if Type == "inner":
         Start = 0
+
         R = R[Start:]
         Bpol = Bpol[Start:]
         gradR = np.gradient(R)
+
+        Xpoint = 0#Ryoko
+        midplane = 0#Ryoko
+#        print("len(gradR)")
+#        print(len(gradR))
         for i in range(1,len(gradR)):
-            if np.sign(gradR[i-1]) != np.sign(gradR[i]):
+            if np.sign(gradR[i-1]) != np.sign(gradR[i]): #if the sign of gradR[i-1] and gradR[i] are different
                 Xpoint = i-1
                 break
         for i in range(Xpoint+2,len(gradR)):
@@ -91,10 +97,13 @@ def unpackConfiguration(File,Type,zxoverL = 0, returnSBool = False,polModulator 
                 break
         TotalField = TotalField[Start:]
         TotalField = TotalField[0:midplane+1]
-
+ 
+        print("Xpoint,midplane")
+        print(Xpoint,midplane)
         Z = Z[Start:midplane+1]
         R = R[0:midplane+1]
         Bpol = Bpol[0:midplane+1]
+
     if Type == "Box":
         Bpol = Bpol[::-1]
         TotalField = TotalField[::-1]
@@ -103,7 +112,7 @@ def unpackConfiguration(File,Type,zxoverL = 0, returnSBool = False,polModulator 
     
 
     pathLength = returnll(R,Z)
-    
+   
 
     # interpolate the grid to make it smooth
     
@@ -117,12 +126,16 @@ def unpackConfiguration(File,Type,zxoverL = 0, returnSBool = False,polModulator 
     Bpol = Bpolinterp(path)
     TotalField = TotalFieldinterp(path)
     gradR = np.gradient(R)
+#    print("len(R)")
+#    print(len(R))
     for i in range(1,len(gradR)):
-        if np.sign(gradR[i-1]) != np.sign(gradR[i]) and R[i] <=1 :
+        if np.sign(gradR[i-1]) != np.sign(gradR[i]):# and R[i] <=1 :Ryoko 20201209 for STEP inner
             Xpoint = i-1
+#            print("i=",i,R[i])
             break
-
-
+#    print(Xpoint)
+#    print(R[11],R[12], R[13], R[14],R[15],R[900])
+#    print(gradR[11], gradR[12],gradR[13],gradR[14])
     Bx = TotalField[Xpoint]
     zl = np.array(returnzl(R,Z,Bx,np.absolute(Bpol)))
     if Type == "Box":
