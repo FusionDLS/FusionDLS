@@ -4,7 +4,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.integrate import quad
 from scipy import interpolate
-import winsound
 
 def CXoverChInt(z, B_field, zx, L,Beta = 1, zh = 0):
     B_field = interpolate.interp1d(z,B_field,kind='cubic')
