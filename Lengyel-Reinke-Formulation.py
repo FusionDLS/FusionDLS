@@ -6,6 +6,11 @@ from scipy.integrate import quad,trapz, cumtrapz, odeint, solve_ivp
 from scipy import interpolate
 import ThermalFrontFormulation as TF
 from unpackConfigurations import unpackConfiguration,returnzl,returnll
+from matplotlib.collections import LineCollection
+
+ionisAdas = np.loadtxt("ionisation.dat")
+tempionis = ionisAdas[0]
+ionisFunc = interpolate.interp1d(tempionis,ionisAdas[1]/(10**6),fill_value='extrapolate')
 
 #Nitrogen based cooling curve used in Lipschultz 2016
 #def Lfunc(T):
@@ -50,7 +55,7 @@ def LfuncGauss(T,width = 10):
     return 1E-31*np.exp(-(T-10)**2/(width))
 
 #Function to integrate, that returns dq/ds and dt/ds using Lengyel formulation and field line conduction
-def LengFunc(y,s,kappa0,nu,Tu,cz,qpllu0,S):
+def LengFunc(y,s,kappa0,nu,Tu,cz,qpllu0,radios,S):
     qoverB,T = y
     fieldValue = 0
     # in the case that the RK x values are outside our interpolated field range, set B equal to the limits of B
@@ -67,6 +72,9 @@ def LengFunc(y,s,kappa0,nu,Tu,cz,qpllu0,S):
         #dqoverBds = 0.0 #option (b)
     else:
         dqoverBds = ((nu**2*Tu**2)/T**2)*cz*Lfunc(T) 
+    if radios["ionisation"] == True:
+
+        dqoverBds = dqoverBds + ((nu**2*Tu**2)/T**2)*ionisFunc(T)*13*1.60*10**(-19)
     #working on neutral model
     # if neutralmodel:
     #     dqoverBds =  dqoverBds+13*1.60*10**(-19)*recombFunc(T)*(nu**2*Tu**2)/T**2
@@ -77,8 +85,7 @@ def LengFunc(y,s,kappa0,nu,Tu,cz,qpllu0,S):
     #return gradient of q and T
     return [dqoverBds,dtds]
 
-
-def returnImpurityFracLeng(constants,S,indexRange,dispBassum = False,dispqassum = False,dispUassum = False,neutralmodel=True):
+def returnImpurityFracLeng(constants,radios,S,indexRange,dispBassum = False,dispqassum = False,dispUassum = False,neutralmodel=True):
     
     C = []
     Tus = []
@@ -99,7 +106,6 @@ def returnImpurityFracLeng(constants,S,indexRange,dispBassum = False,dispqassum 
         splot.append(S[i])
         error0 = 1
 
-        #define our constants
         #create the nitrogen based cooling curve
 #        T = np.linspace(2,80,100)
         T = np.linspace(1,100,100)#should be this for Ar? Ryoko 20201209 --> almost no effect
@@ -127,7 +133,7 @@ def returnImpurityFracLeng(constants,S,indexRange,dispBassum = False,dispqassum 
         Tu0 = ((7/2)*qavLguess*(s[-1]-s[0])/kappa0)**(2/7)
         Tu = Tu0
         #iterate through temperature untill the consistent Tu is determined
-        while np.abs(error0) > 0.001:
+        while np.abs(error0) > 0.0005:
             print("Tu="+str(Tu))
             Lint = cumtrapz(Lz[1]*np.sqrt(Lz[0]),Lz[0],initial = 0)
             integralinterp = interpolate.interp1d(Lz[0],Lint)
@@ -144,7 +150,7 @@ def returnImpurityFracLeng(constants,S,indexRange,dispBassum = False,dispqassum 
             while perChange >0.0005:
                 #initial guess of qpllt, typically 0
                 qpllt = gamma_sheath/2*nu*Tu*echarge*np.sqrt(2*Tt*echarge/mi)
-                result = odeint(LengFunc,y0=[qpllt/B(s[0]),Tt],t=s,args=(kappa0,nu,Tu,cz,qpllu0,S))
+                result = odeint(LengFunc,y0=[qpllt/B(s[0]),Tt],t=s,args=(kappa0,nu,Tu,cz,qpllu0,radios,S))
                 q = result[:,0]*B(s)
                 T = result[:,1]
                 qpllu1 = q[-1]
@@ -212,6 +218,17 @@ gridFile = "/pfs/work/g2rtatsu/solps-iter/runs/Sarah_P200/P200n10e19gp1e21gpAr3e
 zl, TotalField, Xpoint,R0,Z0,R,Z, Spol, Bpol, S = unpackConfiguration(File = gridFile,
     Type ="inner",returnSBool = True,sepadd=2)
 
+plt.plot(np.transpose(R0),np.transpose(Z0),color="C3",label="SOL ring chosen")
+plt.axes().set_aspect('equal')
+segs1 = np.stack((R,Z), axis=2)
+segs2 = segs1.transpose(1,0,2)
+plt.xlim([np.amin(R),np.amax(R)])
+plt.ylim([np.amin(Z),0])
+
+plt.gca().add_collection(LineCollection(segs1))
+plt.gca().add_collection(LineCollection(segs2))
+plt.show()
+
 B =  interpolate.interp1d(S, TotalField, kind='cubic')
 plt.plot(S,TotalField)
 plt.xlabel("s (m)")
@@ -258,13 +275,21 @@ constants = {
     "Tt": 0.2,
 }
 
-splot,C = returnImpurityFracLeng(constants,S=S,indexRange=indexrange)
+radios = {
+    "ionisation": True,
+}
+
+splot,C = returnImpurityFracLeng(constants,radios,S=S,indexRange=indexrange)
+radios["ionisation"] = False
+splot,C2 = returnImpurityFracLeng(constants,radios,S=S,indexRange=indexrange)
+
 Spolplot  = Spol[indexrange]/Spol[-1]
 # plt.plot(srange/LS,np.divide(np.array(Tus),Tus[0]),label="thermal front")
 # returnImpurityFracLeng(gamma_sheath,qpllu0,Tt,nu,kappa0,mi,echarge,dispBassum=False,dispqassum=False,dispUassum=False,neutralmodel=False)
 
 plt.plot(Spolplot,np.divide(np.array(CoverCxTF),CoverCxTF[-1]),label="thermal front")
-plt.plot(Spolplot,C/C[-1],label="lengyel")
+# plt.plot(Spolplot,C/C[-1],label="lengyel + ionisation")
+plt.plot(Spolplot,C2/C2[-1],label="lengyel impurity")
 plt.xlabel("spol/Lpol")
 plt.ylabel("C/CX")
 # plt.ylabel("Tu (eV)")
@@ -275,7 +300,9 @@ plt.show()
 # %%
 plt.plot(Spolplot,np.divide(np.gradient(CoverCxTF),
     np.gradient(Spolplot)*CoverCxTF),label="thermal front")
-plt.plot(Spolplot,np.gradient(C)/(np.gradient(Spolplot)*C),label="lengyel")
+# plt.plot(Spolplot,np.gradient(C)/(np.gradient(Spolplot)*C),label="lengyel + ionisation")
+plt.plot(Spolplot,np.gradient(C2)/(np.gradient(Spolplot)*C2),label="lengyel impurity")
+
 plt.xlabel("spol/Lpol")
 plt.ylabel("sensitivity")
 # plt.ylabel("Tu (eV)")
