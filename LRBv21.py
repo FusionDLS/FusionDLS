@@ -231,15 +231,17 @@ def LRBv21(constants,radios,d,SparRange,
             cvar = cz0_guess
             
         elif control_variable == "density":
-            # Initialise control variable as the starting density
+            # Initial guess of nu0 assuming qpll0 everywhere and qpll=0 at target
             # Impurity fraction is set to constant as cz0
-            cvar = nu0
+            nu0_guess = np.sqrt((qpllu0**2 ) /(2*kappa0*cz0 *Tu**2 *integralinterp(Tu)))
+            cvar = nu0_guess
         
         elif control_variable == "power":
-            # If control variable = Power, keep nu0 and cz0 constant
-            # Initialise control variable 1/qradial. This is needed so that
+            # Initialise from Lengyel
             # too high a cvar results in a positive error!
-            cvar = 1/qradial #qpllu0
+            qpllu0_guess = np.sqrt(2*kappa0*cz0*nu0**2*Tu**2*integralinterp(Tu))
+            qradial_guess = qpllu0_guess / np.trapz(Btot[Xpoint:] / Btot[Xpoint], x = S[Xpoint:])
+            cvar = 1/qradial_guess 
             
         # Initial guess of qpllt, typically 0. This is a guess for q at the virtual
         # target (cold end of front). It is a very rough approximation since we are assuming
