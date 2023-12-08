@@ -376,8 +376,8 @@ def LRBv21(constants,radios,d,SparRange,
                     
             # Calculate the new Tu by mixing new value with old one by factor URF (Under-relaxation factor)
             Tucalc = out["Tu"]
-            Tu = (1-URF)*Tu + URF*Tucalc
             error0 = (Tu-Tucalc)/Tu
+            Tu = (1-URF)*Tu + URF*Tucalc
             
             if verbosity > 0 :
                 print("-----------error0: {:.3E}, Tu: {:.2f}, Tucalc: {:.2f}".format(error0, Tu, Tucalc))
