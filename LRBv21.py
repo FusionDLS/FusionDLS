@@ -36,9 +36,9 @@ def LengFunc(y,s,kappa0,nu,Tu,cz,qpllu0,alpha,radios,S,B,Xpoint,Lfunc,qradial):
     # add a constant radial source of heat above the X point, which is qradial = qpll at Xpoint/np.abs(S[-1]-S[Xpoint]
     # i.e. radial heat entering SOL evenly spread between midplane and xpoint needs to be sufficient to get the 
     # correct qpll at the xpoint.
-    
+
     if radios["upstreamGrid"]:
-        if s >S[Xpoint]:
+        if s > S[Xpoint]:
             # The second term here converts the x point qpar to a radial heat source acting between midplane and the xpoint
             try:
                 dqoverBds = ((nu**2*Tu**2)/T**2)*cz*Lfunc(T) - qradial * fieldValue / B(S[Xpoint]) # account for flux expansion to Xpoint
@@ -52,6 +52,7 @@ def LengFunc(y,s,kappa0,nu,Tu,cz,qpllu0,alpha,radios,S,B,Xpoint,Lfunc,qradial):
         dqoverBds = ((nu**2*Tu**2)/T**2)*cz*Lfunc(T) 
     
     # working on neutral/ionisation model
+    dqds = dqoverBds
     dqoverBds = dqoverBds/fieldValue
     
     # Flux limiter
@@ -115,7 +116,7 @@ def LRBv21(constants,radios,d,SparRange,
     Btot = d["Btot"]
     B = interpolate.interp1d(S, Btot, kind = "cubic")
     indexRange = [np.argmin(abs(d["S"] - x)) for x in SparRange] # Indices of topology arrays to solve code at
-
+    indexRange = np.unique(indexRange)   # Drop duplicates
     # Initialise arrays for storing cooling curve data
     Tcool = np.linspace(0.3,500,1000)#should be this for Ar? Ryoko 20201209 --> almost no effect
     Lalpha = []
@@ -146,7 +147,7 @@ def LRBv21(constants,radios,d,SparRange,
             nu = cvar
    
         Btot = [B(x) for x in S]
-        qradial = qpllu0/ np.trapz(Btot[Xpoint:] / Btot[Xpoint], x = S[Xpoint:])
+        qradial = qpllu0 / np.trapz(Btot[Xpoint:] / Btot[Xpoint], x = S[Xpoint:])
             
         if control_variable == "power":
             cz = cz0
@@ -269,6 +270,8 @@ def LRBv21(constants,radios,d,SparRange,
             log["cvar"].append(cvar)
             log["error1"].append(out["error1"])
             log["qpllu1"].append(out["qpllu1"])
+            log["Qprofiles"].append(out["q"])
+            log["Tprofiles"].append(out["T"])
             
             for k1 in range(timeout*2):
                 
@@ -289,6 +292,8 @@ def LRBv21(constants,radios,d,SparRange,
                 log["cvar"].append(cvar)
                 log["error1"].append(out["error1"])
                 log["qpllu1"].append(out["qpllu1"])
+                log["Qprofiles"].append(out["q"])
+                log["Tprofiles"].append(out["T"])
 
                 if verbosity > 1:
                     print("cvar: {:.3E}, error1: {:.3E}".format(cvar, out["error1"]))
@@ -349,6 +354,8 @@ def LRBv21(constants,radios,d,SparRange,
                 log["cvar"].append(cvar)
                 log["error1"].append(out["error1"])
                 log["qpllu1"].append(out["qpllu1"])
+                log["Qprofiles"].append(out["q"])
+                log["Tprofiles"].append(out["T"])
 
                 # Narrow bounds based on the results.
                 if out["error1"] < 0:
@@ -420,58 +427,59 @@ def LRBv21(constants,radios,d,SparRange,
         output["logs"].append(log)
         
     """------COLLECT RESULTS------"""
-    # Here we calculate things like window, threshold etc from a whole scan.
-    
-    # Relative control variable:
-    cvar_list = np.array(output["cvar"])
-    crel_list = cvar_list / cvar_list[0]
-    
-    # S parallel and poloidal locations of each front location (for plotting against cvar/crel):
-    splot = output["Splot"]
-    spolplot = output["SpolPlot"]
-    
-    # Below code finds the first stable detachment solution - useful if dealing with inner divertor leg
-    # which may have an unstable region. It returns cvar and crel trim which exclude unstable values for plotting purposes.
-    
-    # Trim negative gradient
-    crel_list_trim = crel_list.copy()
-    cvar_list_trim = cvar_list.copy()
+    if len(SparRange) > 1:
+        # Here we calculate things like window, threshold etc from a whole scan.
+        
+        # Relative control variable:
+        cvar_list = np.array(output["cvar"])
+        crel_list = cvar_list / cvar_list[0]
+        
+        # S parallel and poloidal locations of each front location (for plotting against cvar/crel):
+        splot = output["Splot"]
+        spolplot = output["SpolPlot"]
+        
+        # Below code finds the first stable detachment solution - useful if dealing with inner divertor leg
+        # which may have an unstable region. It returns cvar and crel trim which exclude unstable values for plotting purposes.
+        
+        # Trim negative gradient
+        crel_list_trim = crel_list.copy()
+        cvar_list_trim = cvar_list.copy()
 
-    # Find values on either side of C = 1 and interpolate onto 1 
-    for i in range(len(crel_list)-1):
-        if np.sign(crel_list[i]-1) != np.sign(crel_list[i+1]-1) and i > 0:
+        # Find values on either side of C = 1 and interpolate onto 1 
+        for i in range(len(crel_list)-1):
+            if np.sign(crel_list[i]-1) != np.sign(crel_list[i+1]-1) and i > 0:
 
-            interp_par = interpolate.interp1d([crel_list[i], crel_list[i+1]], [splot[i], splot[i+1]])
-            interp_pol = interpolate.interp1d([crel_list[i], crel_list[i+1]], [spolplot[i], spolplot[i+1]])
-            
-            spar_onset = float(interp_par(1))
-            spol_onset = float(interp_pol(1))
-            break
-        if i == len(crel_list)-2:
-            spar_onset = 0
-            spol_onset = 0
-
-    if len(crel_list)>1:
-        grad = np.gradient(crel_list)
-        for i, val in enumerate(grad):
-            if i > 0 and np.sign(grad[i]) != np.sign(grad[i-1]):
-                crel_list_trim[:i] = np.nan
-                cvar_list_trim[:i] = np.nan
+                interp_par = interpolate.interp1d([crel_list[i], crel_list[i+1]], [splot[i], splot[i+1]])
+                interp_pol = interpolate.interp1d([crel_list[i], crel_list[i+1]], [spolplot[i], spolplot[i+1]])
                 
-    # Pack things into the output dictionary.
-    output["splot"] = splot
-    output["indexRange"] = indexRange    
-    output["cvar"] = cvar_list
-    output["crel"] = crel_list
-    output["cvar_trim"] = cvar_list_trim
-    output["crel_trim"] = crel_list_trim
-    output["threshold"] = cvar_list[0]
-    output["window"] = cvar_list[-1] - cvar_list[0]
-    output["window_ratio"] = cvar_list[-1] / cvar_list[0]
-    output["spar_onset"] = spar_onset
-    output["spol_onset"] = spol_onset
-    output["constants"] = constants
-    output["radios"] = radios
+                spar_onset = float(interp_par(1))
+                spol_onset = float(interp_pol(1))
+                break
+            if i == len(crel_list)-2:
+                spar_onset = 0
+                spol_onset = 0
+
+        if len(crel_list)>1:
+            grad = np.gradient(crel_list)
+            for i, val in enumerate(grad):
+                if i > 0 and np.sign(grad[i]) != np.sign(grad[i-1]):
+                    crel_list_trim[:i] = np.nan
+                    cvar_list_trim[:i] = np.nan
+                    
+        # Pack things into the output dictionary.
+        output["splot"] = splot
+        output["indexRange"] = indexRange    
+        output["cvar"] = cvar_list
+        output["crel"] = crel_list
+        output["cvar_trim"] = cvar_list_trim
+        output["crel_trim"] = crel_list_trim
+        output["threshold"] = cvar_list[0]
+        output["window"] = cvar_list[-1] - cvar_list[0]
+        output["window_ratio"] = cvar_list[-1] / cvar_list[0]
+        output["spar_onset"] = spar_onset
+        output["spol_onset"] = spol_onset
+        output["constants"] = constants
+        output["radios"] = radios
     
     # Convert back to regular dict
     output = dict(output)
