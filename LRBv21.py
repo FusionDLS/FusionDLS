@@ -21,8 +21,7 @@ This version is for implementing density and power as a detachment front driver
 def LengFunc(y,s,kappa0,nu,Tu,cz,qpllu0,alpha,radios,S,B,Xpoint,Lfunc,qradial):
 
     qoverB,T = y
-    #set density using constant pressure assumption
-    ######>>>>>>>>>>>>>>>>>>>>>> UMM.... IT'S nuTu = 2ntTt!!! <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+    # set density using constant pressure assumption (missing factor of 2 at target due to lack of Bohm condition)
     ne = nu*Tu/T
     
     fieldValue = 0
@@ -66,20 +65,16 @@ def LengFunc(y,s,kappa0,nu,Tu,cz,qpllu0,alpha,radios,S,B,Xpoint,Lfunc,qradial):
 
 def LRBv21(constants,radios,d,SparRange, 
                              control_variable = "impurity_frac",
-                             dynamic_grid = False,
-                             dynamic_grid_res = 1000,
                              verbosity = 0, Ctol = 1e-3, Ttol = 1e-2, 
-                             acceleration = 0, URF = 1,
+                             URF = 1,
                              timeout = 20):
     """ function that returns the impurity fraction required for a given temperature at the target. Can request a low temperature at a given position to mimick a detachment front at that position.
     constants: dict of options
     radios: dict of options
     indexRange: array of S indices of the parallel front locations to solve for
     control_variable: either impurity_frac, density or power
-    dynamic_grid: WIP - DOESNT WORK - refines grid between front location and Xpoint to uniformly spaced in Spar as per dynamic_grid_res
     Ctol: error tolerance target for the inner loop (i.e. density/impurity/heat flux)
     Ttol: error tolerance target for the outer loop (i.e. rerrunning until Tu convergence)
-    acceleration: makes bisection method faster for the inner loop by pre-centering bounds. Do not use. No benefit and makes it unstable.
     URF: under-relaxation factor for temperature. If URF is 0.2, Tu_new = Tu_old*0.8 + Tu_calculated*0.2. Always set to 1.
     Timeout: controls timeout for all three loops within the code. Each has different message on timeout. Default 20
     
@@ -87,8 +82,6 @@ def LRBv21(constants,radios,d,SparRange,
     
     # Initialise variables
     t0 = timer()
-    C = []
-    radfraction = []
     splot = []
     error1 = 1
     error0 = 1
@@ -117,7 +110,7 @@ def LRBv21(constants,radios,d,SparRange,
     indexRange = [np.argmin(abs(d["S"] - x)) for x in SparRange] # Indices of topology arrays to solve code at
 
     # Initialise arrays for storing cooling curve data
-    Tcool = np.linspace(0.3,500,1000)#should be this for Ar? Ryoko 20201209 --> almost no effect
+    Tcool = np.linspace(0.3,500,1000)
     Lalpha = []
     for dT in Tcool:
         Lalpha.append(Lfunc(dT))
@@ -188,9 +181,6 @@ def LRBv21(constants,radios,d,SparRange,
     """------SOLVE------"""
 
     for point in indexRange: # For each detachment front location:
-        if dynamic_grid == True: # WIP DO NOT USE.
-        # Rescale grid for arbitrary resolution between front and Xpoint
-            S, Spol, Xpoint = make_dynamic_grid(S, Spol, Xpoint, dynamic_grid_res, point)
             
         print("{}...".format(point), end="")    
         
@@ -258,7 +248,6 @@ def LRBv21(constants,radios,d,SparRange,
             
             # Initialise
             out = iterate(cvar, Tu)
-            reverse_search = False
             if verbosity > 1:
                 print("\ncvar: {:.3E}, error1: {:.3E}".format(cvar, out["error1"]))
 
@@ -273,16 +262,10 @@ def LRBv21(constants,radios,d,SparRange,
             for k1 in range(timeout*2):
                 
                 if out["error1"] > 0:
-                    if reverse_search:
-                        cvar = cvar * 2
-                    else:
-                        cvar = cvar / 2
+                    cvar = cvar / 2
                         
                 elif out["error1"] < 0:
-                    if reverse_search:
-                        cvar = cvar / 2
-                    else:
-                        cvar = cvar * 2
+                    cvar = cvar * 2
 
                 out = iterate(cvar, Tu)
 
@@ -301,10 +284,7 @@ def LRBv21(constants,radios,d,SparRange,
                     
                 if k1 == timeout - 1:
                     print("******INITIAL BOUNDING TIMEOUT! Failed. Set verbosity = 3 if you want to diagnose.*******")
-                    # print(f"qpllu0: {out['qpllu0']} | qpllu1: {out['qpllu1']}")
-                    # cvar = log["cvar"][0]
-                    # reverse_search = True
-                    # sys.exit()
+
 
             if cvar < 1e-6 and control_variable == "impurity_fraction":
                 print("*****REQUIRED IMPURITY FRACTION IS NEAR ZERO*******")
@@ -314,29 +294,6 @@ def LRBv21(constants,radios,d,SparRange,
             # are on either side of the solution
             lower_bound = min(log["cvar"][-1], log["cvar"][-2])
             upper_bound = max(log["cvar"][-1], log["cvar"][-2])
-
-            lower_error = log["error1"][log["cvar"].index(lower_bound)+1]
-            upper_error = log["error1"][log["cvar"].index(upper_bound)+1]
-
-            # The solution often ends up very near one bound, meaning the other is far away
-            # We can pre-narrow this band by x halvings where x = acceleration
-            # This can make the bound miss the solution and timeout.
-            # ***This is no longer recommended to use***
-            if acceleration > 0: 
-
-                if verbosity > 1:
-                    print("Bounds centering enabled, set to {} iterations".format(acceleration))
-                    print("-->Before centering: {:.3E}-{:.3E}".format(lower_bound, upper_bound))
-
-                if abs(upper_error/lower_error) > 10:
-                    for k in range(acceleration):
-                        upper_bound -= (upper_bound-lower_bound)/2
-                elif abs(upper_error/lower_error) < 0.1:
-                    for k in range(acceleration):
-                        lower_bound += (upper_bound-lower_bound)/2
-
-                if verbosity > 1:
-                    print("-->After centering: {:.3E}-{:.3E}".format(lower_bound, upper_bound))
 
 
             """------INNER LOOP------"""
@@ -364,7 +321,7 @@ def LRBv21(constants,radios,d,SparRange,
                     break
 
                 if k2 == timeout - 1:
-                    print("******INNER LOOP TIMEOUT! Reduce acceleration factor or loosen Ctol. Set verbosity = 2!*******")
+                    print("******INNER LOOP TIMEOUT!*******")
                     #sys.exit()
                     
             # Calculate the new Tu by mixing new value with old one by factor URF (Under-relaxation factor)
@@ -480,46 +437,3 @@ def LRBv21(constants,radios,d,SparRange,
     print("Complete in {:.1f} seconds".format(t1-t0))
         
     return output
-
-def make_dynamic_grid(S, Spol, Xpoint, res, front_index):
-    """
-    WIP - DO NOT USE.
-    
-    Scales the grid (S, Spol, Btot, Bpol) to provide a uniformly distributed
-    resolution res between the front location and the Xpoint.
-    Inputs: 
-    d: grid data dict with d["S"], d["Spol"], d["Bpol"], d["Btot"], d["Xpoint"]
-    res: desired number of points in the hi res region
-    front_index: index of front location in the input grid
-    Outputs:
-    d2: like d but scaled
-    """
-    d = dict()
-    d["S"] = S
-    d["Spol"] = Spol
-    # Xpoint = int(Xpoint)
-    Spolx = Spol[Xpoint]
-    Sx = S[Xpoint]
-
-    # UP TO IS EXCLUSIVE. FROM IS INCLUSIVE
-    below = dict(); front = dict(); above = dict()
-    print("HERE",Xpoint)
-    for param in ["S", "Spol"]:
-        below[param] = d[param][:front_index]
-        front[param] = d[param][front_index:Xpoint+1]
-        above[param] = d[param][Xpoint+1:]
-
-    new_front = dict()
-    new_front["S"] = np.linspace(front["S"][0], front["S"][-1], res)
-
-    d2 = dict()
-    for param in ["S", "Spol"]:
-        interp = interpolate.interp1d(front["S"], front[param], kind = "cubic")
-
-        new_front[param] = interp(new_front["S"])
-        d2[param] = np.concatenate([below[param], new_front[param], above[param]])
-
-    d2["S"] = np.concatenate([below["S"], new_front["S"], above["S"]])
-    d2["Xpoint"] = len(below["S"]) + len(new_front["S"]) -1
-    
-    return d2["S"], d2["Spol"], d2["Xpoint"]
