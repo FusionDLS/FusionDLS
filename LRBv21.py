@@ -63,6 +63,19 @@ def LengFunc(y,s,kappa0,nu,Tu,cz,qpllu0,alpha,radios,S,B,Xpoint,Lfunc,qradial):
     return [dqoverBds,dtds]
 
 
+class State():
+    """
+    This class represents the simulation state and contains all the variables and data 
+    needed to run the simulation. The state is passed around different functions, which 
+    allows more of the algorithm to be abstracted away from the main function.
+    """
+    def __init__(self, **kwargs):
+        self.__dict__.update(kwargs)
+
+    # Will return this if called as string
+    def __repr__(self):
+        return str(self.__dict__)
+
 def LRBv21(constants,radios,d,SparRange, 
                              control_variable = "impurity_frac",
                              verbosity = 0, Ctol = 1e-3, Ttol = 1e-2, 
@@ -212,27 +225,16 @@ def LRBv21(constants,radios,d,SparRange,
         Lint = cumtrapz(Lz[1]*np.sqrt(Lz[0]),Lz[0],initial = 0)
         integralinterp = interpolate.interp1d(Lz[0],Lint)
 
-        # Guesses/initialisations for control variables
+        # Guesses/initialisations for control variables assuming qpll0 everywhere and qpll=0 at target
         if control_variable == "impurity_frac":
-            # Initial guess of cz0 assuming qpll0 everywhere and qpll=0 at target
-            # Initialise control variable as the impurity fraction guess
             cz0_guess = (qpllu0**2 )/(2*kappa0*nu0**2*Tu**2*integralinterp(Tu))
             cvar = cz0_guess
-            
         elif control_variable == "density":
-            # Initialise control variable as the starting density
-            # Impurity fraction is set to constant as cz0
-            cvar = nu0
-        
+            cvar = nu0       
         elif control_variable == "power":
-            # If control variable = Power, keep nu0 and cz0 constant
-            # Initialise control variable 1/qradial. This is needed so that
-            # too high a cvar results in a positive error!
             cvar = 1/qradial #qpllu0
             
-        # Initial guess of qpllt, typically 0. This is a guess for q at the virtual
-        # target (cold end of front). It is a very rough approximation since we are assuming
-        # a sheath transmission coefficient (gamma) of a real target.
+        # Initial guess of qpllt, the virtual target temperature (typically 0). 
         qpllt = gamma_sheath/2*nu0*Tu*echarge*np.sqrt(2*Tt*echarge/mi)
         
         
@@ -253,8 +255,7 @@ def LRBv21(constants,radios,d,SparRange,
 
             """------INITIAL SOLUTION BOUNDING------"""
 
-            # We are either doubling or halving cvar until the error flips sign
-            # Reverse search is a WIP: activate if you find a case where the guess vs. error relationship is negative
+            # Double or halve cvar until the error flips sign
             log["cvar"].append(cvar)
             log["error1"].append(out["error1"])
             log["qpllu1"].append(out["qpllu1"])
@@ -387,10 +388,7 @@ def LRBv21(constants,radios,d,SparRange,
     splot = output["Splot"]
     spolplot = output["SpolPlot"]
     
-    # Below code finds the first stable detachment solution - useful if dealing with inner divertor leg
-    # which may have an unstable region. It returns cvar and crel trim which exclude unstable values for plotting purposes.
-    
-    # Trim negative gradient
+    # Trim any unstable detachment (negative gradient) region for post-processing reasons 
     crel_list_trim = crel_list.copy()
     cvar_list_trim = cvar_list.copy()
 
