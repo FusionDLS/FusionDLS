@@ -22,11 +22,30 @@ class SimulationState():
     """
     def __init__(self, si):
         
+        self.si = si   # Add input object to state
+        
         # Initialise log: one per front position index
         self.log = {}
         for i in si.indexRange:
             self.log[i] = defaultdict(list)
     
+    ## Update primary log
+    def update_log(self):
+        for param in ["error0", "error1", "cvar", "qpllu1", "Tu", "lower_bound", "upper_bound"]:
+            self.log[self.point][param].append(self.get(param))
+            
+        l = self.log[self.point]
+        
+        
+        if self.si.verbosity >= 2:
+            
+            if len(l["error0"]) == 1:   # Print header on first iteration
+                print(f"\n\n Solving at index {self.point}")
+                print("--------------------------------")
+                    
+            print("error0: {:.3E}, Tu: {:.2f}, error1: {:.3E}, cvar: {:.3E}, lower_bound: {:.3E}, upper_bound: {:.3E}".format(
+                l["error0"][-1], l["Tu"][-1], l["error1"][-1], l["cvar"][-1], l["lower_bound"][-1], l["upper_bound"][-1]))
+            
     # Update many variables
     def update(self, **kwargs):
             self.__dict__.update(kwargs)
@@ -38,11 +57,6 @@ class SimulationState():
     # Return parameter from state
     def get(self, param):
         return self.__dict__[param]
-    
-    ## Update primary log
-    def update_log(self):
-        for param in ["error0", "error1", "cvar", "qpllu1", "Tu"]:
-            self.log[self.point][param].append(self.get(param))
     
 class SimulationInputs():
     """
@@ -117,6 +131,8 @@ def LRBv21(constants,radios,d,SparRange,
     st.error1 = 1
     st.error0 = 1
     st.qpllu1 = 0
+    st.lower_bound = 0
+    st.upper_bound = 0
     output = defaultdict(list)
 
     # Initialise arrays for storing cooling curve data
@@ -141,9 +157,6 @@ def LRBv21(constants,radios,d,SparRange,
         st.point = point
             
         print("{}...".format(point), end="")    
-        
-        if si.verbosity > 0:
-            print("\n---SOLVING FOR INDEX {}".format(point))
             
         """------INITIAL GUESSES------"""
         
@@ -184,8 +197,6 @@ def LRBv21(constants,radios,d,SparRange,
         
         
         """------INITIALISATION------"""
-        # st.log = defaultdict(list)
-
         st.error1 = 1 # Inner loop error (error in qpllu based on provided cz/ne)
         st.error0 = 1 # Outer loop residual in upstream temperature
         st.update_log()
@@ -195,8 +206,6 @@ def LRBv21(constants,radios,d,SparRange,
             
             # Initialise
             st = iterate(si, st)
-            if si.verbosity > 1:
-                print("\ncvar: {:.3E}, error1: {:.3E}".format(st.cvar, st.error1))
 
             """------INITIAL SOLUTION BOUNDING------"""
 
@@ -205,33 +214,23 @@ def LRBv21(constants,radios,d,SparRange,
                 
                 if st.error1 > 0:
                     st.cvar = st.cvar / 2
-                        
                 elif st.error1 < 0:
                     st.cvar = st.cvar * 2
 
                 st = iterate(si, st)
 
-                if si.verbosity > 1:
-                    print("cvar: {:.3E}, error1: {:.3E}".format(st.cvar, st.error1))
-    
-                if si.verbosity > 2:
-                    print("Last error: {:.3E}, New error: {:.3E}".format(st.log[point]["error1"][k1+1], st.log[point]["error1"][k1+2]))
-
                 if np.sign(st.log[point]["error1"][k1+1]) != np.sign(st.log[point]["error1"][k1+2]): # It's initialised with a 1 already, hence k1+1 and k1+2
                     break
                     
-                if k1 == si.timeout - 1:
-                    print("******INITIAL BOUNDING TIMEOUT! Failed. Set verbosity = 3 if you want to diagnose.*******")
+                if k1 == si.timeout - 1: raise Exception("Initial bounding failed")
+                
+            if st.cvar < 1e-6 and si.control_variable == "impurity_fraction": raise Exception("Required impurity fraction is tending to zero")
 
-
-            if st.cvar < 1e-6 and si.control_variable == "impurity_fraction":
-                print("*****REQUIRED IMPURITY FRACTION IS NEAR ZERO*******")
-                #sys.exit()
                 
             # We have bounded the problem -  the last two iterations
             # are on either side of the solution
-            lower_bound = min(st.log[point]["cvar"][-1], st.log[point]["cvar"][-2])
-            upper_bound = max(st.log[point]["cvar"][-1], st.log[point]["cvar"][-2])
+            st.lower_bound = min(st.log[point]["cvar"][-1], st.log[point]["cvar"][-2])
+            st.upper_bound = max(st.log[point]["cvar"][-1], st.log[point]["cvar"][-2])
 
 
             """------INNER LOOP------"""
@@ -239,50 +238,32 @@ def LRBv21(constants,radios,d,SparRange,
             for k2 in range(si.timeout):
 
                 # New cvar guess is halfway between the upper and lower bound.
-                st.cvar = lower_bound + (upper_bound-lower_bound)/2
+                st.cvar = st.lower_bound + (st.upper_bound-st.lower_bound)/2
                 st = iterate(si, st)
 
                 # Narrow bounds based on the results.
                 if st.error1 < 0:
-                    lower_bound = st.cvar
+                    st.lower_bound = st.cvar
                 elif st.error1 > 0:
-                    upper_bound = st.cvar
+                    st.upper_bound = st.cvar
 
-                if si.verbosity > 1:
-                    print(">Bounds: {:.3E}-{:.3E}, cvar: {:.3E}, error1: {:.3E}".format(
-                        lower_bound, upper_bound, st.cvar, st.error1))
-
+                # Break on success
                 if abs(st.error1) < si.Ctol:
                     break
 
-                if k2 == si.timeout - 1:
-                    print("******INNER LOOP TIMEOUT!*******")
-                    #sys.exit()
+                if k2 == si.timeout - 1: raise Exception("Failed to converge control variable loop")
                     
+            """------OUTER LOOP------"""
             # Calculate the new Tu by mixing new value with old one by factor URF (Under-relaxation factor)
             st.Tu = (1-si.URF)*st.Tu + si.URF*st.Tucalc
-            st.error0 = (st.Tu-st.Tucalc)/st.Tu
-            
-            if si.verbosity > 0 :
-                print("-----------error0: {:.3E}, Tu: {:.2f}, Tucalc: {:.2f}".format(st.error0, st.Tu, st.Tucalc))
-                
+            st.error0 = (st.Tu-st.Tucalc)/st.Tu                
             st.update_log()
-            
-            # Not sure if this Q serves any function
-            Q = []
-            for Tf in st.T:
-                try:
-                    Q.append(si.Lfunc(Tf))
-                except:
-                    print(f"FAILED TO QUERY COOLING CURVE for a temperature of {Tf:.3E}!")
-                    break
                 
+            # Break on outer (temp) loop success
             if abs(st.error0) < si.Ttol:
                 break
 
-            if k0 == si.timeout - 1:
-                print("******OUTER TIMEOUT! Loosen Ttol or reduce under-relaxation factor. Set verbosity = 2!*******")
-                #sys.exit()
+            if k0 == si.timeout - 1: raise Exception("Failed to converge temperature loop")
 
             
         """------COLLECT PROFILE DATA------"""
