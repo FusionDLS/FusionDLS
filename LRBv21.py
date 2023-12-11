@@ -114,7 +114,7 @@ def LRBv21(constants,radios,d,SparRange,
     """
     # Initialise simulation state
     st = SimulationState()
-    si = SimulationInputs
+    si = SimulationInputs()
     
     # Initialise state
     t0 = timer()
@@ -124,39 +124,45 @@ def LRBv21(constants,radios,d,SparRange,
     output = defaultdict(list)
 
     # Lay out constants
-    gamma_sheath = constants["gamma_sheath"]
-    qpllu0 = constants["qpllu0"]
-    nu0 = constants["nu0"]
-    cz0 = constants["cz0"]
-    Tt = constants["Tt"]
-    Lfunc = constants["Lfunc"]
-    alpha = constants["alpha"]
+    si.gamma_sheath = constants["gamma_sheath"]
+    si.qpllu0 = constants["qpllu0"]
+    si.nu0 = constants["nu0"]
+    si.cz0 = constants["cz0"]
+    si.Tt = constants["Tt"]
+    si.Lfunc = constants["Lfunc"]
+    si.alpha = constants["alpha"]
+    si.verbosity = verbosity
+    si.Ctol = Ctol
+    si.Ttol = Ttol
+    si.URF = URF
+    si.timeout = timeout
+    si.radios = radios
     
     # Physics constants
-    kappa0 = 2500 # Electron conductivity
-    mi = 3*10**(-27) # Ion mass
-    echarge = 1.60*10**(-19) # Electron charge
+    si.kappa0 = 2500 # Electron conductivity
+    si.mi = 3*10**(-27) # Ion mass
+    si.echarge = 1.60*10**(-19) # Electron charge
     
     # Extract topology data
-    Xpoint = d["Xpoint"]
-    S = d["S"]
-    Spol = d["Spol"]
-    Btot = d["Btot"]
-    B = interpolate.interp1d(S, Btot, kind = "cubic")
-    indexRange = [np.argmin(abs(d["S"] - x)) for x in SparRange] # Indices of topology arrays to solve code at
+    si.Xpoint = d["Xpoint"]
+    si.S = d["S"]
+    si.Spol = d["Spol"]
+    si.Btot = d["Btot"]
+    si.B = interpolate.interp1d(si.S, si.Btot, kind = "cubic")
+    si.indexRange = [np.argmin(abs(d["S"] - x)) for x in SparRange] # Indices of topology arrays to solve code at
 
     # Initialise arrays for storing cooling curve data
     Tcool = np.linspace(0.3,500,1000)
     Lalpha = []
     for dT in Tcool:
-        Lalpha.append(Lfunc(dT))
+        Lalpha.append(si.Lfunc(dT))
     Lalpha = np.array(Lalpha)
     Tcool = np.append(0,Tcool)
     Lalpha = np.append(0,Lalpha)
-    Lz = [Tcool,Lalpha]
+    si.Lz = [Tcool,Lalpha]
     
     # Calculation of radial heat transfer needed to achieve correct qpllu0 at Xpoint
-    st.qradial = qpllu0/np.abs(S[-1]-S[Xpoint])
+    st.qradial = si.qpllu0/np.abs(si.S[-1]-si.S[si.Xpoint])
 
     print("Solving...", end = "")
     
@@ -168,27 +174,27 @@ def LRBv21(constants,radios,d,SparRange,
     def iterate(cvar, Tu):
         if control_variable == "impurity_frac":
             st.cz = st.cvar
-            st.nu = nu0
+            st.nu = si.nu0
 
         elif control_variable == "density":
-            st.cz = cz0
+            st.cz = si.cz0
             st.nu = st.cvar
    
-        Btot = [B(x) for x in S]
-        st.qradial = qpllu0/ np.trapz(Btot[Xpoint:] / Btot[Xpoint], x = S[Xpoint:])
+        si.Btot = [si.B(x) for x in si.S]
+        st.qradial = si.qpllu0/ np.trapz(si.Btot[si.Xpoint:] / si.Btot[si.Xpoint], x = si.S[si.Xpoint:])
             
         if control_variable == "power":
-            st.cz = cz0
-            st.nu = nu0
+            st.cz = si.cz0
+            st.nu = si.nu0
             st.qradial = 1/st.cvar # This is needed so that too high a cvar gives positive error            
 
-        if verbosity>2:
-            print(f"qpllu0: {qpllu0:.3E} | nu: {st.nu:.3E} | Tu: {st.Tu:.1f} | cz: {st.cz:.3E} | cvar: {st.cvar:.2E}", end = "")
+        if si.verbosity>2:
+            print(f"qpllu0: {si.qpllu0:.3E} | nu: {st.nu:.3E} | Tu: {st.Tu:.1f} | cz: {st.cz:.3E} | cvar: {st.cvar:.2E}", end = "")
 
-        result = odeint(LengFunc,y0=[qpllt/B(s[0]),Tt],t=s,args=(kappa0,st.nu,st.Tu,st.cz,qpllu0,alpha,radios,S,B,Xpoint,Lfunc,st.qradial))
+        result = odeint(LengFunc,y0=[qpllt/si.B(s[0]),si.Tt],t=s,args=(si.kappa0,st.nu,st.Tu,st.cz,si.qpllu0,si.alpha,si.radios,si.S,si.B,si.Xpoint,si.Lfunc,st.qradial))
         out = dict()
         # Result returns integrals of [dqoverBds, dtds]
-        out["q"] = result[:,0]*B(s)
+        out["q"] = result[:,0]*si.B(s)
         out["T"] = result[:,1]
         out["Tu"] = out["T"][-1]
         st.Tucalc = out["Tu"]
@@ -204,61 +210,61 @@ def LRBv21(constants,radios,d,SparRange,
         qpllu1 = out["qpllu1"]
         # If upstream grid, qpllu1 is at the midplane and is solved until it's 0. It then gets radial transport
         # so that the xpoint Q is qpllu0. If uypstramGrid=False, qpllu1 is solved to match qpllu0 at the Xpoint.
-        if radios["upstreamGrid"]:
-            out["error1"] = (out["qpllu1"]-0)/qpllu0 
+        if si.radios["upstreamGrid"]:
+            out["error1"] = (out["qpllu1"]-0)/si.qpllu0 
         else:
-            out["error1"] = (out["qpllu1"]-qpllu0)/qpllu0
+            out["error1"] = (out["qpllu1"]-si.qpllu0)/si.qpllu0
 
-        if verbosity > 2:
+        if si.verbosity > 2:
             print(f" -> qpllu1: {qpllu1:.3E} | Tucalc: {st.Tucalc:.1f} | error1: {out['error1']:.3E}")
 
         return out
     
     """------SOLVE------"""
 
-    for point in indexRange: # For each detachment front location:
+    for point in si.indexRange: # For each detachment front location:
             
         print("{}...".format(point), end="")    
         
-        if verbosity > 0:
+        if si.verbosity > 0:
             print("\n---SOLVING FOR INDEX {}".format(point))
             
         """------INITIAL GUESSES------"""
         
         # Current set of parallel position coordinates
-        s = S[point:]
-        output["Splot"].append(S[point])
-        output["SpolPlot"].append(Spol[point])
+        s = si.S[point:]
+        output["Splot"].append(si.S[point])
+        output["SpolPlot"].append(si.Spol[point])
 
         # Inital guess for the value of qpll integrated across connection length
         qavLguess = 0
-        if radios["upstreamGrid"]:
-            if s[0] < S[Xpoint]:
-                qavLguess = ((qpllu0)*(S[Xpoint]-s[0]) + (qpllu0/2)*(s[-1]-S[Xpoint]))/(s[-1]-S[0])
+        if si.radios["upstreamGrid"]:
+            if s[0] < si.S[si.Xpoint]:
+                qavLguess = ((si.qpllu0)*(si.S[si.Xpoint]-s[0]) + (si.qpllu0/2)*(s[-1]-si.S[si.Xpoint]))/(s[-1]-si.S[0])
             else:
-                qavLguess = (qpllu0/2)
+                qavLguess = (si.qpllu0/2)
         else:
-            qavLguess = (qpllu0)
+            qavLguess = (si.qpllu0)
 
         # Inital guess for upstream temperature based on guess of qpll ds integral
-        Tu0 = ((7/2)*qavLguess*(s[-1]-s[0])/kappa0)**(2/7)
+        Tu0 = ((7/2)*qavLguess*(s[-1]-s[0])/si.kappa0)**(2/7)
         st.Tu = Tu0
                                     
         # Cooling curve integral
-        Lint = cumtrapz(Lz[1]*np.sqrt(Lz[0]),Lz[0],initial = 0)
-        integralinterp = interpolate.interp1d(Lz[0],Lint)
+        Lint = cumtrapz(si.Lz[1]*np.sqrt(si.Lz[0]),si.Lz[0],initial = 0)
+        integralinterp = interpolate.interp1d(si.Lz[0],Lint)
 
         # Guesses/initialisations for control variables assuming qpll0 everywhere and qpll=0 at target
         if control_variable == "impurity_frac":
-            cz0_guess = (qpllu0**2 )/(2*kappa0*nu0**2*st.Tu**2*integralinterp(st.Tu))
+            cz0_guess = (si.qpllu0**2 )/(2*si.kappa0*si.nu0**2*st.Tu**2*integralinterp(st.Tu))
             st.cvar = cz0_guess
         elif control_variable == "density":
-            st.cvar = nu0       
+            st.cvar = si.nu0       
         elif control_variable == "power":
             st.cvar = 1/st.qradial #qpllu0
             
         # Initial guess of qpllt, the virtual target temperature (typically 0). 
-        qpllt = gamma_sheath/2*nu0*st.Tu*echarge*np.sqrt(2*Tt*echarge/mi)
+        qpllt = si.gamma_sheath/2*si.nu0*st.Tu*si.echarge*np.sqrt(2*si.Tt*si.echarge/si.mi)
         
         
         """------INITIALISATION------"""
@@ -269,11 +275,11 @@ def LRBv21(constants,radios,d,SparRange,
         log["error1"].append(st.error1)
         
         # Tu convergence loop
-        for k0 in range(timeout):
+        for k0 in range(si.timeout):
             
             # Initialise
             out = iterate(st.cvar, st.Tu)
-            if verbosity > 1:
+            if si.verbosity > 1:
                 print("\ncvar: {:.3E}, error1: {:.3E}".format(st.cvar, out["error1"]))
 
             """------INITIAL SOLUTION BOUNDING------"""
@@ -283,7 +289,7 @@ def LRBv21(constants,radios,d,SparRange,
             log["error1"].append(out["error1"])
             log["qpllu1"].append(out["qpllu1"])
             
-            for k1 in range(timeout*2):
+            for k1 in range(si.timeout*2):
                 
                 if out["error1"] > 0:
                     st.cvar = st.cvar / 2
@@ -297,16 +303,16 @@ def LRBv21(constants,radios,d,SparRange,
                 log["error1"].append(out["error1"])
                 log["qpllu1"].append(out["qpllu1"])
 
-                if verbosity > 1:
+                if si.verbosity > 1:
                     print("cvar: {:.3E}, error1: {:.3E}".format(st.cvar, out["error1"]))
     
-                if verbosity > 2:
+                if si.verbosity > 2:
                     print("Last error: {:.3E}, New error: {:.3E}".format(log["error1"][k1+1], log["error1"][k1+2]))
 
                 if np.sign(log["error1"][k1+1]) != np.sign(log["error1"][k1+2]): # It's initialised with a 1 already, hence k1+1 and k1+2
                     break
                     
-                if k1 == timeout - 1:
+                if k1 == si.timeout - 1:
                     print("******INITIAL BOUNDING TIMEOUT! Failed. Set verbosity = 3 if you want to diagnose.*******")
 
 
@@ -322,7 +328,7 @@ def LRBv21(constants,radios,d,SparRange,
 
             """------INNER LOOP------"""
 
-            for k2 in range(timeout):
+            for k2 in range(si.timeout):
 
                 # New cvar guess is halfway between the upper and lower bound.
                 st.cvar = lower_bound + (upper_bound-lower_bound)/2
@@ -337,23 +343,23 @@ def LRBv21(constants,radios,d,SparRange,
                 elif out["error1"] > 0:
                     upper_bound = st.cvar
 
-                if verbosity > 1:
+                if si.verbosity > 1:
                     print(">Bounds: {:.3E}-{:.3E}, cvar: {:.3E}, error1: {:.3E}".format(
                         lower_bound, upper_bound, st.cvar, out["error1"]))
 
-                if abs(out["error1"]) < Ctol:
+                if abs(out["error1"]) < si.Ctol:
                     break
 
-                if k2 == timeout - 1:
+                if k2 == si.timeout - 1:
                     print("******INNER LOOP TIMEOUT!*******")
                     #sys.exit()
                     
             # Calculate the new Tu by mixing new value with old one by factor URF (Under-relaxation factor)
             st.Tucalc = out["Tu"]
-            st.Tu = (1-URF)*st.Tu + URF*st.Tucalc
+            st.Tu = (1-si.URF)*st.Tu + si.URF*st.Tucalc
             st.error0 = (st.Tu-st.Tucalc)/st.Tu
             
-            if verbosity > 0 :
+            if si.verbosity > 0 :
                 print("-----------error0: {:.3E}, Tu: {:.2f}, Tucalc: {:.2f}".format(st.error0, st.Tu, st.Tucalc))
                 
             
@@ -364,15 +370,15 @@ def LRBv21(constants,radios,d,SparRange,
             Q = []
             for Tf in out["T"]:
                 try:
-                    Q.append(Lfunc(Tf))
+                    Q.append(si.Lfunc(Tf))
                 except:
                     print(f"FAILED TO QUERY COOLING CURVE for a temperature of {Tf:.3E}!")
                     break
                 
-            if abs(st.error0) < Ttol:
+            if abs(st.error0) < si.Ttol:
                 break
 
-            if k0 == timeout - 1:
+            if k0 == si.timeout - 1:
                 print("******OUTER TIMEOUT! Loosen Ttol or reduce under-relaxation factor. Set verbosity = 2!*******")
                 #sys.exit()
 
@@ -391,11 +397,11 @@ def LRBv21(constants,radios,d,SparRange,
         Qrad = []
         for Tf in out["T"]:
             if control_variable == "impurity_frac":
-                Qrad.append(((nu0**2*st.Tu**2)/Tf**2)*st.cvar*Lfunc(Tf))
+                Qrad.append(((si.nu0**2*st.Tu**2)/Tf**2)*st.cvar*si.Lfunc(Tf))
             elif control_variable == "density":
-                Qrad.append(((st.cvar**2*st.Tu**2)/Tf**2)*cz0*Lfunc(Tf))
+                Qrad.append(((st.cvar**2*st.Tu**2)/Tf**2)*si.cz0*si.Lfunc(Tf))
             elif control_variable == "power":
-                Qrad.append(((nu0**2*st.Tu**2)/Tf**2)*cz0*Lfunc(Tf))
+                Qrad.append(((si.nu0**2*st.Tu**2)/Tf**2)*si.cz0*si.Lfunc(Tf))
             
         output["Rprofiles"].append(Qrad)
         output["logs"].append(log)
@@ -438,7 +444,7 @@ def LRBv21(constants,radios,d,SparRange,
                 
     # Pack things into the output dictionary.
     output["splot"] = splot
-    output["indexRange"] = indexRange    
+    output["indexRange"] = si.indexRange    
     output["cvar"] = cvar_list
     output["crel"] = crel_list
     output["cvar_trim"] = cvar_list_trim
@@ -449,7 +455,7 @@ def LRBv21(constants,radios,d,SparRange,
     output["spar_onset"] = spar_onset
     output["spol_onset"] = spol_onset
     output["constants"] = constants
-    output["radios"] = radios
+    output["radios"] = si.radios
     
     # Convert back to regular dict
     output = dict(output)
