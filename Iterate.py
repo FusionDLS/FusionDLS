@@ -1,18 +1,9 @@
-from scipy.optimize import fsolve
 import numpy as np
-import matplotlib.pyplot as plt
-from scipy.integrate import quad,trapz, cumtrapz, odeint, solve_ivp
-from scipy import interpolate
+from scipy.integrate import odeint
 from unpackConfigurationsMK import *
-from matplotlib.collections import LineCollection
-import multiprocessing as mp
-from collections import defaultdict
-from timeit import default_timer as timer
-import pandas as pd
-import sys
 
-#Function to integrate, that returns dq/ds and dt/ds using Lengyel formulation and field line conduction
-# def LengFunc(y,s,kappa0,nu,Tu,cz,qpllu0,alpha,radios,S,B,Xpoint,Lfunc,qradial):
+
+
 def LengFunc(y, s, si, st):
     """
     Lengyel function. 
@@ -80,10 +71,7 @@ def LengFunc(y, s, si, st):
     #return gradient of q and T
     return [dqoverBds,dtds]
 
-"""------ITERATOR FUNCTION------"""
-# Define iterator function. This just solves the Lengyel function and unpacks the results.
-# It must be defined here and not outside of the main function because it depends on many global
-# variables.
+
     
 def iterate(si, st):
     """
@@ -137,14 +125,14 @@ def iterate(si, st):
                     args = (si, st)
                     )
     out = dict()
-    # Result returns integrals of [dqoverBds, dtds]
+    
+    # Update state with results
     st.q = result[:,0]*si.B(st.s)     # q profile
     st.T = result[:,1]                # Temp profile
     st.Tucalc = st.T[-1]              # Upstream temperature. becomes st.Tu in outer loop
 
-    # Sometimes we get some negative q but ODEINT breaks down and makes upstream end positive.
-    # If there are any negative values in the array, set the upstream q to the lowest value of q in array.
-    # The algorithm will then know that it needs to go the other way
+    # Set qpllu1 to lowest q value in array. 
+    # Prevents unphysical results when ODEINT bugs causing negative q in middle but still positive q at end, fooling solver to go in wrong direction
     if len(st.q[st.q<0]) > 0:
         st.qpllu1 = np.min(st.q) # minimum q
     else:
@@ -159,5 +147,7 @@ def iterate(si, st):
 
     if si.verbosity > 2:
         print(f" -> qpllu1: {st.qpllu1:.3E} | Tucalc: {st.Tucalc:.1f} | error1: {st.error1:.3E}")
+        
+    st.update_log()
 
     return st
