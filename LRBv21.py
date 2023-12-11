@@ -20,8 +20,12 @@ class SimulationState():
     needed to run the simulation. The state is passed around different functions, which 
     allows more of the algorithm to be abstracted away from the main function.
     """
-    def __init__(self):
-        pass
+    def __init__(self, si):
+        
+        # Initialise log: one per front position index
+        self.log = {}
+        for i in si.indexRange:
+            self.log[i] = defaultdict(list)
     
     # Update many variables
     def update(self, **kwargs):
@@ -30,6 +34,15 @@ class SimulationState():
     # Will return this if called as string
     def __repr__(self):
         return str(self.__dict__)
+    
+    # Return parameter from state
+    def get(self, param):
+        return self.__dict__[param]
+    
+    ## Update primary log
+    def update_log(self):
+        for param in ["error0", "error1", "cvar", "qpllu1", "Tu"]:
+            self.log[self.point][param].append(self.get(param))
     
 class SimulationInputs():
     """
@@ -63,17 +76,9 @@ def LRBv21(constants,radios,d,SparRange,
     Timeout: controls timeout for all three loops within the code. Each has different message on timeout. Default 20
     
     """
-    # Initialise simulation state
-    st = SimulationState()
+    # Initialise simulation inputs object
     si = SimulationInputs()
     
-    # Initialise state
-    t0 = timer()
-    splot = []
-    st.error1 = 1
-    st.error0 = 1
-    output = defaultdict(list)
-
     # Lay out constants
     si.gamma_sheath = constants["gamma_sheath"]
     si.qpllu0 = constants["qpllu0"]
@@ -101,7 +106,18 @@ def LRBv21(constants,radios,d,SparRange,
     si.Spol = d["Spol"]
     si.Btot = d["Btot"]
     si.B = interpolate.interp1d(si.S, si.Btot, kind = "cubic")
+    si.SparRange = SparRange
     si.indexRange = [np.argmin(abs(d["S"] - x)) for x in SparRange] # Indices of topology arrays to solve code at
+    
+    # Initialise simulation state object
+    st = SimulationState(si)
+    
+    t0 = timer()
+    splot = []
+    st.error1 = 1
+    st.error0 = 1
+    st.qpllu1 = 0
+    output = defaultdict(list)
 
     # Initialise arrays for storing cooling curve data
     Tcool = np.linspace(0.3,500,1000)
@@ -122,6 +138,7 @@ def LRBv21(constants,radios,d,SparRange,
     """------SOLVE------"""
 
     for point in si.indexRange: # For each detachment front location:
+        st.point = point
             
         print("{}...".format(point), end="")    
         
@@ -167,11 +184,11 @@ def LRBv21(constants,radios,d,SparRange,
         
         
         """------INITIALISATION------"""
-        
-        log = defaultdict(list)
+        # st.log = defaultdict(list)
+
         st.error1 = 1 # Inner loop error (error in qpllu based on provided cz/ne)
         st.error0 = 1 # Outer loop residual in upstream temperature
-        log["error1"].append(st.error1)
+        st.update_log()
         
         # Tu convergence loop
         for k0 in range(si.timeout):
@@ -183,11 +200,7 @@ def LRBv21(constants,radios,d,SparRange,
 
             """------INITIAL SOLUTION BOUNDING------"""
 
-            # Double or halve cvar until the error flips sign
-            log["cvar"].append(st.cvar)
-            log["error1"].append(st.error1)
-            log["qpllu1"].append(st.qpllu1)
-            
+            # Double or halve cvar until the error flips sign           
             for k1 in range(si.timeout*2):
                 
                 if st.error1 > 0:
@@ -198,17 +211,13 @@ def LRBv21(constants,radios,d,SparRange,
 
                 st = iterate(si, st)
 
-                log["cvar"].append(st.cvar)
-                log["error1"].append(st.error1)
-                log["qpllu1"].append(st.qpllu1)
-
                 if si.verbosity > 1:
                     print("cvar: {:.3E}, error1: {:.3E}".format(st.cvar, st.error1))
     
                 if si.verbosity > 2:
-                    print("Last error: {:.3E}, New error: {:.3E}".format(log["error1"][k1+1], log["error1"][k1+2]))
+                    print("Last error: {:.3E}, New error: {:.3E}".format(st.log[point]["error1"][k1+1], st.log[point]["error1"][k1+2]))
 
-                if np.sign(log["error1"][k1+1]) != np.sign(log["error1"][k1+2]): # It's initialised with a 1 already, hence k1+1 and k1+2
+                if np.sign(st.log[point]["error1"][k1+1]) != np.sign(st.log[point]["error1"][k1+2]): # It's initialised with a 1 already, hence k1+1 and k1+2
                     break
                     
                 if k1 == si.timeout - 1:
@@ -221,8 +230,8 @@ def LRBv21(constants,radios,d,SparRange,
                 
             # We have bounded the problem -  the last two iterations
             # are on either side of the solution
-            lower_bound = min(log["cvar"][-1], log["cvar"][-2])
-            upper_bound = max(log["cvar"][-1], log["cvar"][-2])
+            lower_bound = min(st.log[point]["cvar"][-1], st.log[point]["cvar"][-2])
+            upper_bound = max(st.log[point]["cvar"][-1], st.log[point]["cvar"][-2])
 
 
             """------INNER LOOP------"""
@@ -232,9 +241,6 @@ def LRBv21(constants,radios,d,SparRange,
                 # New cvar guess is halfway between the upper and lower bound.
                 st.cvar = lower_bound + (upper_bound-lower_bound)/2
                 st = iterate(si, st)
-                log["cvar"].append(st.cvar)
-                log["error1"].append(st.error1)
-                log["qpllu1"].append(st.qpllu1)
 
                 # Narrow bounds based on the results.
                 if st.error1 < 0:
@@ -260,9 +266,7 @@ def LRBv21(constants,radios,d,SparRange,
             if si.verbosity > 0 :
                 print("-----------error0: {:.3E}, Tu: {:.2f}, Tucalc: {:.2f}".format(st.error0, st.Tu, st.Tucalc))
                 
-            
-            log["Tu"].append(st.Tu)
-            log["error0"].append(st.error0)
+            st.update_log()
             
             # Not sure if this Q serves any function
             Q = []
@@ -302,7 +306,7 @@ def LRBv21(constants,radios,d,SparRange,
                 Qrad.append(((si.nu0**2*st.Tu**2)/Tf**2)*si.cz0*si.Lfunc(Tf))
             
         output["Rprofiles"].append(Qrad)
-        output["logs"].append(log)
+        output["logs"].append(st.log)
         
     """------COLLECT RESULTS------"""
     # Here we calculate things like window, threshold etc from a whole scan.
@@ -320,20 +324,24 @@ def LRBv21(constants,radios,d,SparRange,
     cvar_list_trim = cvar_list.copy()
 
     # Find values on either side of C = 1 and interpolate onto 1 
-    for i in range(len(crel_list)-1):
-        if np.sign(crel_list[i]-1) != np.sign(crel_list[i+1]-1) and i > 0:
-
-            interp_par = interpolate.interp1d([crel_list[i], crel_list[i+1]], [splot[i], splot[i+1]])
-            interp_pol = interpolate.interp1d([crel_list[i], crel_list[i+1]], [spolplot[i], spolplot[i+1]])
-            
-            spar_onset = float(interp_par(1))
-            spol_onset = float(interp_pol(1))
-            break
-        if i == len(crel_list)-2:
-            spar_onset = 0
-            spol_onset = 0
-
     if len(crel_list)>1:
+        for i in range(len(crel_list)-1):
+            if np.sign(crel_list[i]-1) != np.sign(crel_list[i+1]-1) and i > 0:
+
+                interp_par = interpolate.interp1d([crel_list[i], crel_list[i+1]], [splot[i], splot[i+1]])
+                interp_pol = interpolate.interp1d([crel_list[i], crel_list[i+1]], [spolplot[i], spolplot[i+1]])
+                
+                spar_onset = float(interp_par(1))
+                spol_onset = float(interp_pol(1))
+                break
+            if i == len(crel_list)-2:
+                spar_onset = 0
+                spol_onset = 0
+                
+        output["spar_onset"] = spar_onset
+        output["spol_onset"] = spol_onset
+
+    
         grad = np.gradient(crel_list)
         for i, val in enumerate(grad):
             if i > 0 and np.sign(grad[i]) != np.sign(grad[i-1]):
@@ -350,10 +358,10 @@ def LRBv21(constants,radios,d,SparRange,
     output["threshold"] = cvar_list[0]
     output["window"] = cvar_list[-1] - cvar_list[0]
     output["window_ratio"] = cvar_list[-1] / cvar_list[0]
-    output["spar_onset"] = spar_onset
-    output["spol_onset"] = spol_onset
+
     output["constants"] = constants
     output["radios"] = si.radios
+    output["state"] = st
     
     # Convert back to regular dict
     output = dict(output)
