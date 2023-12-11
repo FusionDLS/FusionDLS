@@ -87,7 +87,9 @@ def LengFunc(y, s, si, st):
     
 def iterate(si, st):
     """
-    Solves the Lengyel function and unpacks the results
+    Solves the Lengyel function for q and T profiles along field line.
+    Calculates error1 by looking at upstream q and comparing it to 0 
+    (when upstreamGrid=True) or to qpllu0 (when upstreamGrid=False).
     
     Inputs
     -------
@@ -96,10 +98,19 @@ def iterate(si, st):
     si : SimulationInput
         Simulation input object containing all constant parameters
     
-    Outputs
+    State modifications
     -------
-    [dqoverBds,dtds] : list
-        Heat flux gradient dq/ds and temperature gradient dT/ds
+    st.q : np.array
+        Profile of heat flux along field line
+    st.T : np.array
+        Profile of temperature along field line
+    st.Tucalc : float
+        Upstream temperature for later use in outer loop to calculate error0
+    st.qpllu1 : float
+        Upstream heat flux
+    st.error1 : float
+        Error in upstream heat flux
+        
     """
     if si.control_variable == "impurity_frac":
         st.cz = st.cvar
@@ -127,28 +138,26 @@ def iterate(si, st):
                     )
     out = dict()
     # Result returns integrals of [dqoverBds, dtds]
-    out["q"] = result[:,0]*si.B(st.s)
-    out["T"] = result[:,1]
-    out["Tu"] = out["T"][-1]
-    st.Tucalc = out["Tu"]
+    st.q = result[:,0]*si.B(st.s)     # q profile
+    st.T = result[:,1]                # Temp profile
+    st.Tucalc = st.T[-1]              # Upstream temperature. becomes st.Tu in outer loop
 
     # Sometimes we get some negative q but ODEINT breaks down and makes upstream end positive.
     # If there are any negative values in the array, set the upstream q to the lowest value of q in array.
     # The algorithm will then know that it needs to go the other way
-    if len(out["q"][out["q"]<0]) > 0:
-        out["qpllu1"] = np.min(out["q"]) # minimum q
+    if len(st.q[st.q<0]) > 0:
+        st.qpllu1 = np.min(st.q) # minimum q
     else:
-        out["qpllu1"] = out["q"][-1] # upstream q
+        st.qpllu1 = st.q[-1] # upstream q
 
-    qpllu1 = out["qpllu1"]
     # If upstream grid, qpllu1 is at the midplane and is solved until it's 0. It then gets radial transport
     # so that the xpoint Q is qpllu0. If uypstramGrid=False, qpllu1 is solved to match qpllu0 at the Xpoint.
     if si.radios["upstreamGrid"]:
-        out["error1"] = (out["qpllu1"]-0)/si.qpllu0 
+        st.error1 = (st.qpllu1 - 0)/si.qpllu0 
     else:
-        out["error1"] = (out["qpllu1"]-si.qpllu0)/si.qpllu0
+        st.error1 = (st.qpllu1 - si.qpllu0)/si.qpllu0
 
     if si.verbosity > 2:
-        print(f" -> qpllu1: {qpllu1:.3E} | Tucalc: {st.Tucalc:.1f} | error1: {out['error1']:.3E}")
+        print(f" -> qpllu1: {st.qpllu1:.3E} | Tucalc: {st.Tucalc:.1f} | error1: {st.error1:.3E}")
 
-    return out
+    return st

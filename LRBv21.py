@@ -177,33 +177,33 @@ def LRBv21(constants,radios,d,SparRange,
         for k0 in range(si.timeout):
             
             # Initialise
-            out = iterate(si, st)
+            st = iterate(si, st)
             if si.verbosity > 1:
-                print("\ncvar: {:.3E}, error1: {:.3E}".format(st.cvar, out["error1"]))
+                print("\ncvar: {:.3E}, error1: {:.3E}".format(st.cvar, st.error1))
 
             """------INITIAL SOLUTION BOUNDING------"""
 
             # Double or halve cvar until the error flips sign
             log["cvar"].append(st.cvar)
-            log["error1"].append(out["error1"])
-            log["qpllu1"].append(out["qpllu1"])
+            log["error1"].append(st.error1)
+            log["qpllu1"].append(st.qpllu1)
             
             for k1 in range(si.timeout*2):
                 
-                if out["error1"] > 0:
+                if st.error1 > 0:
                     st.cvar = st.cvar / 2
                         
-                elif out["error1"] < 0:
+                elif st.error1 < 0:
                     st.cvar = st.cvar * 2
 
-                out = iterate(si, st)
+                st = iterate(si, st)
 
                 log["cvar"].append(st.cvar)
-                log["error1"].append(out["error1"])
-                log["qpllu1"].append(out["qpllu1"])
+                log["error1"].append(st.error1)
+                log["qpllu1"].append(st.qpllu1)
 
                 if si.verbosity > 1:
-                    print("cvar: {:.3E}, error1: {:.3E}".format(st.cvar, out["error1"]))
+                    print("cvar: {:.3E}, error1: {:.3E}".format(st.cvar, st.error1))
     
                 if si.verbosity > 2:
                     print("Last error: {:.3E}, New error: {:.3E}".format(log["error1"][k1+1], log["error1"][k1+2]))
@@ -231,22 +231,22 @@ def LRBv21(constants,radios,d,SparRange,
 
                 # New cvar guess is halfway between the upper and lower bound.
                 st.cvar = lower_bound + (upper_bound-lower_bound)/2
-                out = iterate(si, st)
+                st = iterate(si, st)
                 log["cvar"].append(st.cvar)
-                log["error1"].append(out["error1"])
-                log["qpllu1"].append(out["qpllu1"])
+                log["error1"].append(st.error1)
+                log["qpllu1"].append(st.qpllu1)
 
                 # Narrow bounds based on the results.
-                if out["error1"] < 0:
+                if st.error1 < 0:
                     lower_bound = st.cvar
-                elif out["error1"] > 0:
+                elif st.error1 > 0:
                     upper_bound = st.cvar
 
                 if si.verbosity > 1:
                     print(">Bounds: {:.3E}-{:.3E}, cvar: {:.3E}, error1: {:.3E}".format(
-                        lower_bound, upper_bound, st.cvar, out["error1"]))
+                        lower_bound, upper_bound, st.cvar, st.error1))
 
-                if abs(out["error1"]) < si.Ctol:
+                if abs(st.error1) < si.Ctol:
                     break
 
                 if k2 == si.timeout - 1:
@@ -254,7 +254,6 @@ def LRBv21(constants,radios,d,SparRange,
                     #sys.exit()
                     
             # Calculate the new Tu by mixing new value with old one by factor URF (Under-relaxation factor)
-            st.Tucalc = out["Tu"]
             st.Tu = (1-si.URF)*st.Tu + si.URF*st.Tucalc
             st.error0 = (st.Tu-st.Tucalc)/st.Tu
             
@@ -267,7 +266,7 @@ def LRBv21(constants,radios,d,SparRange,
             
             # Not sure if this Q serves any function
             Q = []
-            for Tf in out["T"]:
+            for Tf in st.T:
                 try:
                     Q.append(si.Lfunc(Tf))
                 except:
@@ -289,12 +288,12 @@ def LRBv21(constants,radios,d,SparRange,
         else:
             output["cvar"].append(st.cvar)
             
-        output["Tprofiles"].append(out["T"])
+        output["Tprofiles"].append(st.T)
         output["Sprofiles"].append(st.s)
-        output["Qprofiles"].append(out["q"])
+        output["Qprofiles"].append(st.q)
         
         Qrad = []
-        for Tf in out["T"]:
+        for Tf in st.T:
             if si.control_variable == "impurity_frac":
                 Qrad.append(((si.nu0**2*st.Tu**2)/Tf**2)*st.cvar*si.Lfunc(Tf))
             elif si.control_variable == "density":
