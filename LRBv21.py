@@ -63,14 +63,34 @@ def LengFunc(y,s,kappa0,nu,Tu,cz,qpllu0,alpha,radios,S,B,Xpoint,Lfunc,qradial):
     return [dqoverBds,dtds]
 
 
-class State():
+class SimulationState():
     """
     This class represents the simulation state and contains all the variables and data 
     needed to run the simulation. The state is passed around different functions, which 
     allows more of the algorithm to be abstracted away from the main function.
     """
-    def __init__(self, **kwargs):
-        self.__dict__.update(kwargs)
+    def __init__(self):
+        pass
+    
+    # Update many variables
+    def update(self, **kwargs):
+            self.__dict__.update(kwargs)
+
+    # Will return this if called as string
+    def __repr__(self):
+        return str(self.__dict__)
+    
+class SimulationInputs():
+    """
+    This class functions the same as SimulationState, but is used to store the inputs instead.
+    The separation is to make it easier to see which variables should be unchangeable.
+    """
+    def __init__(self):
+        pass
+    
+    # Update many variables
+    def update(self, **kwargs):
+            self.__dict__.update(kwargs)
 
     # Will return this if called as string
     def __repr__(self):
@@ -92,12 +112,15 @@ def LRBv21(constants,radios,d,SparRange,
     Timeout: controls timeout for all three loops within the code. Each has different message on timeout. Default 20
     
     """
+    # Initialise simulation state
+    st = SimulationState()
+    si = SimulationInputs
     
-    # Initialise variables
+    # Initialise state
     t0 = timer()
     splot = []
-    error1 = 1
-    error0 = 1
+    st.error1 = 1
+    st.error0 = 1
     output = defaultdict(list)
 
     # Lay out constants
@@ -133,7 +156,7 @@ def LRBv21(constants,radios,d,SparRange,
     Lz = [Tcool,Lalpha]
     
     # Calculation of radial heat transfer needed to achieve correct qpllu0 at Xpoint
-    qradial = qpllu0/np.abs(S[-1]-S[Xpoint])
+    st.qradial = qpllu0/np.abs(S[-1]-S[Xpoint])
 
     print("Solving...", end = "")
     
@@ -144,31 +167,31 @@ def LRBv21(constants,radios,d,SparRange,
     
     def iterate(cvar, Tu):
         if control_variable == "impurity_frac":
-            cz = cvar
-            nu = nu0
+            st.cz = st.cvar
+            st.nu = nu0
 
         elif control_variable == "density":
-            cz = cz0
-            nu = cvar
+            st.cz = cz0
+            st.nu = st.cvar
    
         Btot = [B(x) for x in S]
-        qradial = qpllu0/ np.trapz(Btot[Xpoint:] / Btot[Xpoint], x = S[Xpoint:])
+        st.qradial = qpllu0/ np.trapz(Btot[Xpoint:] / Btot[Xpoint], x = S[Xpoint:])
             
         if control_variable == "power":
-            cz = cz0
-            nu = nu0
-            qradial = 1/cvar # This is needed so that too high a cvar gives positive error            
+            st.cz = cz0
+            st.nu = nu0
+            st.qradial = 1/st.cvar # This is needed so that too high a cvar gives positive error            
 
         if verbosity>2:
-            print(f"qpllu0: {qpllu0:.3E} | nu: {nu:.3E} | Tu: {Tu:.1f} | cz: {cz:.3E} | cvar: {cvar:.2E}", end = "")
+            print(f"qpllu0: {qpllu0:.3E} | nu: {st.nu:.3E} | Tu: {st.Tu:.1f} | cz: {st.cz:.3E} | cvar: {st.cvar:.2E}", end = "")
 
-        result = odeint(LengFunc,y0=[qpllt/B(s[0]),Tt],t=s,args=(kappa0,nu,Tu,cz,qpllu0,alpha,radios,S,B,Xpoint,Lfunc,qradial))
+        result = odeint(LengFunc,y0=[qpllt/B(s[0]),Tt],t=s,args=(kappa0,st.nu,st.Tu,st.cz,qpllu0,alpha,radios,S,B,Xpoint,Lfunc,st.qradial))
         out = dict()
         # Result returns integrals of [dqoverBds, dtds]
         out["q"] = result[:,0]*B(s)
         out["T"] = result[:,1]
         out["Tu"] = out["T"][-1]
-        Tucalc = out["Tu"]
+        st.Tucalc = out["Tu"]
 
         # Sometimes we get some negative q but ODEINT breaks down and makes upstream end positive.
         # If there are any negative values in the array, set the upstream q to the lowest value of q in array.
@@ -187,7 +210,7 @@ def LRBv21(constants,radios,d,SparRange,
             out["error1"] = (out["qpllu1"]-qpllu0)/qpllu0
 
         if verbosity > 2:
-            print(f" -> qpllu1: {qpllu1:.3E} | Tucalc: {Tucalc:.1f} | error1: {out['error1']:.3E}")
+            print(f" -> qpllu1: {qpllu1:.3E} | Tucalc: {st.Tucalc:.1f} | error1: {out['error1']:.3E}")
 
         return out
     
@@ -219,7 +242,7 @@ def LRBv21(constants,radios,d,SparRange,
 
         # Inital guess for upstream temperature based on guess of qpll ds integral
         Tu0 = ((7/2)*qavLguess*(s[-1]-s[0])/kappa0)**(2/7)
-        Tu = Tu0
+        st.Tu = Tu0
                                     
         # Cooling curve integral
         Lint = cumtrapz(Lz[1]*np.sqrt(Lz[0]),Lz[0],initial = 0)
@@ -227,55 +250,55 @@ def LRBv21(constants,radios,d,SparRange,
 
         # Guesses/initialisations for control variables assuming qpll0 everywhere and qpll=0 at target
         if control_variable == "impurity_frac":
-            cz0_guess = (qpllu0**2 )/(2*kappa0*nu0**2*Tu**2*integralinterp(Tu))
-            cvar = cz0_guess
+            cz0_guess = (qpllu0**2 )/(2*kappa0*nu0**2*st.Tu**2*integralinterp(st.Tu))
+            st.cvar = cz0_guess
         elif control_variable == "density":
-            cvar = nu0       
+            st.cvar = nu0       
         elif control_variable == "power":
-            cvar = 1/qradial #qpllu0
+            st.cvar = 1/st.qradial #qpllu0
             
         # Initial guess of qpllt, the virtual target temperature (typically 0). 
-        qpllt = gamma_sheath/2*nu0*Tu*echarge*np.sqrt(2*Tt*echarge/mi)
+        qpllt = gamma_sheath/2*nu0*st.Tu*echarge*np.sqrt(2*Tt*echarge/mi)
         
         
         """------INITIALISATION------"""
         
         log = defaultdict(list)
-        error1 = 1 # Inner loop error (error in qpllu based on provided cz/ne)
-        error0 = 1 # Outer loop residual in upstream temperature
-        log["error1"].append(error1)
+        st.error1 = 1 # Inner loop error (error in qpllu based on provided cz/ne)
+        st.error0 = 1 # Outer loop residual in upstream temperature
+        log["error1"].append(st.error1)
         
         # Tu convergence loop
         for k0 in range(timeout):
             
             # Initialise
-            out = iterate(cvar, Tu)
+            out = iterate(st.cvar, st.Tu)
             if verbosity > 1:
-                print("\ncvar: {:.3E}, error1: {:.3E}".format(cvar, out["error1"]))
+                print("\ncvar: {:.3E}, error1: {:.3E}".format(st.cvar, out["error1"]))
 
             """------INITIAL SOLUTION BOUNDING------"""
 
             # Double or halve cvar until the error flips sign
-            log["cvar"].append(cvar)
+            log["cvar"].append(st.cvar)
             log["error1"].append(out["error1"])
             log["qpllu1"].append(out["qpllu1"])
             
             for k1 in range(timeout*2):
                 
                 if out["error1"] > 0:
-                    cvar = cvar / 2
+                    st.cvar = st.cvar / 2
                         
                 elif out["error1"] < 0:
-                    cvar = cvar * 2
+                    st.cvar = st.cvar * 2
 
-                out = iterate(cvar, Tu)
+                out = iterate(st.cvar, st.Tu)
 
-                log["cvar"].append(cvar)
+                log["cvar"].append(st.cvar)
                 log["error1"].append(out["error1"])
                 log["qpllu1"].append(out["qpllu1"])
 
                 if verbosity > 1:
-                    print("cvar: {:.3E}, error1: {:.3E}".format(cvar, out["error1"]))
+                    print("cvar: {:.3E}, error1: {:.3E}".format(st.cvar, out["error1"]))
     
                 if verbosity > 2:
                     print("Last error: {:.3E}, New error: {:.3E}".format(log["error1"][k1+1], log["error1"][k1+2]))
@@ -287,7 +310,7 @@ def LRBv21(constants,radios,d,SparRange,
                     print("******INITIAL BOUNDING TIMEOUT! Failed. Set verbosity = 3 if you want to diagnose.*******")
 
 
-            if cvar < 1e-6 and control_variable == "impurity_fraction":
+            if st.cvar < 1e-6 and control_variable == "impurity_fraction":
                 print("*****REQUIRED IMPURITY FRACTION IS NEAR ZERO*******")
                 #sys.exit()
                 
@@ -302,21 +325,21 @@ def LRBv21(constants,radios,d,SparRange,
             for k2 in range(timeout):
 
                 # New cvar guess is halfway between the upper and lower bound.
-                cvar = lower_bound + (upper_bound-lower_bound)/2
-                out = iterate(cvar, Tu)
-                log["cvar"].append(cvar)
+                st.cvar = lower_bound + (upper_bound-lower_bound)/2
+                out = iterate(st.cvar, st.Tu)
+                log["cvar"].append(st.cvar)
                 log["error1"].append(out["error1"])
                 log["qpllu1"].append(out["qpllu1"])
 
                 # Narrow bounds based on the results.
                 if out["error1"] < 0:
-                    lower_bound = cvar
+                    lower_bound = st.cvar
                 elif out["error1"] > 0:
-                    upper_bound = cvar
+                    upper_bound = st.cvar
 
                 if verbosity > 1:
                     print(">Bounds: {:.3E}-{:.3E}, cvar: {:.3E}, error1: {:.3E}".format(
-                        lower_bound, upper_bound, cvar, out["error1"]))
+                        lower_bound, upper_bound, st.cvar, out["error1"]))
 
                 if abs(out["error1"]) < Ctol:
                     break
@@ -326,16 +349,16 @@ def LRBv21(constants,radios,d,SparRange,
                     #sys.exit()
                     
             # Calculate the new Tu by mixing new value with old one by factor URF (Under-relaxation factor)
-            Tucalc = out["Tu"]
-            Tu = (1-URF)*Tu + URF*Tucalc
-            error0 = (Tu-Tucalc)/Tu
+            st.Tucalc = out["Tu"]
+            st.Tu = (1-URF)*st.Tu + URF*st.Tucalc
+            st.error0 = (st.Tu-st.Tucalc)/st.Tu
             
             if verbosity > 0 :
-                print("-----------error0: {:.3E}, Tu: {:.2f}, Tucalc: {:.2f}".format(error0, Tu, Tucalc))
+                print("-----------error0: {:.3E}, Tu: {:.2f}, Tucalc: {:.2f}".format(st.error0, st.Tu, st.Tucalc))
                 
             
-            log["Tu"].append(Tu)
-            log["error0"].append(error0)
+            log["Tu"].append(st.Tu)
+            log["error0"].append(st.error0)
             
             # Not sure if this Q serves any function
             Q = []
@@ -346,7 +369,7 @@ def LRBv21(constants,radios,d,SparRange,
                     print(f"FAILED TO QUERY COOLING CURVE for a temperature of {Tf:.3E}!")
                     break
                 
-            if abs(error0) < Ttol:
+            if abs(st.error0) < Ttol:
                 break
 
             if k0 == timeout - 1:
@@ -357,9 +380,9 @@ def LRBv21(constants,radios,d,SparRange,
         """------COLLECT PROFILE DATA------"""
         
         if control_variable == "power":
-            output["cvar"].append(1/cvar) # so that output is in Wm-2
+            output["cvar"].append(1/st.cvar) # so that output is in Wm-2
         else:
-            output["cvar"].append(cvar)
+            output["cvar"].append(st.cvar)
             
         output["Tprofiles"].append(out["T"])
         output["Sprofiles"].append(s)
@@ -368,11 +391,11 @@ def LRBv21(constants,radios,d,SparRange,
         Qrad = []
         for Tf in out["T"]:
             if control_variable == "impurity_frac":
-                Qrad.append(((nu0**2*Tu**2)/Tf**2)*cvar*Lfunc(Tf))
+                Qrad.append(((nu0**2*st.Tu**2)/Tf**2)*st.cvar*Lfunc(Tf))
             elif control_variable == "density":
-                Qrad.append(((cvar**2*Tu**2)/Tf**2)*cz0*Lfunc(Tf))
+                Qrad.append(((st.cvar**2*st.Tu**2)/Tf**2)*cz0*Lfunc(Tf))
             elif control_variable == "power":
-                Qrad.append(((nu0**2*Tu**2)/Tf**2)*cz0*Lfunc(Tf))
+                Qrad.append(((nu0**2*st.Tu**2)/Tf**2)*cz0*Lfunc(Tf))
             
         output["Rprofiles"].append(Qrad)
         output["logs"].append(log)
