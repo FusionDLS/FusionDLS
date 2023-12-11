@@ -1,4 +1,3 @@
-# %%
 from scipy.optimize import fsolve
 import numpy as np
 import matplotlib.pyplot as plt
@@ -12,55 +11,7 @@ from timeit import default_timer as timer
 import pandas as pd
 import sys
 
-
-"""
-This version is for implementing density and power as a detachment front driver
-"""
-
-#Function to integrate, that returns dq/ds and dt/ds using Lengyel formulation and field line conduction
-def LengFunc(y,s,kappa0,nu,Tu,cz,qpllu0,alpha,radios,S,B,Xpoint,Lfunc,qradial):
-
-    qoverB,T = y
-    # set density using constant pressure assumption (missing factor of 2 at target due to lack of Bohm condition)
-    ne = nu*Tu/T
-    
-    fieldValue = 0
-    if s > S[-1]:
-        fieldValue = B(S[-1])
-    elif s < S[0]:
-        fieldValue = B(S[0])
-    else:
-        fieldValue = B(s)
-        
-    # add a constant radial source of heat above the X point, which is qradial = qpll at Xpoint/np.abs(S[-1]-S[Xpoint]
-    # i.e. radial heat entering SOL evenly spread between midplane and xpoint needs to be sufficient to get the 
-    # correct qpll at the xpoint.
-    
-    if radios["upstreamGrid"]:
-        if s >S[Xpoint]:
-            # The second term here converts the x point qpar to a radial heat source acting between midplane and the xpoint
-            try:
-                dqoverBds = ((nu**2*Tu**2)/T**2)*cz*Lfunc(T) - qradial * fieldValue / B(S[Xpoint]) # account for flux expansion to Xpoint
-            except:
-                print("Failed. s: {:.2f}".format(s))
-            else:
-                dqoverBds = ((nu**2*Tu**2)/T**2)*cz*Lfunc(T) - qradial  
-        else:
-            dqoverBds = ((nu**2*Tu**2)/T**2)*cz*Lfunc(T) 
-    else:
-        dqoverBds = ((nu**2*Tu**2)/T**2)*cz*Lfunc(T) 
-    
-    # working on neutral/ionisation model
-    dqoverBds = dqoverBds/fieldValue
-    
-    # Flux limiter
-    dtds = 0
-    if radios["fluxlim"]:
-        dtds = qoverB*fieldValue/(kappa0*T**(5/2)-qoverB*fieldValue*kappa0*T**(1/2)/(alpha*ne*np.sqrt(9E-31)))
-    else:
-        dtds = qoverB*fieldValue/(kappa0*T**(5/2))
-    #return gradient of q and T
-    return [dqoverBds,dtds]
+from Iterate import LengFunc, iterate
 
 
 class SimulationState():
@@ -137,6 +88,7 @@ def LRBv21(constants,radios,d,SparRange,
     si.URF = URF
     si.timeout = timeout
     si.radios = radios
+    si.control_variable = control_variable
     
     # Physics constants
     si.kappa0 = 2500 # Electron conductivity
@@ -166,59 +118,6 @@ def LRBv21(constants,radios,d,SparRange,
 
     print("Solving...", end = "")
     
-    """------ITERATOR FUNCTION------"""
-    # Define iterator function. This just solves the Lengyel function and unpacks the results.
-    # It must be defined here and not outside of the main function because it depends on many global
-    # variables.
-    
-    def iterate(cvar, Tu):
-        if control_variable == "impurity_frac":
-            st.cz = st.cvar
-            st.nu = si.nu0
-
-        elif control_variable == "density":
-            st.cz = si.cz0
-            st.nu = st.cvar
-   
-        si.Btot = [si.B(x) for x in si.S]
-        st.qradial = si.qpllu0/ np.trapz(si.Btot[si.Xpoint:] / si.Btot[si.Xpoint], x = si.S[si.Xpoint:])
-            
-        if control_variable == "power":
-            st.cz = si.cz0
-            st.nu = si.nu0
-            st.qradial = 1/st.cvar # This is needed so that too high a cvar gives positive error            
-
-        if si.verbosity>2:
-            print(f"qpllu0: {si.qpllu0:.3E} | nu: {st.nu:.3E} | Tu: {st.Tu:.1f} | cz: {st.cz:.3E} | cvar: {st.cvar:.2E}", end = "")
-
-        result = odeint(LengFunc,y0=[qpllt/si.B(s[0]),si.Tt],t=s,args=(si.kappa0,st.nu,st.Tu,st.cz,si.qpllu0,si.alpha,si.radios,si.S,si.B,si.Xpoint,si.Lfunc,st.qradial))
-        out = dict()
-        # Result returns integrals of [dqoverBds, dtds]
-        out["q"] = result[:,0]*si.B(s)
-        out["T"] = result[:,1]
-        out["Tu"] = out["T"][-1]
-        st.Tucalc = out["Tu"]
-
-        # Sometimes we get some negative q but ODEINT breaks down and makes upstream end positive.
-        # If there are any negative values in the array, set the upstream q to the lowest value of q in array.
-        # The algorithm will then know that it needs to go the other way
-        if len(out["q"][out["q"]<0]) > 0:
-            out["qpllu1"] = np.min(out["q"]) # minimum q
-        else:
-            out["qpllu1"] = out["q"][-1] # upstream q
-
-        qpllu1 = out["qpllu1"]
-        # If upstream grid, qpllu1 is at the midplane and is solved until it's 0. It then gets radial transport
-        # so that the xpoint Q is qpllu0. If uypstramGrid=False, qpllu1 is solved to match qpllu0 at the Xpoint.
-        if si.radios["upstreamGrid"]:
-            out["error1"] = (out["qpllu1"]-0)/si.qpllu0 
-        else:
-            out["error1"] = (out["qpllu1"]-si.qpllu0)/si.qpllu0
-
-        if si.verbosity > 2:
-            print(f" -> qpllu1: {qpllu1:.3E} | Tucalc: {st.Tucalc:.1f} | error1: {out['error1']:.3E}")
-
-        return out
     
     """------SOLVE------"""
 
@@ -232,22 +131,22 @@ def LRBv21(constants,radios,d,SparRange,
         """------INITIAL GUESSES------"""
         
         # Current set of parallel position coordinates
-        s = si.S[point:]
+        st.s = si.S[point:]
         output["Splot"].append(si.S[point])
         output["SpolPlot"].append(si.Spol[point])
 
         # Inital guess for the value of qpll integrated across connection length
         qavLguess = 0
         if si.radios["upstreamGrid"]:
-            if s[0] < si.S[si.Xpoint]:
-                qavLguess = ((si.qpllu0)*(si.S[si.Xpoint]-s[0]) + (si.qpllu0/2)*(s[-1]-si.S[si.Xpoint]))/(s[-1]-si.S[0])
+            if st.s[0] < si.S[si.Xpoint]:
+                qavLguess = ((si.qpllu0)*(si.S[si.Xpoint]-st.s[0]) + (si.qpllu0/2)*(st.s[-1]-si.S[si.Xpoint]))/(st.s[-1]-si.S[0])
             else:
                 qavLguess = (si.qpllu0/2)
         else:
             qavLguess = (si.qpllu0)
 
         # Inital guess for upstream temperature based on guess of qpll ds integral
-        Tu0 = ((7/2)*qavLguess*(s[-1]-s[0])/si.kappa0)**(2/7)
+        Tu0 = ((7/2)*qavLguess*(st.s[-1]-st.s[0])/si.kappa0)**(2/7)
         st.Tu = Tu0
                                     
         # Cooling curve integral
@@ -255,16 +154,16 @@ def LRBv21(constants,radios,d,SparRange,
         integralinterp = interpolate.interp1d(si.Lz[0],Lint)
 
         # Guesses/initialisations for control variables assuming qpll0 everywhere and qpll=0 at target
-        if control_variable == "impurity_frac":
+        if si.control_variable == "impurity_frac":
             cz0_guess = (si.qpllu0**2 )/(2*si.kappa0*si.nu0**2*st.Tu**2*integralinterp(st.Tu))
             st.cvar = cz0_guess
-        elif control_variable == "density":
+        elif si.control_variable == "density":
             st.cvar = si.nu0       
-        elif control_variable == "power":
+        elif si.control_variable == "power":
             st.cvar = 1/st.qradial #qpllu0
             
         # Initial guess of qpllt, the virtual target temperature (typically 0). 
-        qpllt = si.gamma_sheath/2*si.nu0*st.Tu*si.echarge*np.sqrt(2*si.Tt*si.echarge/si.mi)
+        st.qpllt = si.gamma_sheath/2*si.nu0*st.Tu*si.echarge*np.sqrt(2*si.Tt*si.echarge/si.mi)
         
         
         """------INITIALISATION------"""
@@ -278,7 +177,7 @@ def LRBv21(constants,radios,d,SparRange,
         for k0 in range(si.timeout):
             
             # Initialise
-            out = iterate(st.cvar, st.Tu)
+            out = iterate(si, st)
             if si.verbosity > 1:
                 print("\ncvar: {:.3E}, error1: {:.3E}".format(st.cvar, out["error1"]))
 
@@ -297,7 +196,7 @@ def LRBv21(constants,radios,d,SparRange,
                 elif out["error1"] < 0:
                     st.cvar = st.cvar * 2
 
-                out = iterate(st.cvar, st.Tu)
+                out = iterate(si, st)
 
                 log["cvar"].append(st.cvar)
                 log["error1"].append(out["error1"])
@@ -316,7 +215,7 @@ def LRBv21(constants,radios,d,SparRange,
                     print("******INITIAL BOUNDING TIMEOUT! Failed. Set verbosity = 3 if you want to diagnose.*******")
 
 
-            if st.cvar < 1e-6 and control_variable == "impurity_fraction":
+            if st.cvar < 1e-6 and si.control_variable == "impurity_fraction":
                 print("*****REQUIRED IMPURITY FRACTION IS NEAR ZERO*******")
                 #sys.exit()
                 
@@ -332,7 +231,7 @@ def LRBv21(constants,radios,d,SparRange,
 
                 # New cvar guess is halfway between the upper and lower bound.
                 st.cvar = lower_bound + (upper_bound-lower_bound)/2
-                out = iterate(st.cvar, st.Tu)
+                out = iterate(si, st)
                 log["cvar"].append(st.cvar)
                 log["error1"].append(out["error1"])
                 log["qpllu1"].append(out["qpllu1"])
@@ -385,22 +284,22 @@ def LRBv21(constants,radios,d,SparRange,
             
         """------COLLECT PROFILE DATA------"""
         
-        if control_variable == "power":
+        if si.control_variable == "power":
             output["cvar"].append(1/st.cvar) # so that output is in Wm-2
         else:
             output["cvar"].append(st.cvar)
             
         output["Tprofiles"].append(out["T"])
-        output["Sprofiles"].append(s)
+        output["Sprofiles"].append(st.s)
         output["Qprofiles"].append(out["q"])
         
         Qrad = []
         for Tf in out["T"]:
-            if control_variable == "impurity_frac":
+            if si.control_variable == "impurity_frac":
                 Qrad.append(((si.nu0**2*st.Tu**2)/Tf**2)*st.cvar*si.Lfunc(Tf))
-            elif control_variable == "density":
+            elif si.control_variable == "density":
                 Qrad.append(((st.cvar**2*st.Tu**2)/Tf**2)*si.cz0*si.Lfunc(Tf))
-            elif control_variable == "power":
+            elif si.control_variable == "power":
                 Qrad.append(((si.nu0**2*st.Tu**2)/Tf**2)*si.cz0*si.Lfunc(Tf))
             
         output["Rprofiles"].append(Qrad)
