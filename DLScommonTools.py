@@ -11,7 +11,7 @@ import pickle as pkl
 from LRBv21 import LRBv21
 import matplotlib as mpl
 import copy
-import colorcet as cc
+# import colorcet as cc
 from scipy import interpolate
 from matplotlib.ticker import FormatStrFormatter, StrMethodFormatter, MultipleLocator, FormatStrFormatter, AutoMinorLocator
 
