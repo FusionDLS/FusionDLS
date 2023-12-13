@@ -237,9 +237,9 @@ def LRBv21(constants,radios,d,SparRange,
             cvar = nu0_guess
         
         elif control_variable == "power":
-            # Initialise from Lengyel
-            # too high a cvar results in a positive error!
-            qpllu0_guess = np.sqrt(2*kappa0*cz0*nu0**2*Tu**2*integralinterp(Tu))
+            # nu0 and cz0 guesses are from Lengyel which depends on an estimate of Tu using qpllu0
+            # This means we cannot make a more clever guess for qpllu0 based on cz0 or nu0
+            qpllu0_guess = qpllu0
             qradial_guess = qpllu0_guess / np.trapz(Btot[Xpoint:] / Btot[Xpoint], x = S[Xpoint:])
             cvar = 1/qradial_guess 
             
