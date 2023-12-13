@@ -19,6 +19,37 @@ class SimulationState():
     This class represents the simulation state and contains all the variables and data 
     needed to run the simulation. The state is passed around different functions, which 
     allows more of the algorithm to be abstracted away from the main function.
+    
+    Parameter list
+    ---------
+    si : SimulationInputs
+        Simulation inputs object containing all constant parameters
+    log : dict
+        Log of guesses of Tu and cvar, errors and bounds. Dictionary keys are front positions in index space
+    point : int
+        Location of front position in index space
+    s : array
+        Working set of parallel coordinates (between front location and X-point)
+    cvar : float
+        Control variable (density, impurity fraction or 1/power)
+    lower_bound : float
+        Lower estimate of the cvar solution
+    upper_bound : float
+        Upper estimate of the cvar solution
+    Tu : float
+        Upstream temperature
+    Tucalc : float
+        New calculation of upstream temperature 
+    error1 : float
+        Control variable (inner) loop error based on upstream heat flux approaching qpllu0 or 0 depending on settings
+    error0 : float
+        Temperature (outer) loop error based on upstream temperature converging to steady state
+    qpllu1 : float
+        Calculated upstream heat flux
+    qradial : float
+        qpllu1 converted into a source term representing radial heat flux between upstream and X-point
+    qpllt : float
+        Virtual target heat flux (typically 0)
     """
     def __init__(self, si):
         
@@ -69,12 +100,74 @@ class SimulationInputs():
     """
     This class functions the same as SimulationState, but is used to store the inputs instead.
     The separation is to make it easier to see which variables should be unchangeable.
+    
+    Parameter list
+    ---------
+    
+    Physical parameters
+    ~~~~~~~~~
+    kappa0 : float
+        Electron conductivity
+    mi : float
+        Ion mass [kg]
+    echarge : float
+        Electron charge [eV/J]
+    gamma_sheath : float
+        Heat transfer coefficient of the virtual target [-]
+    qpllu0 : float
+        Upstream heat flux setting, overriden if control_variable is power [Wm^-2]
+    nu0 : float
+        Upstream density setting, overriden if control_variable is density [m^-3]
+    cz0 : float
+        Impurity fraction setting, overriden if control_variable is impurity_frac [-]
+    Tt : float
+        Desired virtual target temperature [eV]
+    Lfunc : list
+        Cooling curve function, can be LfuncKallenbachx where x is Ne, Ar or N.
+    Lz : list
+        Cooling curve data: [0] contains temperatures in [eV] and [1] the corresponding cooling values in [W/m^3]
+    alpha : float
+        Heat flux limiter (WIP do not use)
+        
+    Settings
+    ~~~~~~~~~
+    control_variable : str, default impurity_frac
+        density, impurity_frac or power
+    verbosity : int, default 0
+        Level of verbosity. Higher is more verbose
+    Ctol : float, default 1e-3
+        Control variable (inner) loop convergence tolerance
+    Ttol : float, default 1e-2
+        Temperature (outer) loop convergence tolerance
+    URF : float
+        Under-relaxation factor to smooth out temperature convergence (usually doesn't help with anything, keep at 1)
+    timeout : float
+        Maximum number of iterations for each loop before warning or error
+    radios : dict
+        Contains flags for ionisation (WIP do not use), upstreamGrid (allows full flux tube) and fluxlim (WIP do not use)
+        
+    Geometry
+    ~~~~~~~~~
+    SparRange : list
+        List of S parallel locations to solve for
+    indexRange : list
+        List of S parallel indices to solve for
+    Xpoint : int
+        Index of X-point in parallel space
+    S : array
+        Parallel distance [m]
+    Spol : array
+        Poloidal distance [m]
+    B : interp1d function
+        Interpolator function returning a Btot for a given S
+    Btot : array
+        Total B field [T]  
     """
     def __init__(self):
         # Physics constants
-        self.kappa0 = 2500 # Electron conductivity
-        self.mi = 3*10**(-27) # Ion mass
-        self.echarge = 1.60*10**(-19) # Electron charge
+        self.kappa0 = 2500 # 
+        self.mi = 3*10**(-27) 
+        self.echarge = 1.60*10**(-19) 
         
         
     
@@ -283,9 +376,6 @@ def LRBv21(constants,radios,d,SparRange,
         else:
             output["cvar"].append(st.cvar)
             
-        output["Tprofiles"].append(st.T)
-        output["Sprofiles"].append(st.s)
-        output["Qprofiles"].append(st.q)
         
         Qrad = []
         for Tf in st.T:
@@ -360,5 +450,7 @@ def LRBv21(constants,radios,d,SparRange,
     t1 = timer()
     
     print("Complete in {:.1f} seconds".format(t1-t0))
+    
+    
         
     return output
