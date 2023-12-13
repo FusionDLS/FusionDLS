@@ -150,4 +150,6 @@ def iterate(si, st):
         
     st.update_log()
     
+    if st.Tucalc == 0: raise Exception("Tucalc is 0")
+    
     return st
