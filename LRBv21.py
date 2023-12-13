@@ -24,6 +24,13 @@ class SimulationState():
         
         self.si = si   # Add input object to state
         
+        # Initialise variables
+        self.error1 = 1
+        self.error0 = 1
+        self.qpllu1 = 0
+        self.lower_bound = 0
+        self.upper_bound = 0
+        
         # Initialise log: one per front position index
         self.log = {}
         for i in si.indexRange:
@@ -64,7 +71,12 @@ class SimulationInputs():
     The separation is to make it easier to see which variables should be unchangeable.
     """
     def __init__(self):
-        pass
+        # Physics constants
+        self.kappa0 = 2500 # Electron conductivity
+        self.mi = 3*10**(-27) # Ion mass
+        self.echarge = 1.60*10**(-19) # Electron charge
+        
+        
     
     # Update many variables
     def update(self, **kwargs):
@@ -90,17 +102,14 @@ def LRBv21(constants,radios,d,SparRange,
     Timeout: controls timeout for all three loops within the code. Each has different message on timeout. Default 20
     
     """
+    # Start timer
+    t0 = timer()
+    
     # Initialise simulation inputs object
     si = SimulationInputs()
     
-    # Lay out constants
-    si.gamma_sheath = constants["gamma_sheath"]
-    si.qpllu0 = constants["qpllu0"]
-    si.nu0 = constants["nu0"]
-    si.cz0 = constants["cz0"]
-    si.Tt = constants["Tt"]
-    si.Lfunc = constants["Lfunc"]
-    si.alpha = constants["alpha"]
+    # Add inputs to SimulationInputs
+    si.update(**constants)
     si.verbosity = verbosity
     si.Ctol = Ctol
     si.Ttol = Ttol
@@ -108,11 +117,6 @@ def LRBv21(constants,radios,d,SparRange,
     si.timeout = timeout
     si.radios = radios
     si.control_variable = control_variable
-    
-    # Physics constants
-    si.kappa0 = 2500 # Electron conductivity
-    si.mi = 3*10**(-27) # Ion mass
-    si.echarge = 1.60*10**(-19) # Electron charge
     
     # Extract topology data
     si.Xpoint = d["Xpoint"]
@@ -126,17 +130,12 @@ def LRBv21(constants,radios,d,SparRange,
     
     # Initialise simulation state object
     st = SimulationState(si)
-    
-    t0 = timer()
-    splot = []
-    st.error1 = 1
-    st.error0 = 1
-    st.qpllu1 = 0
-    st.lower_bound = 0
-    st.upper_bound = 0
-    output = defaultdict(list)
 
-    # Initialise arrays for storing cooling curve data
+    # Initialise output dictionary
+    output = defaultdict(list)
+ 
+    # Initialise cooling curve
+    # TODO: move into SimulationInputs once interface is refactored
     Tcool = np.linspace(0.3,500,1000)
     Lalpha = []
     for dT in Tcool:
@@ -144,10 +143,7 @@ def LRBv21(constants,radios,d,SparRange,
     Lalpha = np.array(Lalpha)
     Tcool = np.append(0,Tcool)
     Lalpha = np.append(0,Lalpha)
-    si.Lz = [Tcool,Lalpha]
-    
-    # Calculation of radial heat transfer needed to achieve correct qpllu0 at Xpoint
-    st.qradial = si.qpllu0/np.abs(si.S[-1]-si.S[si.Xpoint])
+    si.Lz = [Tcool,Lalpha]   # Array of temperatures and corresponding cooling
 
     print("Solving...", end = "")
     
