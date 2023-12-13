@@ -185,16 +185,17 @@ def LRBv21(constants,radios,d,SparRange,
         integralinterp = interpolate.interp1d(si.Lz[0],Lint)
 
         # Guesses/initialisations for control variables assuming qpll0 everywhere and qpll=0 at target
+        
         if si.control_variable == "impurity_frac":
-            # Initial guess of nu0 assuming qpll0 everywhere and qpll=0 at target
-            # Impurity fraction is set to constant as cz0
-            nu0_guess = np.sqrt((si.qpllu0**2 ) /(2*si.kappa0*si.cz0 *st.Tu**2 *integralinterp(st.Tu)))
-            st.cvar = nu0_guess
+            # Initial guess of cz0 assuming qpll0 everywhere and qpll=0 at target
+            cz0_guess = (si.qpllu0**2 )/(2*si.kappa0*si.nu0**2*st.Tu**2*integralinterp(st.Tu))
+            st.cvar = cz0_guess
+            
         elif si.control_variable == "density":
             # Initial guess of nu0 assuming qpll0 everywhere and qpll=0 at target
-            # Impurity fraction is set to constant as cz0
             nu0_guess = np.sqrt((si.qpllu0**2 ) /(2*si.kappa0*si.cz0 * st.Tu**2 *integralinterp(st.Tu)))
             st.cvar = nu0_guess     
+            
         elif si.control_variable == "power":
             # nu0 and cz0 guesses are from Lengyel which depends on an estimate of Tu using qpllu0
             # This means we cannot make a more clever guess for qpllu0 based on cz0 or nu0
@@ -261,15 +262,18 @@ def LRBv21(constants,radios,d,SparRange,
                 if abs(st.error1) < si.Ctol:
                     break
 
-                if k2 == si.timeout - 1: raise Exception("Failed to converge control variable loop")
+                if k2 == si.timeout - 1: print("WARNING: Failed to converge control variable loop")
                     
             """------OUTER LOOP------"""
-            # Calculate the new Tu by mixing new value with old one by factor URF (Under-relaxation factor)
+            # Upstream temperature error
             st.error0 = (st.Tu-st.Tucalc)/st.Tu 
+            
+            # Calculate new Tu, under-relax by URF
             st.Tu = (1-si.URF)*st.Tu + si.URF*st.Tucalc
+
             st.update_log()
                 
-            # Break on outer (temp) loop success
+            # Break on outer (temperature) loop success
             if abs(st.error0) < si.Ttol:
                 break
 
