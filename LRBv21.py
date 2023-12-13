@@ -122,6 +122,7 @@ def LRBv21(constants,radios,d,SparRange,
     si.B = interpolate.interp1d(si.S, si.Btot, kind = "cubic")
     si.SparRange = SparRange
     si.indexRange = [np.argmin(abs(d["S"] - x)) for x in SparRange] # Indices of topology arrays to solve code at
+    si.indexRange = np.unique(si.indexRange)   # Drop duplicates
     
     # Initialise simulation state object
     st = SimulationState(si)
@@ -185,12 +186,21 @@ def LRBv21(constants,radios,d,SparRange,
 
         # Guesses/initialisations for control variables assuming qpll0 everywhere and qpll=0 at target
         if si.control_variable == "impurity_frac":
-            cz0_guess = (si.qpllu0**2 )/(2*si.kappa0*si.nu0**2*st.Tu**2*integralinterp(st.Tu))
-            st.cvar = cz0_guess
+            # Initial guess of nu0 assuming qpll0 everywhere and qpll=0 at target
+            # Impurity fraction is set to constant as cz0
+            nu0_guess = np.sqrt((si.qpllu0**2 ) /(2*si.kappa0*si.cz0 *st.Tu**2 *integralinterp(st.Tu)))
+            st.cvar = nu0_guess
         elif si.control_variable == "density":
-            st.cvar = si.nu0       
+            # Initial guess of nu0 assuming qpll0 everywhere and qpll=0 at target
+            # Impurity fraction is set to constant as cz0
+            nu0_guess = np.sqrt((si.qpllu0**2 ) /(2*si.kappa0*si.cz0 * st.Tu**2 *integralinterp(st.Tu)))
+            st.cvar = nu0_guess     
         elif si.control_variable == "power":
-            st.cvar = 1/st.qradial #qpllu0
+            # nu0 and cz0 guesses are from Lengyel which depends on an estimate of Tu using qpllu0
+            # This means we cannot make a more clever guess for qpllu0 based on cz0 or nu0
+            qpllu0_guess = si.qpllu0
+            qradial_guess = qpllu0_guess / np.trapz(si.Btot[si.Xpoint:] / si.Btot[si.Xpoint], x = si.S[si.Xpoint:])
+            st.cvar = 1/qradial_guess 
             
         # Initial guess of qpllt, the virtual target temperature (typically 0). 
         st.qpllt = si.gamma_sheath/2*si.nu0*st.Tu*si.echarge*np.sqrt(2*si.Tt*si.echarge/si.mi)
@@ -255,8 +265,8 @@ def LRBv21(constants,radios,d,SparRange,
                     
             """------OUTER LOOP------"""
             # Calculate the new Tu by mixing new value with old one by factor URF (Under-relaxation factor)
+            st.error0 = (st.Tu-st.Tucalc)/st.Tu 
             st.Tu = (1-si.URF)*st.Tu + si.URF*st.Tucalc
-            st.error0 = (st.Tu-st.Tucalc)/st.Tu                
             st.update_log()
                 
             # Break on outer (temp) loop success
@@ -290,59 +300,60 @@ def LRBv21(constants,radios,d,SparRange,
         output["logs"].append(st.log)
         
     """------COLLECT RESULTS------"""
-    # Here we calculate things like window, threshold etc from a whole scan.
-    
-    # Relative control variable:
-    cvar_list = np.array(output["cvar"])
-    crel_list = cvar_list / cvar_list[0]
-    
-    # S parallel and poloidal locations of each front location (for plotting against cvar/crel):
-    splot = output["Splot"]
-    spolplot = output["SpolPlot"]
-    
-    # Trim any unstable detachment (negative gradient) region for post-processing reasons 
-    crel_list_trim = crel_list.copy()
-    cvar_list_trim = cvar_list.copy()
+    if len(SparRange) > 1:
+        # Here we calculate things like window, threshold etc from a whole scan.
+        
+        # Relative control variable:
+        cvar_list = np.array(output["cvar"])
+        crel_list = cvar_list / cvar_list[0]
+        
+        # S parallel and poloidal locations of each front location (for plotting against cvar/crel):
+        splot = output["Splot"]
+        spolplot = output["SpolPlot"]
+        
+        # Trim any unstable detachment (negative gradient) region for post-processing reasons 
+        crel_list_trim = crel_list.copy()
+        cvar_list_trim = cvar_list.copy()
 
-    # Find values on either side of C = 1 and interpolate onto 1 
-    if len(crel_list)>1:
-        for i in range(len(crel_list)-1):
-            if np.sign(crel_list[i]-1) != np.sign(crel_list[i+1]-1) and i > 0:
+        # Find values on either side of C = 1 and interpolate onto 1 
+        if len(crel_list)>1:
+            for i in range(len(crel_list)-1):
+                if np.sign(crel_list[i]-1) != np.sign(crel_list[i+1]-1) and i > 0:
 
-                interp_par = interpolate.interp1d([crel_list[i], crel_list[i+1]], [splot[i], splot[i+1]])
-                interp_pol = interpolate.interp1d([crel_list[i], crel_list[i+1]], [spolplot[i], spolplot[i+1]])
-                
-                spar_onset = float(interp_par(1))
-                spol_onset = float(interp_pol(1))
-                break
-            if i == len(crel_list)-2:
-                spar_onset = 0
-                spol_onset = 0
-                
-        output["spar_onset"] = spar_onset
-        output["spol_onset"] = spol_onset
+                    interp_par = interpolate.interp1d([crel_list[i], crel_list[i+1]], [splot[i], splot[i+1]])
+                    interp_pol = interpolate.interp1d([crel_list[i], crel_list[i+1]], [spolplot[i], spolplot[i+1]])
+                    
+                    spar_onset = float(interp_par(1))
+                    spol_onset = float(interp_pol(1))
+                    break
+                if i == len(crel_list)-2:
+                    spar_onset = 0
+                    spol_onset = 0
+                    
+            output["spar_onset"] = spar_onset
+            output["spol_onset"] = spol_onset
 
-    
-        grad = np.gradient(crel_list)
-        for i, val in enumerate(grad):
-            if i > 0 and np.sign(grad[i]) != np.sign(grad[i-1]):
-                crel_list_trim[:i] = np.nan
-                cvar_list_trim[:i] = np.nan
-                
-    # Pack things into the output dictionary.
-    output["splot"] = splot
-    output["indexRange"] = si.indexRange    
-    output["cvar"] = cvar_list
-    output["crel"] = crel_list
-    output["cvar_trim"] = cvar_list_trim
-    output["crel_trim"] = crel_list_trim
-    output["threshold"] = cvar_list[0]
-    output["window"] = cvar_list[-1] - cvar_list[0]
-    output["window_ratio"] = cvar_list[-1] / cvar_list[0]
+        
+            grad = np.gradient(crel_list)
+            for i, val in enumerate(grad):
+                if i > 0 and np.sign(grad[i]) != np.sign(grad[i-1]):
+                    crel_list_trim[:i] = np.nan
+                    cvar_list_trim[:i] = np.nan
+                    
+        # Pack things into the output dictionary.
+        output["splot"] = splot
+        output["indexRange"] = si.indexRange    
+        output["cvar"] = cvar_list
+        output["crel"] = crel_list
+        output["cvar_trim"] = cvar_list_trim
+        output["crel_trim"] = crel_list_trim
+        output["threshold"] = cvar_list[0]
+        output["window"] = cvar_list[-1] - cvar_list[0]
+        output["window_ratio"] = cvar_list[-1] / cvar_list[0]
 
-    output["constants"] = constants
-    output["radios"] = si.radios
-    output["state"] = st
+        output["constants"] = constants
+        output["radios"] = si.radios
+        output["state"] = st
     
     # Convert back to regular dict
     output = dict(output)
