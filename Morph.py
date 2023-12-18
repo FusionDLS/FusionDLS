@@ -10,6 +10,9 @@ import scipy as sp
 
 
 class Morph():
+    
+    
+    
     def __init__(self, R, Z, Xpoint, Btot, Bpol, S, Spol):
         self.R = R
         self.Z = Z
@@ -25,6 +28,7 @@ class Morph():
         self.Spol = Spol
         
 
+
     def set_start_profile(self, offsets):
         self.start = self._set_profile(offsets)
         self.start["R_leg"] = self.R_leg
@@ -37,8 +41,27 @@ class Morph():
         self.start["Bpol"] = self.Bpol
         self.start["Xpoint"] = self.Xpoint
         
+        
+        
     def set_end_profile(self, offsets):
         self.end = self._set_profile(offsets)
+        self.end = self._populate_profile(self.end)
+        
+        
+        
+    def generate_profiles(self, factors):
+        """ 
+        Make a series of profiles according to provided factors
+        where factor = 0 corresponds to start, factor = 1
+        corresponds to end and factor = 0.5 corresponds to halfway.
+        """
+        profiles = {}
+        for i in factors:
+            profiles[i] = self.morph_between(i)
+        
+        self.profiles = profiles
+        
+        
         
     def morph_between(self, factor):
         
@@ -46,6 +69,7 @@ class Morph():
         prof["x"] = self.start["x"] + factor*(self.end["x"] - self.start["x"])
         prof["y"] = self.start["y"] + factor*(self.end["y"] - self.start["y"])
         prof["xs"], prof["ys"] = cord_spline(prof["x"],prof["y"])   # Interpolate
+        prof = self._populate_profile(prof)
         
         return prof
         
@@ -58,7 +82,9 @@ class Morph():
         
         return prof
     
-    def populate_profile(self, prof):
+    
+    
+    def _populate_profile(self, prof):
         """ 
         Add the rest of the profile to the leg above the X-point
         Add Bpol and Btot along entire leg
@@ -99,8 +125,9 @@ class Morph():
         
         prof["S"] = returnS(prof["R"], prof["Z"], prof["Btot"], prof["Bpol"])
         
-        
         return prof
+    
+    
     
     def plot_profile(self, prof):
         
@@ -125,6 +152,8 @@ class Morph():
         ax.set_title("RZ Space")
         ax.grid(alpha = 0.3, color = "k")
         ax.set_aspect("equal")
+        
+        
         
     def plot_profile_check(self, prof):
         """
@@ -178,6 +207,7 @@ class Morph():
         ax.set_xlabel("Spol [m]");   ax.set_ylabel("B [T]")
 
         fig.tight_layout()
+    
     
     
 def cord_spline(x,y, return_spline = False):
@@ -239,11 +269,12 @@ def shift_points(R, Z, offsets):
     for i, point in enumerate(offsets):
         
         position = point["pos"]
-        offset = point["offset"]
+        offsetx = point["offsetx"] if "offsetx" in point else 0
+        offsety = point["offsety"] if "offsety" in point else 0
         
         Rs, Zs = spl(position)
-        x.append(Rs)
-        y.append(Zs+offset)
+        x.append(Rs+offsetx)
+        y.append(Zs+offsety)
         # x = [R[i[0]], R[i[1]], R[i[2]], R[i[3]]]
         # y = [Z[i[0]]+yoffset[0], Z[i[1]]+yoffset[1], Z[i[2]]+yoffset[2], Z[i[3]]+yoffset[3]]
     
