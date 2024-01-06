@@ -4,25 +4,55 @@ from scipy import interpolate
 import matplotlib.pyplot as plt
 from collections import defaultdict
 
+from freegs import critical
+from freegs.equilibrium import Equilibrium
+from freegs.machine import Wall
+from freegs import jtor
+from freegs import machine
+from freegs.gradshafranov import mu0
+from freegs import fieldtracer
+
+
+from scipy import interpolate
+import math
+from numpy import (
+linspace,
+reshape,
+ravel,
+zeros,
+clip,
+)
+from freegs.shaped_coil import ShapedCoil
+from freegs.coil import Coil
+from freegs.machine import Machine
+
+
+from shapely.geometry import  LineString
+from freegs.machine import Wall
+from scipy.integrate import romb
+
 def unpackConfigurationMK(File, 
                           Type, 
                           polModulator = 1, 
                           sepadd = 0, 
                           resolution = 300, 
                           convention = "target_to_midplane", 
+                          filetype="balance",
                           diagnostic_plot = False,
                           absolute_B = True,
-                          log_grid = False):
+                          log_grid = False,
+                          wallFile=False):
     """
     Extract interpolated variables along the SOL for connected double null configurations
-    File = balance file path
+    File = file path to either balance or eqdsk
     Type = iu, il, ou, ol, box: inner upper and lower, outer upper and lower, or slab geometry
     polModulator: multiplier on poloidal B field
     sepadd: code returns the nth sol ring from the separatrix, where n is sepadd
     convention: target_to_midplane has target at s=0, midplane_to_target has midplane at s=0
     diagnostic_plot: plot a figure for a visual check
     absolute_B: return Bpol and Btot as absolute values
-    
+    wallFile: path of wall txt file in the case of eqdsk
+
     Outputs:
     Bpol: Poloidal B field
     Btot: Total B field
@@ -41,32 +71,36 @@ def unpackConfigurationMK(File,
     """
 
     """------DATA EXTRACTION"""
-    rootgrp = Dataset(File, "r", format="NETCDF4")
-    sep = rootgrp['jsep'][0] # separatrix cell ring
-    sep = sep + sepadd # select cell ring to work on
-    bb = rootgrp["bb"] # B vector array
-
     full = dict() # dictionary to store parameters over full SOL ring
+    if filetype == "balance":
+        rootgrp = Dataset(File, "r", format="NETCDF4")
+        sep = rootgrp['jsep'][0] # separatrix cell ring
+        sep = sep + sepadd # select cell ring to work on
+        bb = rootgrp["bb"] # B vector array
 
-    full["Bpol"] = bb[0][sep]*polModulator
+        full["Bpol"] = bb[0][sep]*polModulator
 
-    # bb[A] returns B components x, y, z and B magnitude for 
-    # A = 0, 1, 2 and 3 respectively for each cell centre in 2D grid
-    full["Btot"] = bb[3][sep] # Mistake in Cyd's version. [3] is the total field
-    
-    # unpack dimensions of super-x
-    # both r and z have the same shape as bb
-    r = rootgrp['crx'] # corner radial coordinate (m)
-    z = rootgrp['cry'] # corner vertical coordinate (m)
+        # bb[A] returns B components x, y, z and B magnitude for 
+        # A = 0, 1, 2 and 3 respectively for each cell centre in 2D grid
+        full["Btot"] = bb[3][sep] # Mistake in Cyd's version. [3] is the total field
+        
+        # unpack dimensions of super-x
+        # both r and z have the same shape as bb
+        r = rootgrp['crx'] # corner radial coordinate (m)
+        z = rootgrp['cry'] # corner vertical coordinate (m)
 
-    # ring cell centres
-    full["R"] = np.mean([r[0][sep], r[1][sep], r[2][sep], r[3][sep]], axis = 0)
-    full["Z"] = np.mean([z[0][sep], z[1][sep], z[2][sep], z[3][sep]], axis = 0)
+        # ring cell centres
+        full["R"] = np.mean([r[0][sep], r[1][sep], r[2][sep], r[3][sep]], axis = 0)
+        full["Z"] = np.mean([z[0][sep], z[1][sep], z[2][sep], z[3][sep]], axis = 0)
 
-    # Entire grid cell centres
-    Zs = np.mean([z[0], z[1], z[2], z[3]], axis = 0)
-    Rs = np.mean([r[0], r[1], r[2], r[3]], axis = 0)
-    
+        # Entire grid cell centres
+        Zs = np.mean([z[0], z[1], z[2], z[3]], axis = 0)
+        Rs = np.mean([r[0], r[1], r[2], r[3]], axis = 0)
+    else:
+        full["R"],full["Z"],full["Btot"],full["Bpol"] = returnSOLring(File,wallFile)
+        Zs = full["Z"]
+        Rs = full["R"]
+
     len_R = len(full["R"])
 
     """------XPOINT, EDGE, MIDPLANE LOCATIONS"""
@@ -201,7 +235,6 @@ def unpackConfigurationMK(File,
         # because Spol and Xpoints exist and they're all in the right convention.
 
             Xpoint = d["Xpoint"]
-            # print("side:",side,d["Spol"][Xpoint+1])
             dymin = 0.001 # size of cell at the target
             abovex = np.linspace(d["Spol"][Xpoint], d["Spol"][-1],
                                  int(np.floor(resolution/2)))
@@ -233,8 +266,8 @@ def unpackConfigurationMK(File,
         # Full arrays of R and Z
         d["R_full"] = Rs
         d["Z_full"] = Zs
-        d["R_ring"] = Rs[sep]
-        d["Z_ring"] = Zs[sep]
+        d["R_ring"] = full["R"]
+        d["Z_ring"] = full["Z"]
         
 
     """------OUTPUT"""    
@@ -313,3 +346,299 @@ def returnzl(R,Z, BX, Bpol):
         PrevR = R[i]
         PrevZ = Z[i]
     return zl
+
+
+def isPow2(val):
+    """
+    Returns True if val is a power of 2
+    val     - Integer
+    """
+    return val & (val - 1) == 0
+
+
+def ceilPow2(val):
+    """
+    Find a power of two greater than or equal to val
+    """
+    return 2 ** math.ceil(math.log2(val))
+
+
+def readSeparatrix(
+    fh,
+    tokamak,
+    cocos=1,
+    wall=0,
+    SOlmultiplier=0.0001,
+
+):
+
+    """
+    Reads a G-EQDSK format file
+
+    fh : File handle
+    tokamak : Machine object defining coil locations
+    cocos : integer
+        COordinate COnventions. Not fully handled yet,
+        only whether psi is divided by 2pi or not.
+        if < 10 then psi is divided by 2pi, otherwise not.
+
+
+    Returns
+    -------
+
+    R,Z, and interpolated field strengths along the separatrix
+
+    """
+
+
+    # Read the data as a Dictionary
+    from freeqdsk import geqdsk ,aeqdsk
+    data = geqdsk.read(fh, cocos=cocos,)
+    
+
+
+    # If data contains a limiter, set the machine wall
+    if "rlim" in data:
+        if len(data["rlim"]) > 3:
+            tokamak.wall = Wall(data["rlim"], data["zlim"])
+        else:
+            print("Fewer than 3 points given for limiter/wall. Ignoring.")
+
+    nx = data["nx"]
+    ny = data["ny"]
+    psi = data["psi"]
+
+    if not (isPow2(nx - 1) and isPow2(ny - 1)):
+
+
+        rin = linspace(0, 1, nx)
+        zin = linspace(0, 1, ny)
+        psi_interp = interpolate.RectBivariateSpline(rin, zin, psi, kx=1, ky=1)
+
+        # Ensure that newnx, newny is 2^n + 1
+        nx = ceilPow2(nx - 1) + 1
+        ny = ceilPow2(ny - 1) + 1
+
+
+        rnew = linspace(0, 1, nx)
+        znew = linspace(0, 1, ny)
+
+        # Interpolate onto new grid
+        psi = psi_interp(rnew, znew)
+
+    # Range of psi normalises psi derivatives
+    psi_bndry = data["sibdry"]
+    psi_axis = data["simagx"]
+    psirange = data["sibdry"] - data["simagx"]
+
+    psinorm = linspace(0.0, 1.0, data["nx"], endpoint=True)
+
+    # Create a spline fit to pressure, f and f**2
+    p_spl = interpolate.InterpolatedUnivariateSpline(psinorm, data["pres"])
+    pprime_spl = interpolate.InterpolatedUnivariateSpline(
+        psinorm, data["pres"] / psirange
+    ).derivative()
+
+    f_spl = interpolate.InterpolatedUnivariateSpline(psinorm, data["fpol"])
+    ffprime_spl = interpolate.InterpolatedUnivariateSpline(
+        psinorm, 0.5 * data["fpol"] ** 2 / psirange
+    ).derivative()
+
+    q_spl = interpolate.InterpolatedUnivariateSpline(psinorm, data["qpsi"])
+
+    # functions to return p, pprime, f and ffprime
+    def p_func(psinorm):
+        if hasattr(psinorm, "shape"):
+            return reshape(p_spl(ravel(psinorm)), psinorm.shape)
+        return p_spl(psinorm)
+
+    def f_func(psinorm):
+        if hasattr(psinorm, "shape"):
+            return reshape(f_spl(ravel(psinorm)), psinorm.shape)
+        return f_spl(psinorm)
+
+    def pprime_func(psinorm):
+        if hasattr(psinorm, "shape"):
+            return reshape(pprime_spl(ravel(psinorm)), psinorm.shape)
+        return pprime_spl(psinorm)
+
+    def ffprime_func(psinorm):
+        if hasattr(psinorm, "shape"):
+            return reshape(ffprime_spl(ravel(psinorm)), psinorm.shape)
+        return ffprime_spl(psinorm)
+
+    def q_func(psinorm):
+        if hasattr(psinorm, "shape"):
+            return reshape(q_spl(ravel(psinorm)), psinorm.shape)
+        return q_spl(psinorm)
+
+    # Create a set of profiles to calculate toroidal current density Jtor
+    profiles = jtor.ProfilesPprimeFfprime(
+        pprime_func,
+        ffprime_func,
+        data["rcentr"] * data["bcentr"],
+        p_func=p_func,
+        f_func=f_func,
+    )
+
+    # Calculate normalised psi.
+    # 0 = magnetic axis
+    # 1 = plasma boundary
+    psi_norm = clip((psi - psi_axis) / (psi_bndry - psi_axis), 0.0, 1.1)
+
+    # Create an Equilibrium object
+    eq = Equilibrium(
+        tokamak=tokamak,
+        Rmin=data["rleft"],
+        Rmax=data["rleft"] + data["rdim"],
+        Zmin=data["zmid"] - 0.5 * data["zdim"],
+        Zmax=data["zmid"] + 0.5 * data["zdim"],
+        nx=nx,
+        ny=ny,  # Number of grid points
+
+    )
+    eq._updatePlasmaPsi(data["psi"])
+
+  # Get profiles, particularly f needed for toroidal field
+
+    from numpy import concatenate,  reshape, ravel
+
+    psinorm = linspace(0.0, 1.0, data["nx"], endpoint=True)
+    f_spl = interpolate.InterpolatedUnivariateSpline(psinorm, data["fpol"])
+    def f_func(psinorm):
+        if hasattr(psinorm, "shape"):
+            return reshape(f_spl(ravel(psinorm)),psinorm.shape)
+        return f_spl(psinorm)
+
+    eq._profiles = jtor.ProfilesPprimeFfprime(None,
+                                                None,
+                                                data["rcentr"] * data["bcentr"],
+                                                f_func=f_func)
+    
+    # Set a wall 
+    eq.tokamak.wall =wall
+
+    # Find all the O- and X-points
+    opoint, xpoint = critical.find_critical(eq.R, eq.Z, psi)
+
+
+    # Draw separatrix if there is an X-point
+    diff = xpoint[0][2]-opoint[0][2]
+    if len(xpoint) > 0:
+        cs = plt.contour(eq.R, eq.Z, psi, levels=[xpoint[0][2]+0.0001*diff], colors="r")
+    p = cs.collections[0].get_paths()[0]
+    v = p.vertices
+    x = v[:,0]
+    y = v[:,1]
+    outerx = 0
+    outery = 0
+
+    plt.close()
+
+    if len(cs.collections[0].get_paths())>1:
+        p2 = cs.collections[0].get_paths()[1]
+        v2 = p2.vertices
+        outerx = v2[:,0]
+        outery = v2[:,1]
+
+    return x, y,outerx,outery, eq.Btot, eq.Br, eq.Bz
+
+
+
+def returnSOLring(eqname,wallname,SOlmultiplier=0.0001):
+    """
+    Unpacks separatrix data
+
+    eqname : Location of geqdsk file
+    wallname : Location of wall txt file
+    SOlmultiplier : larger number means the RING is further into the SOL
+
+
+    Returns
+    -------
+
+    R,Z,Btot and Bpol along a SOL ring 
+
+    """
+    from shapely.geometry import Point
+    from shapely.geometry.polygon import Polygon
+
+    # read wall file
+    wallContour = np.loadtxt(wallname)
+    wallContour = wallContour
+    wallpolygon = []
+    for i in range(len(wallContour[:,0])):
+        wallpolygon.append((wallContour[:,0][i],wallContour[:,1][i]))
+    polygon = Polygon(wallpolygon)
+    wall = Wall(
+    wallContour[:,0], wallContour[:,1]  # R
+    )  
+
+    # open equilibrium file
+    with open(eqname) as f:
+
+        tokamak = machine.EmptyTokamak()
+
+        # read separatrix
+        R,Z,Router,Zouter,btot,br,bz = readSeparatrix(f,tokamak=tokamak,wall=wall,SOlmultiplier=SOlmultiplier)
+
+        Rkeep = []
+        Zkeep = []
+        Btotkeep = []
+        Bpolkeep = []
+        dist = []
+
+        # keep points within wall domain
+        for i in range(len(R)):
+            point = Point(R[i],Z[i])
+            if polygon.contains(point):
+                Rkeep.append(R[i])
+                Zkeep.append(Z[i])
+
+        # find start index
+        for i in range(len(Rkeep)):
+            dist.append((Rkeep[i]-Rkeep[i-1])**2+(Zkeep[i]-Zkeep[i-1])**2)
+        startind = np.argmax(dist)
+        Rkeep = np.append(Rkeep[startind:],Rkeep[:startind])
+        Zkeep = np.append(Zkeep[startind:],Zkeep[:startind])
+
+        #add outer if equilibrium is double null
+        if isinstance(Router, int) and Rkeep[0]>Rkeep[-1]:
+            Rkeep = Rkeep[::-1]
+            Zkeep = Zkeep[::-1]
+        else:
+            if Zkeep[0]>Zkeep[-1]:
+                Rkeep = Rkeep[::-1]
+                Zkeep = Zkeep[::-1]
+
+            # add the outer divertor
+            Rkeepouter= []
+            Zkeepouter = []
+            for i in range(len(Router)):
+                point = Point(Router[i],Zouter[i])
+
+                if polygon.contains(point):
+                    Rkeepouter.append(Router[i])
+                    Zkeepouter.append(Zouter[i])
+                
+            # ensure it starts at upper outer
+            dist = []
+            for i in range(len(Rkeepouter)):
+                dist.append((Rkeepouter[i]-Rkeepouter[i-1])**2+(Zkeepouter[i]-Zkeepouter[i-1])**2)
+            startind = np.argmax(dist)
+            Rkeepouter = np.append(Rkeepouter[startind:],Rkeepouter[:startind])
+            Zkeepouter = np.append(Zkeepouter[startind:],Zkeepouter[:startind])
+            if Zkeepouter[0]<Zkeepouter[-1]:
+                Rkeepouter = Rkeepouter[::-1]
+                Zkeepouter = Zkeepouter[::-1]
+            Rkeep = np.append(Rkeep,Rkeepouter)
+            Zkeep = np.append(Zkeep,Zkeepouter)
+
+        # add magnetic field profiles
+        for i in range(len(Rkeep)):
+            bpolpoint = np.sqrt(br(Rkeep[i],Zkeep[i])**2+bz(Rkeep[i],Zkeep[i])**2)
+            btotpoint = np.sqrt(btot(Rkeep[i],Zkeep[i])**2)
+            Btotkeep.append(btotpoint)
+            Bpolkeep.append(bpolpoint)
+
+    return Rkeep,Zkeep,Btotkeep,Bpolkeep
