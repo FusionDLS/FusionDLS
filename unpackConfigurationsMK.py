@@ -49,9 +49,10 @@ def unpackConfigurationMK(File,
     polModulator: multiplier on poloidal B field
     sepadd: code returns the nth sol ring from the separatrix, where n is sepadd
     convention: target_to_midplane has target at s=0, midplane_to_target has midplane at s=0
+    filetype: either "balance" or "eqdsk"
     diagnostic_plot: plot a figure for a visual check
     absolute_B: return Bpol and Btot as absolute values
-    wallFile: path of wall txt file in the case of eqdsk
+    wallFile: path of wall txt file in the case of eqdsk, else False
 
     Outputs:
     Bpol: Poloidal B field
@@ -114,6 +115,13 @@ def unpackConfigurationMK(File,
     for i in range(1, len(gradR)):
         if np.sign(gradR[i-1]) != np.sign(gradR[i]):
             reversals.append(i)
+    # Sometimes there are points of zero R gradient which result in duplicate reversals
+    toremove = []
+    for i in reversals:
+        if gradR[i] == 0:
+            toremove.append(i+1)
+    for i in toremove:
+        reversals.remove(i)
     
     omp = reversals[-2] # outer midplane
     imp = reversals[1] # inner midplane
@@ -499,7 +507,7 @@ def readSeparatrix(
     )
     eq._updatePlasmaPsi(data["psi"])
 
-  # Get profiles, particularly f needed for toroidal field
+    # Get profiles, particularly f needed for toroidal field
 
     from numpy import concatenate,  reshape, ravel
 
