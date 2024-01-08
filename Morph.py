@@ -116,7 +116,7 @@ class Morph():
         
         ## Total field
         Btot_leg = start["Btot"][:start["Xpoint"]+1]
-        Btot_leg_new = Btot_leg * (R_leg_new / start["R_leg"])
+        Btot_leg_new = Btot_leg * (start["R_leg"] / R_leg_new)
         
         prof["Btot"] = np.concatenate([
             Btot_leg_new,
@@ -127,7 +127,17 @@ class Morph():
         
         return prof
     
+    def get_connection_length(self, prof):
+        """ 
+        Return connection length of profile
+        """
+        return prof["S"][-1] - prof["S"][0]
     
+    def get_total_flux_expansion(self, prof):
+        """
+        Return total flux expansion of profile
+        """
+        return prof["Btot"][prof["Xpoint"]] / prof["Btot"][0]
     
     def plot_profile(self, prof):
         
@@ -142,6 +152,7 @@ class Morph():
         ax.scatter(p["x"], p["y"], c = "red", zorder = 100, marker = "x")
 
         ax.plot(s["R"], s["Z"], linewidth = 3, marker = "o", markersize = 0, color = "black", alpha = 1)
+        
         # ax.plot(d_outer["R"], d_outer["Z"]*-1, linewidth = 3, marker = "o", markersize = 0, color = "black", alpha = 1)
         ax.set_xlabel("$R\ (m)$", fontsize = 15)
         ax.set_ylabel("$Z\ (m)$")
@@ -258,6 +269,8 @@ def shift_points(R, Z, offsets):
         Indices of points to shift. They are the control points of the spline.
     yoffset: list of floats
         Y offset to apply to each point in i.
+    xoffset: list of floats
+        X offset to apply to each point in i.
     """
     
     #        XPOINT ---------   TARGET
