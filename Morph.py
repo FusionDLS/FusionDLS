@@ -114,9 +114,13 @@ class Morph():
         prof["Spol"] = returnll(prof["R"], prof["Z"])
         prof["Bpol"] = start["Bpol"].copy()    # Assume same poloidal field as start
         
-        ## Total field
-        Btot_leg = start["Btot"][:start["Xpoint"]+1]
-        Btot_leg_new = Btot_leg * (start["R_leg"] / R_leg_new)
+        ## Total field 
+        Btor = np.sqrt(start["Btot"]**2 - start["Bpol"]**2)   # Toroidal field
+        Btor_leg = Btor[:start["Xpoint"]+1]
+        Btor_leg_new = Btor_leg * (start["R_leg"] / R_leg_new)
+
+        Bpol_leg = start["Bpol"][:start["Xpoint"]+1]
+        Btot_leg_new = np.sqrt(Btor_leg_new**2 + Bpol_leg**2)
         
         prof["Btot"] = np.concatenate([
             Btot_leg_new,
@@ -127,17 +131,23 @@ class Morph():
         
         return prof
     
+    
+    
     def get_connection_length(self, prof):
         """ 
         Return connection length of profile
         """
         return prof["S"][-1] - prof["S"][0]
     
+    
+    
     def get_total_flux_expansion(self, prof):
         """
         Return total flux expansion of profile
         """
         return prof["Btot"][prof["Xpoint"]] / prof["Btot"][0]
+    
+    
     
     def plot_profile(self, prof):
         
@@ -191,7 +201,7 @@ class Morph():
         ax.set_xlabel("Spar [m]");   ax.set_ylabel("B [T]")
 
         ax = axes[1,0]
-        ax.set_title("Total field")
+        ax.set_title("Total field (poloidal)")
         
         ax.plot(d["Spol"] + Spol_shift, d["Btot"])
         ax.scatter(d["Spol"][d["Xpoint"]] + Spol_shift, d["Btot"][d["Xpoint"]], **xstyle)
@@ -243,6 +253,8 @@ def cord_spline(x,y, return_spline = False):
     else:
         return R,Z
     
+    
+    
 def get_cord_distance(x,y):
     """ 
     Return array of distances along a curve defined by x and y.
@@ -255,6 +267,7 @@ def get_cord_distance(x,y):
     u_cord = np.r_[0, u_cord]      # the first point is parameterized at zero
     
     return u_cord
+
 
 
 def shift_points(R, Z, offsets):
@@ -293,6 +306,7 @@ def shift_points(R, Z, offsets):
     
     return np.array(x), np.array(y)
     
+   
     
 def returnll(R,Z):
     #return the poloidal distances from the target for a given configuration
@@ -307,6 +321,8 @@ def returnll(R,Z):
         PrevR = R[i]
         PrevZ = Z[i]
     return ll
+
+
 
 def returnS(R,Z,B,Bpol):
     #return the real total distances from the target for a given configuration
