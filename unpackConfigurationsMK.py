@@ -533,7 +533,7 @@ def readSeparatrix(
     # Draw separatrix if there is an X-point
     diff = xpoint[0][2]-opoint[0][2]
     if len(xpoint) > 0:
-        cs = plt.contour(eq.R, eq.Z, psi, levels=[xpoint[0][2]+0.0001*diff], colors="r")
+        cs = plt.contour(eq.R, eq.Z, psi, levels=[xpoint[0][2]+SOlmultiplier*diff], colors="r")
     p = cs.collections[0].get_paths()[0]
     v = p.vertices
     x = v[:,0]
