@@ -149,9 +149,78 @@ class Morph():
     
     
     
-    def plot_profile(self, prof):
+    def get_average_frac_gradB(self, prof):
+        """
+        Return the average fractional Btot gradient
+        below the X-point
+        """
+        return ((np.gradient(prof["Btot"], prof["Spol"]) / prof["Btot"])[:prof["Xpoint"]]).mean()
+    
+    def get_average_B_ratio(self, prof):
+        """
+        Return the average Btot below X-point
+        """
+        return prof["Btot"][prof["Xpoint"]] / (prof["Btot"][:prof["Xpoint"]]).mean()
+    
+    
+    def get_sensitivity(self, crel_trim, SpolPlot, fluctuation=1.1, location=0, verbose = False):
+        """
+        Get detachment sensitivity at a certain location
+        Sensitivity defined the location of front after a given fluctuation
+        as a fraction of the total poloidal leg length.
         
-        fig, ax = plt.subplots(1, figsize = (6,12))
+        Inputs
+        ------
+        crel_trim: 1D array
+            Crel values of detachment front with unstable regions trimmed (from DLS)
+        SpolPlot: 1D array
+            Poloidal distance from the DLS result
+        fluctuation: float
+            Fluctuation to calculate sensitivity as fraction of distance to X-point
+            Default: 1.1
+        location: float
+            Location to calculate sensitivity as fraction of distance to X-point
+            Default: target (0)
+        verbose: bool
+            Print results
+            
+        Returns
+        -------
+        sensitivity: float
+            Sensitivity: position of front as fraction of distance towards X-point
+            
+        """
+        # Drop NaNs for points in unstable region
+        xy = pd.DataFrame()
+        xy["crel"] = crel_trim
+        xy["spol"] = SpolPlot
+        xy = xy.dropna()
+
+        Spol_from_crel = sp.interpolate.InterpolatedUnivariateSpline(xy["crel"], xy["spol"])
+        Crel_from_spol = sp.interpolate.InterpolatedUnivariateSpline(xy["spol"], xy["crel"])
+
+        Spol_at_loc = xy["spol"].iloc[-1] * location
+        Crel_at_loc = Crel_from_spol(Spol_at_loc)
+        Spol_total = xy["spol"].iloc[-1]
+
+
+        if (Crel_at_loc - xy["crel"].iloc[0]) < -1e-6:
+            sensitivity = 1   # Front in unstable region
+        else:
+            sensitivity = Spol_from_crel(Crel_at_loc*fluctuation) / Spol_total
+
+        if verbose is True:
+            print(f"Spol at location: {Spol_at_loc:.3f}")
+            print(f"Crel at location: {Crel_at_loc:.3f}")
+            print(f"Sensitivity: {sensitivity:.3f}")
+            
+        return sensitivity
+    
+    
+    
+    def plot_profile(self, prof, dpi=100, ylim=(None,None), xlim=(None,None)):
+        
+        fig, ax = plt.subplots(dpi = dpi)
         
         s = self.start
         p = prof
@@ -163,11 +232,14 @@ class Morph():
 
         ax.plot(s["R"], s["Z"], linewidth = 3, marker = "o", markersize = 0, color = "black", alpha = 1)
         
-        # ax.plot(d_outer["R"], d_outer["Z"]*-1, linewidth = 3, marker = "o", markersize = 0, color = "black", alpha = 1)
+        # ax.plot(d_outer["R"], d_outer["Z"], linewidth = 3, marker = "o", markersize = 0, color = "black", alpha = 1)
         ax.set_xlabel("$R\ (m)$", fontsize = 15)
         ax.set_ylabel("$Z\ (m)$")
-        ax.set_ylim(-8.8, -5.5)
-        # ax.set_xlim(1.55, 2.7)
+        
+        if ylim != (None,None):
+            ax.set_ylim(ylim)
+        if xlim != (None,None):
+            ax.set_xlim(xlim)
 
         alpha = 0.5
         ax.set_title("RZ Space")
@@ -176,56 +248,74 @@ class Morph():
         
         
         
-    def plot_profile_check(self, prof):
-        """
-        Compare a new profile's Btot, Bpol, Spar, Spol and R,Z against the old one
-        """
-        fig, axes = plt.subplots(2,2, figsize = (8,8))
+    def plot_profile_topology(self, base_profile, profiles):
 
-        d = self.start
-        p = prof
+        d = base_profile
         
-        profstyle = dict(marker = "o", alpha = 0.3, c = "darkorange")
+        fig, axes = plt.subplots(2,2, figsize = (8,8))
+        markers = ["o", "v"]
+
+        profstyle = dict(alpha = 0.3)
+        
+
+        basestyle = dict(c = "black")
         xstyle = dict(marker = "+", linewidth = 2, s = 150, c = "r", zorder = 100)
-        S_shift = p["S"][p["Xpoint"]] - d["S"][d["Xpoint"]] 
-        Spol_shift = p["Spol"][p["Xpoint"]] - d["Spol"][d["Xpoint"]]
-        
-        
+
+        S_xpoint_max = max([p["S"][p["Xpoint"]] for p in profiles])
+        S_pol_xpoint_max = max([p["Spol"][p["Xpoint"]] for p in profiles])
+
+        Spol_shift_base = S_pol_xpoint_max - d["Spol"][d["Xpoint"]] 
+
+
+
         ax = axes[0,0]
-        ax.set_title("Total field (parallel)")
-        
-        ax.plot(d["S"] + S_shift, d["Btot"])
-        ax.scatter(d["S"][d["Xpoint"]] + S_shift, d["Btot"][d["Xpoint"]], **xstyle)
-        ax.plot(p["S"], p["Btot"], **profstyle)
-        ax.scatter(p["S"][p["Xpoint"]], p["Btot"][p["Xpoint"]], **xstyle)
-        ax.set_xlabel("Spar [m]");   ax.set_ylabel("B [T]")
+        ax.set_title("Fractional $B_{tot}$ gradient")
+
+        ax.plot(d["Spol"] + Spol_shift_base, np.gradient(d["Btot"], d["Spol"]) / d["Btot"], **basestyle)
+        ax.scatter(d["Spol"][d["Xpoint"]] + Spol_shift_base, (np.gradient(d["Btot"], d["Spol"]) / d["Btot"])[d["Xpoint"]], **xstyle)
+        for i, p in enumerate(profiles): 
+            Spol_shift = S_pol_xpoint_max  - p["Spol"][p["Xpoint"]]
+            ax.plot(p["Spol"] + Spol_shift, np.gradient(p["Btot"], p["Spol"]) / p["Btot"], **profstyle, marker = markers[i])
+            # ax.scatter(p["Spol"][p["Xpoint"]]+ Spol_shift, (np.gradient(p["Btot"], p["Spol"]) / p["Btot"])[p["Xpoint"]], **xstyle)
+            ax.set_xlabel(r"$S_{\theta} \   [m]$");   
+            ax.set_ylabel("$B_{tot}$ $[T]$")
+
 
         ax = axes[1,0]
-        ax.set_title("Total field (poloidal)")
-        
-        ax.plot(d["Spol"] + Spol_shift, d["Btot"])
-        ax.scatter(d["Spol"][d["Xpoint"]] + Spol_shift, d["Btot"][d["Xpoint"]], **xstyle)
-        ax.plot(p["Spol"], p["Btot"], **profstyle)
-        ax.scatter(p["Spol"][p["Xpoint"]], p["Btot"][p["Xpoint"]], **xstyle)
-        ax.set_xlabel("Spol [m]");   ax.set_ylabel("B [T]")
+        ax.set_title("$B_{tot}$")
+
+        ax.plot(d["Spol"] + Spol_shift_base, d["Btot"], **basestyle)
+        ax.scatter(d["Spol"][d["Xpoint"]] + Spol_shift_base, d["Btot"][d["Xpoint"]], **xstyle)
+        for i, p in enumerate(profiles): 
+            Spol_shift = S_pol_xpoint_max  - p["Spol"][p["Xpoint"]]
+            ax.plot(p["Spol"] + Spol_shift, p["Btot"], **profstyle, marker = markers[i])
+            ax.set_xlabel(r"$S_{\theta} \   [m]$")
+            ax.set_ylabel("$B_{tot}$ $[T]$")
+
 
         ax = axes[0,1]
-        ax.set_title("R, Z space")
-        
-        ax.plot(d["R"], d["Z"])
-        ax.scatter(d["R"][d["Xpoint"]], d["Z"][d["Xpoint"]], **xstyle)
-        ax.plot(p["R"], p["Z"], **profstyle)
-        ax.scatter(p["R"][p["Xpoint"]], p["Z"][p["Xpoint"]], **xstyle)
-        ax.set_xlabel("R");   ax.set_ylabel("Z")
+
+        ax.set_title(r"Field line pitch $B_{pol}/B_{tot}$")
+        ax.plot(d["Spol"] + Spol_shift_base, d["Bpol"]/d["Btot"], **basestyle)
+        ax.scatter(d["Spol"][d["Xpoint"]]+ Spol_shift_base, (d["Bpol"]/d["Btot"])[d["Xpoint"]], **xstyle)
+        for i, p in enumerate(profiles): 
+            Spol_shift = S_pol_xpoint_max  - p["Spol"][p["Xpoint"]]
+            ax.plot(p["Spol"] + Spol_shift, p["Bpol"]/p["Btot"], **profstyle, marker = markers[i])
+        ax.set_xlabel(r"$S_{\theta} \   [m]$")
+        ax.set_ylabel(r"$B_{pol} \ / B_{tot}$ ")
 
         ax = axes[1,1]
-        ax.set_title("Poloidal field")
-        
-        ax.plot(d["Spol"] + Spol_shift, d["Bpol"])
-        ax.scatter(d["Spol"][d["Xpoint"]] + Spol_shift,  (d["Bpol"])[d["Xpoint"]], **xstyle)
-        ax.plot(p["Spol"], p["Bpol"], **profstyle)
-        ax.scatter(p["Spol"][p["Xpoint"]],  (p["Bpol"])[p["Xpoint"]], **xstyle)
-        ax.set_xlabel("Spol [m]");   ax.set_ylabel("B [T]")
+        ax.set_title("$B_{pol}$")
+
+        ax.plot(d["Spol"] + Spol_shift_base, d["Bpol"], **basestyle)
+        ax.scatter(d["Spol"][d["Xpoint"]] + Spol_shift_base,  (d["Bpol"])[d["Xpoint"]], **xstyle)
+        for i, p in enumerate(profiles): 
+            Spol_shift = S_pol_xpoint_max  - p["Spol"][p["Xpoint"]]
+            ax.plot(p["Spol"] + Spol_shift, p["Bpol"], **profstyle, marker = markers[i])
+            ax.scatter(p["Spol"][p["Xpoint"]] + Spol_shift,  (p["Bpol"])[p["Xpoint"]], **xstyle)
+        ax.set_xlabel(r"$S_{\theta} \   [m]$")
+        ax.set_ylabel(r"$B_{\theta}$ $[T]$")
+
 
         fig.tight_layout()
     
