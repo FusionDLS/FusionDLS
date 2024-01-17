@@ -1,4 +1,3 @@
-# %%
 from scipy.optimize import fsolve
 import numpy as np
 import matplotlib.pyplot as plt
@@ -12,421 +11,383 @@ from timeit import default_timer as timer
 import pandas as pd
 import sys
 
+from Iterate import LengFunc, iterate
 
-"""
-This version is for implementing density and power as a detachment front driver
-"""
 
-#Function to integrate, that returns dq/ds and dt/ds using Lengyel formulation and field line conduction
-def LengFunc(y,s,kappa0,nu,Tu,cz,qpllu0,alpha,radios,S,B,Xpoint,Lfunc,qradial):
-
-    qoverB,T = y
-    #set density using constant pressure assumption
-    ######>>>>>>>>>>>>>>>>>>>>>> UMM.... IT'S nuTu = 2ntTt!!! <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-    ne = nu*Tu/T
+class SimulationState():
+    """
+    This class represents the simulation state and contains all the variables and data 
+    needed to run the simulation. The state is passed around different functions, which 
+    allows more of the algorithm to be abstracted away from the main function.
     
-    fieldValue = 0
-    if s > S[-1]:
-        fieldValue = B(S[-1])
-    elif s < S[0]:
-        fieldValue = B(S[0])
-    else:
-        fieldValue = B(s)
+    Parameter list
+    ---------
+    si : SimulationInputs
+        Simulation inputs object containing all constant parameters
+    log : dict
+        Log of guesses of Tu and cvar, errors and bounds. Dictionary keys are front positions in index space
+    point : int
+        Location of front position in index space
+    s : array
+        Working set of parallel coordinates (between front location and X-point)
+    cvar : float
+        Control variable (density, impurity fraction or 1/power)
+    lower_bound : float
+        Lower estimate of the cvar solution
+    upper_bound : float
+        Upper estimate of the cvar solution
+    Tu : float
+        Upstream temperature
+    Tucalc : float
+        New calculation of upstream temperature 
+    error1 : float
+        Control variable (inner) loop error based on upstream heat flux approaching qpllu0 or 0 depending on settings
+    error0 : float
+        Temperature (outer) loop error based on upstream temperature converging to steady state
+    qpllu1 : float
+        Calculated upstream heat flux
+    qradial : float
+        qpllu1 converted into a source term representing radial heat flux between upstream and X-point
+    qpllt : float
+        Virtual target heat flux (typically 0)
+    """
+    def __init__(self, si):
         
-    # add a constant radial source of heat above the X point, which is qradial = qpll at Xpoint/np.abs(S[-1]-S[Xpoint]
-    # i.e. radial heat entering SOL evenly spread between midplane and xpoint needs to be sufficient to get the 
-    # correct qpll at the xpoint.
-
-    if radios["upstreamGrid"]:
-        if s > S[Xpoint]:
-            # The second term here converts the x point qpar to a radial heat source acting between midplane and the xpoint
-            try:
-                dqoverBds = ((nu**2*Tu**2)/T**2)*cz*Lfunc(T) - qradial * fieldValue / B(S[Xpoint]) # account for flux expansion to Xpoint
-            except:
-                print("Failed. s: {:.2f}".format(s))
-            else:
-                dqoverBds = ((nu**2*Tu**2)/T**2)*cz*Lfunc(T) - qradial  
-        else:
-            dqoverBds = ((nu**2*Tu**2)/T**2)*cz*Lfunc(T) 
-    else:
-        dqoverBds = ((nu**2*Tu**2)/T**2)*cz*Lfunc(T) 
+        self.si = si   # Add input object to state
+        
+        # Initialise variables
+        self.error1 = 1
+        self.error0 = 1
+        self.qpllu1 = 0
+        self.lower_bound = 0
+        self.upper_bound = 0
+        
+        # Initialise log: one per front position index
+        self.log = {}
+        for i in si.indexRange:
+            self.log[i] = defaultdict(list)
     
-    # working on neutral/ionisation model
-    dqds = dqoverBds
-    dqoverBds = dqoverBds/fieldValue
-    
-    # Flux limiter
-    dtds = 0
-    if radios["fluxlim"]:
-        dtds = qoverB*fieldValue/(kappa0*T**(5/2)-qoverB*fieldValue*kappa0*T**(1/2)/(alpha*ne*np.sqrt(9E-31)))
-    else:
-        dtds = qoverB*fieldValue/(kappa0*T**(5/2))
-    #return gradient of q and T
-    return [dqoverBds,dtds]
+    ## Update primary log
+    def update_log(self):
+        for param in ["error0", "error1", "cvar", "qpllu1", "Tu", "lower_bound", "upper_bound"]:
+            self.log[self.point][param].append(self.get(param))
+            
+        l = self.log[self.point]
+        
+        
+        if self.si.verbosity >= 2:
+            
+            if len(l["error0"]) == 1:   # Print header on first iteration
+                print(f"\n\n Solving at index {self.point}")
+                print("--------------------------------")
+                    
+            print("error0: {:.3E}, Tu: {:.2f}, error1: {:.3E}, cvar: {:.3E}, lower_bound: {:.3E}, upper_bound: {:.3E}".format(
+                l["error0"][-1], l["Tu"][-1], l["error1"][-1], l["cvar"][-1], l["lower_bound"][-1], l["upper_bound"][-1]))
+            
+    # Update many variables
+    def update(self, **kwargs):
+            self.__dict__.update(kwargs)
 
+    # Will return this if called as string
+    def __repr__(self):
+        return str(self.__dict__)
+    
+    # Return parameter from state
+    def get(self, param):
+        return self.__dict__[param]
+    
+class SimulationInputs():
+    """
+    This class functions the same as SimulationState, but is used to store the inputs instead.
+    The separation is to make it easier to see which variables should be unchangeable.
+    
+    Parameter list
+    ---------
+    
+    Physical parameters
+    ~~~~~~~~~
+    kappa0 : float
+        Electron conductivity
+    mi : float
+        Ion mass [kg]
+    echarge : float
+        Electron charge [eV/J]
+    gamma_sheath : float
+        Heat transfer coefficient of the virtual target [-]
+    qpllu0 : float
+        Upstream heat flux setting, overriden if control_variable is power [Wm^-2]
+    nu0 : float
+        Upstream density setting, overriden if control_variable is density [m^-3]
+    cz0 : float
+        Impurity fraction setting, overriden if control_variable is impurity_frac [-]
+    Tt : float
+        Desired virtual target temperature [eV]
+    Lfunc : list
+        Cooling curve function, can be LfuncKallenbachx where x is Ne, Ar or N.
+    Lz : list
+        Cooling curve data: [0] contains temperatures in [eV] and [1] the corresponding cooling values in [W/m^3]
+    alpha : float
+        Heat flux limiter (WIP do not use)
+        
+    Settings
+    ~~~~~~~~~
+    control_variable : str, default impurity_frac
+        density, impurity_frac or power
+    verbosity : int, default 0
+        Level of verbosity. Higher is more verbose
+    Ctol : float, default 1e-3
+        Control variable (inner) loop convergence tolerance
+    Ttol : float, default 1e-2
+        Temperature (outer) loop convergence tolerance
+    URF : float
+        Under-relaxation factor to smooth out temperature convergence (usually doesn't help with anything, keep at 1)
+    timeout : float
+        Maximum number of iterations for each loop before warning or error
+    radios : dict
+        Contains flags for ionisation (WIP do not use), upstreamGrid (allows full flux tube) and fluxlim (WIP do not use)
+        
+    Geometry
+    ~~~~~~~~~
+    SparRange : list
+        List of S parallel locations to solve for
+    indexRange : list
+        List of S parallel indices to solve for
+    Xpoint : int
+        Index of X-point in parallel space
+    S : array
+        Parallel distance [m]
+    Spol : array
+        Poloidal distance [m]
+    B : interp1d function
+        Interpolator function returning a Btot for a given S
+    Btot : array
+        Total B field [T]  
+    """
+    def __init__(self):
+        # Physics constants
+        self.kappa0 = 2500 # 
+        self.mi = 3*10**(-27) 
+        self.echarge = 1.60*10**(-19) 
+        
+        
+    
+    # Update many variables
+    def update(self, **kwargs):
+            self.__dict__.update(kwargs)
+
+    # Will return this if called as string
+    def __repr__(self):
+        return str(self.__dict__)
 
 def LRBv21(constants,radios,d,SparRange, 
                              control_variable = "impurity_frac",
-                             dynamic_grid = False,
-                             dynamic_grid_res = 1000,
                              verbosity = 0, Ctol = 1e-3, Ttol = 1e-2, 
-                             acceleration = 0, URF = 1,
+                             URF = 1,
                              timeout = 20):
     """ function that returns the impurity fraction required for a given temperature at the target. Can request a low temperature at a given position to mimick a detachment front at that position.
     constants: dict of options
     radios: dict of options
     indexRange: array of S indices of the parallel front locations to solve for
     control_variable: either impurity_frac, density or power
-    dynamic_grid: WIP - DOESNT WORK - refines grid between front location and Xpoint to uniformly spaced in Spar as per dynamic_grid_res
     Ctol: error tolerance target for the inner loop (i.e. density/impurity/heat flux)
     Ttol: error tolerance target for the outer loop (i.e. rerrunning until Tu convergence)
-    acceleration: makes bisection method faster for the inner loop by pre-centering bounds. Do not use. No benefit and makes it unstable.
     URF: under-relaxation factor for temperature. If URF is 0.2, Tu_new = Tu_old*0.8 + Tu_calculated*0.2. Always set to 1.
     Timeout: controls timeout for all three loops within the code. Each has different message on timeout. Default 20
     
     """
-    
-    # Initialise variables
+    # Start timer
     t0 = timer()
-    C = []
-    radfraction = []
-    splot = []
-    error1 = 1
-    error0 = 1
-    output = defaultdict(list)
-
-    # Lay out constants
-    gamma_sheath = constants["gamma_sheath"]
-    qpllu0 = constants["qpllu0"]
-    nu0 = constants["nu0"]
-    cz0 = constants["cz0"]
-    Tt = constants["Tt"]
-    Lfunc = constants["Lfunc"]
-    alpha = constants["alpha"]
     
-    # Physics constants
-    kappa0 = 2500 # Electron conductivity
-    mi = 3*10**(-27) # Ion mass
-    echarge = 1.60*10**(-19) # Electron charge
+    # Initialise simulation inputs object
+    si = SimulationInputs()
+    
+    # Add inputs to SimulationInputs
+    si.update(**constants)
+    si.verbosity = verbosity
+    si.Ctol = Ctol
+    si.Ttol = Ttol
+    si.URF = URF
+    si.timeout = timeout
+    si.radios = radios
+    si.control_variable = control_variable
     
     # Extract topology data
-    Xpoint = d["Xpoint"]
-    S = d["S"]
-    Spol = d["Spol"]
-    Btot = d["Btot"]
-    B = interpolate.interp1d(S, Btot, kind = "cubic")
-    indexRange = [np.argmin(abs(d["S"] - x)) for x in SparRange] # Indices of topology arrays to solve code at
-    indexRange = np.unique(indexRange)   # Drop duplicates
-    # Initialise arrays for storing cooling curve data
-    Tcool = np.linspace(0.3,500,1000)#should be this for Ar? Ryoko 20201209 --> almost no effect
+    si.Xpoint = d["Xpoint"]
+    si.S = d["S"]
+    si.Spol = d["Spol"]
+    si.Btot = d["Btot"]
+    si.B = interpolate.interp1d(si.S, si.Btot, kind = "cubic")
+    si.SparRange = SparRange
+    si.indexRange = [np.argmin(abs(d["S"] - x)) for x in SparRange] # Indices of topology arrays to solve code at
+    si.indexRange = np.unique(si.indexRange)   # Drop duplicates
+    
+    # Initialise simulation state object
+    st = SimulationState(si)
+
+    # Initialise output dictionary
+    output = defaultdict(list)
+ 
+    # Initialise cooling curve
+    # TODO: move into SimulationInputs once interface is refactored
+    Tcool = np.linspace(0.3,500,1000)
     Lalpha = []
     for dT in Tcool:
-        Lalpha.append(Lfunc(dT))
+        Lalpha.append(si.Lfunc(dT))
     Lalpha = np.array(Lalpha)
     Tcool = np.append(0,Tcool)
     Lalpha = np.append(0,Lalpha)
-    Lz = [Tcool,Lalpha]
-    
-    # Calculation of radial heat transfer needed to achieve correct qpllu0 at Xpoint
-    qradial = qpllu0/np.abs(S[-1]-S[Xpoint])
+    si.Lz = [Tcool,Lalpha]   # Array of temperatures and corresponding cooling
 
     print("Solving...", end = "")
     
-    """------ITERATOR FUNCTION------"""
-    # Define iterator function. This just solves the Lengyel function and unpacks the results.
-    # It must be defined here and not outside of the main function because it depends on many global
-    # variables.
-    
-    def iterate(cvar, Tu):
-        if control_variable == "impurity_frac":
-            cz = cvar
-            nu = nu0
-
-        elif control_variable == "density":
-            cz = cz0
-            nu = cvar
-   
-        Btot = [B(x) for x in S]
-        qradial = qpllu0 / np.trapz(Btot[Xpoint:] / Btot[Xpoint], x = S[Xpoint:])
-            
-        if control_variable == "power":
-            cz = cz0
-            nu = nu0
-            qradial = 1/cvar # This is needed so that too high a cvar gives positive error            
-
-        if verbosity>2:
-            print(f"qpllu0: {qpllu0:.3E} | nu: {nu:.3E} | Tu: {Tu:.1f} | cz: {cz:.3E} | cvar: {cvar:.2E}", end = "")
-
-        result = odeint(LengFunc,y0=[qpllt/B(s[0]),Tt],t=s,args=(kappa0,nu,Tu,cz,qpllu0,alpha,radios,S,B,Xpoint,Lfunc,qradial))
-        out = dict()
-        # Result returns integrals of [dqoverBds, dtds]
-        out["q"] = result[:,0]*B(s)
-        out["T"] = result[:,1]
-        out["Tu"] = out["T"][-1]
-        Tucalc = out["Tu"]
-
-        # Sometimes we get some negative q but ODEINT breaks down and makes upstream end positive.
-        # If there are any negative values in the array, set the upstream q to the lowest value of q in array.
-        # The algorithm will then know that it needs to go the other way
-        if len(out["q"][out["q"]<0]) > 0:
-            out["qpllu1"] = np.min(out["q"]) # minimum q
-        else:
-            out["qpllu1"] = out["q"][-1] # upstream q
-
-        qpllu1 = out["qpllu1"]
-        # If upstream grid, qpllu1 is at the midplane and is solved until it's 0. It then gets radial transport
-        # so that the xpoint Q is qpllu0. If uypstramGrid=False, qpllu1 is solved to match qpllu0 at the Xpoint.
-        if radios["upstreamGrid"]:
-            out["error1"] = (out["qpllu1"]-0)/qpllu0 
-        else:
-            out["error1"] = (out["qpllu1"]-qpllu0)/qpllu0
-
-        if verbosity > 2:
-            print(f" -> qpllu1: {qpllu1:.3E} | Tucalc: {Tucalc:.1f} | error1: {out['error1']:.3E}")
-
-        return out
     
     """------SOLVE------"""
 
-    for point in indexRange: # For each detachment front location:
-        if dynamic_grid == True: # WIP DO NOT USE.
-        # Rescale grid for arbitrary resolution between front and Xpoint
-            S, Spol, Xpoint = make_dynamic_grid(S, Spol, Xpoint, dynamic_grid_res, point)
+    for point in si.indexRange: # For each detachment front location:
+        st.point = point
             
         print("{}...".format(point), end="")    
-        
-        if verbosity > 0:
-            print("\n---SOLVING FOR INDEX {}".format(point))
             
         """------INITIAL GUESSES------"""
         
         # Current set of parallel position coordinates
-        s = S[point:]
-        output["Splot"].append(S[point])
-        output["SpolPlot"].append(Spol[point])
+        st.s = si.S[point:]
+        output["Splot"].append(si.S[point])
+        output["SpolPlot"].append(si.Spol[point])
 
         # Inital guess for the value of qpll integrated across connection length
         qavLguess = 0
-        if radios["upstreamGrid"]:
-            if s[0] < S[Xpoint]:
-                qavLguess = ((qpllu0)*(S[Xpoint]-s[0]) + (qpllu0/2)*(s[-1]-S[Xpoint]))/(s[-1]-S[0])
+        if si.radios["upstreamGrid"]:
+            if st.s[0] < si.S[si.Xpoint]:
+                qavLguess = ((si.qpllu0)*(si.S[si.Xpoint]-st.s[0]) + (si.qpllu0/2)*(st.s[-1]-si.S[si.Xpoint]))/(st.s[-1]-si.S[0])
             else:
-                qavLguess = (qpllu0/2)
+                qavLguess = (si.qpllu0/2)
         else:
-            qavLguess = (qpllu0)
+            qavLguess = (si.qpllu0)
 
         # Inital guess for upstream temperature based on guess of qpll ds integral
-        Tu0 = ((7/2)*qavLguess*(s[-1]-s[0])/kappa0)**(2/7)
-        Tu = Tu0
+        Tu0 = ((7/2)*qavLguess*(st.s[-1]-st.s[0])/si.kappa0)**(2/7)
+        st.Tu = Tu0
                                     
         # Cooling curve integral
-        Lint = cumtrapz(Lz[1]*np.sqrt(Lz[0]),Lz[0],initial = 0)
-        integralinterp = interpolate.interp1d(Lz[0],Lint)
+        Lint = cumtrapz(si.Lz[1]*np.sqrt(si.Lz[0]),si.Lz[0],initial = 0)
+        integralinterp = interpolate.interp1d(si.Lz[0],Lint)
 
-        # Guesses/initialisations for control variables
-        if control_variable == "impurity_frac":
-            # Initial guess of cz0 assuming qpll0 everywhere and qpll=0 at target
-            # Initialise control variable as the impurity fraction guess
-            cz0_guess = (qpllu0**2 )/(2*kappa0*nu0**2*Tu**2*integralinterp(Tu))
-            cvar = cz0_guess
-            
-        elif control_variable == "density":
-            # Initial guess of nu0 assuming qpll0 everywhere and qpll=0 at target
-            # Impurity fraction is set to constant as cz0
-            nu0_guess = np.sqrt((qpllu0**2 ) /(2*kappa0*cz0 *Tu**2 *integralinterp(Tu)))
-            cvar = nu0_guess
+        # Guesses/initialisations for control variables assuming qpll0 everywhere and qpll=0 at target
         
-        elif control_variable == "power":
+        if si.control_variable == "impurity_frac":
+            # Initial guess of cz0 assuming qpll0 everywhere and qpll=0 at target
+            cz0_guess = (si.qpllu0**2 )/(2*si.kappa0*si.nu0**2*st.Tu**2*integralinterp(st.Tu))
+            st.cvar = cz0_guess
+            
+        elif si.control_variable == "density":
+            # Initial guess of nu0 assuming qpll0 everywhere and qpll=0 at target
+            nu0_guess = np.sqrt((si.qpllu0**2 ) /(2*si.kappa0*si.cz0 * st.Tu**2 *integralinterp(st.Tu)))
+            st.cvar = nu0_guess     
+            
+        elif si.control_variable == "power":
             # nu0 and cz0 guesses are from Lengyel which depends on an estimate of Tu using qpllu0
             # This means we cannot make a more clever guess for qpllu0 based on cz0 or nu0
-            qpllu0_guess = qpllu0
-            qradial_guess = qpllu0_guess / np.trapz(Btot[Xpoint:] / Btot[Xpoint], x = S[Xpoint:])
-            cvar = 1/qradial_guess 
+            qpllu0_guess = si.qpllu0
+            qradial_guess = qpllu0_guess / np.trapz(si.Btot[si.Xpoint:] / si.Btot[si.Xpoint], x = si.S[si.Xpoint:])
+            st.cvar = 1/qradial_guess 
             
-        # Initial guess of qpllt, typically 0. This is a guess for q at the virtual
-        # target (cold end of front). It is a very rough approximation since we are assuming
-        # a sheath transmission coefficient (gamma) of a real target.
-        qpllt = gamma_sheath/2*nu0*Tu*echarge*np.sqrt(2*Tt*echarge/mi)
+        # Initial guess of qpllt, the virtual target temperature (typically 0). 
+        st.qpllt = si.gamma_sheath/2*si.nu0*st.Tu*si.echarge*np.sqrt(2*si.Tt*si.echarge/si.mi)
         
         
         """------INITIALISATION------"""
-        
-        log = defaultdict(list)
-        error1 = 1 # Inner loop error (error in qpllu based on provided cz/ne)
-        error0 = 1 # Outer loop residual in upstream temperature
-        log["error1"].append(error1)
+        st.error1 = 1 # Inner loop error (error in qpllu based on provided cz/ne)
+        st.error0 = 1 # Outer loop residual in upstream temperature
+        st.update_log()
         
         # Tu convergence loop
-        for k0 in range(timeout):
+        for k0 in range(si.timeout):
             
             # Initialise
-            out = iterate(cvar, Tu)
-            reverse_search = False
-            if verbosity > 1:
-                print("\ncvar: {:.3E}, error1: {:.3E}".format(cvar, out["error1"]))
+            st = iterate(si, st)
 
             """------INITIAL SOLUTION BOUNDING------"""
 
-            # We are either doubling or halving cvar until the error flips sign
-            # Reverse search is a WIP: activate if you find a case where the guess vs. error relationship is negative
-            log["cvar"].append(cvar)
-            log["error1"].append(out["error1"])
-            log["qpllu1"].append(out["qpllu1"])
-            log["Qprofiles"].append(out["q"])
-            log["Tprofiles"].append(out["T"])
-            
-            for k1 in range(timeout*2):
+            # Double or halve cvar until the error flips sign           
+            for k1 in range(si.timeout*2):
                 
-                if out["error1"] > 0:
-                    if reverse_search:
-                        cvar = cvar * 2
-                    else:
-                        cvar = cvar / 2
-                        
-                elif out["error1"] < 0:
-                    if reverse_search:
-                        cvar = cvar / 2
-                    else:
-                        cvar = cvar * 2
+                if st.error1 > 0:
+                    st.cvar = st.cvar / 2
+                elif st.error1 < 0:
+                    st.cvar = st.cvar * 2
 
-                out = iterate(cvar, Tu)
+                st = iterate(si, st)
 
-                log["cvar"].append(cvar)
-                log["error1"].append(out["error1"])
-                log["qpllu1"].append(out["qpllu1"])
-                log["Qprofiles"].append(out["q"])
-                log["Tprofiles"].append(out["T"])
-
-                if verbosity > 1:
-                    print("cvar: {:.3E}, error1: {:.3E}".format(cvar, out["error1"]))
-    
-                if verbosity > 2:
-                    print("Last error: {:.3E}, New error: {:.3E}".format(log["error1"][k1+1], log["error1"][k1+2]))
-
-                if np.sign(log["error1"][k1+1]) != np.sign(log["error1"][k1+2]): # It's initialised with a 1 already, hence k1+1 and k1+2
+                if np.sign(st.log[point]["error1"][k1+1]) != np.sign(st.log[point]["error1"][k1+2]): # It's initialised with a 1 already, hence k1+1 and k1+2
                     break
                     
-                if k1 == timeout - 1:
-                    print("******INITIAL BOUNDING TIMEOUT! Failed. Set verbosity = 3 if you want to diagnose.*******")
-                    # print(f"qpllu0: {out['qpllu0']} | qpllu1: {out['qpllu1']}")
-                    # cvar = log["cvar"][0]
-                    # reverse_search = True
-                    # sys.exit()
+                if k1 == si.timeout - 1: raise Exception("Initial bounding failed")
+                
+            if st.cvar < 1e-6 and si.control_variable == "impurity_fraction": raise Exception("Required impurity fraction is tending to zero")
 
-            if cvar < 1e-6 and control_variable == "impurity_fraction":
-                print("*****REQUIRED IMPURITY FRACTION IS NEAR ZERO*******")
-                #sys.exit()
                 
             # We have bounded the problem -  the last two iterations
             # are on either side of the solution
-            lower_bound = min(log["cvar"][-1], log["cvar"][-2])
-            upper_bound = max(log["cvar"][-1], log["cvar"][-2])
-
-            lower_error = log["error1"][log["cvar"].index(lower_bound)+1]
-            upper_error = log["error1"][log["cvar"].index(upper_bound)+1]
-
-            # The solution often ends up very near one bound, meaning the other is far away
-            # We can pre-narrow this band by x halvings where x = acceleration
-            # This can make the bound miss the solution and timeout.
-            # ***This is no longer recommended to use***
-            if acceleration > 0: 
-
-                if verbosity > 1:
-                    print("Bounds centering enabled, set to {} iterations".format(acceleration))
-                    print("-->Before centering: {:.3E}-{:.3E}".format(lower_bound, upper_bound))
-
-                if abs(upper_error/lower_error) > 10:
-                    for k in range(acceleration):
-                        upper_bound -= (upper_bound-lower_bound)/2
-                elif abs(upper_error/lower_error) < 0.1:
-                    for k in range(acceleration):
-                        lower_bound += (upper_bound-lower_bound)/2
-
-                if verbosity > 1:
-                    print("-->After centering: {:.3E}-{:.3E}".format(lower_bound, upper_bound))
+            st.lower_bound = min(st.log[point]["cvar"][-1], st.log[point]["cvar"][-2])
+            st.upper_bound = max(st.log[point]["cvar"][-1], st.log[point]["cvar"][-2])
 
 
             """------INNER LOOP------"""
 
-            for k2 in range(timeout):
+            for k2 in range(si.timeout):
 
                 # New cvar guess is halfway between the upper and lower bound.
-                cvar = lower_bound + (upper_bound-lower_bound)/2
-                out = iterate(cvar, Tu)
-                log["cvar"].append(cvar)
-                log["error1"].append(out["error1"])
-                log["qpllu1"].append(out["qpllu1"])
-                log["Qprofiles"].append(out["q"])
-                log["Tprofiles"].append(out["T"])
+                st.cvar = st.lower_bound + (st.upper_bound-st.lower_bound)/2
+                st = iterate(si, st)
 
                 # Narrow bounds based on the results.
-                if out["error1"] < 0:
-                    lower_bound = cvar
-                elif out["error1"] > 0:
-                    upper_bound = cvar
+                if st.error1 < 0:
+                    st.lower_bound = st.cvar
+                elif st.error1 > 0:
+                    st.upper_bound = st.cvar
 
-                if verbosity > 1:
-                    print(">Bounds: {:.3E}-{:.3E}, cvar: {:.3E}, error1: {:.3E}".format(
-                        lower_bound, upper_bound, cvar, out["error1"]))
-
-                if abs(out["error1"]) < Ctol:
+                # Break on success
+                if abs(st.error1) < si.Ctol:
                     break
 
-                if k2 == timeout - 1:
-                    print("******INNER LOOP TIMEOUT! Reduce acceleration factor or loosen Ctol. Set verbosity = 2!*******")
-                    #sys.exit()
+                if k2 == si.timeout - 1: print("WARNING: Failed to converge control variable loop")
                     
-            # Calculate the new Tu by mixing new value with old one by factor URF (Under-relaxation factor)
-            Tucalc = out["Tu"]
-            error0 = (Tu-Tucalc)/Tu
-            Tu = (1-URF)*Tu + URF*Tucalc
+            """------OUTER LOOP------"""
+            # Upstream temperature error
+            st.error0 = (st.Tu-st.Tucalc)/st.Tu 
             
-            if verbosity > 0 :
-                print("-----------error0: {:.3E}, Tu: {:.2f}, Tucalc: {:.2f}".format(error0, Tu, Tucalc))
+            # Calculate new Tu, under-relax by URF
+            st.Tu = (1-si.URF)*st.Tu + si.URF*st.Tucalc
+
+            st.update_log()
                 
-            
-            log["Tu"].append(Tu)
-            log["error0"].append(error0)
-            
-            # Not sure if this Q serves any function
-            Q = []
-            for Tf in out["T"]:
-                try:
-                    Q.append(Lfunc(Tf))
-                except:
-                    print(f"FAILED TO QUERY COOLING CURVE for a temperature of {Tf:.3E}!")
-                    break
-                
-            if abs(error0) < Ttol:
+            # Break on outer (temperature) loop success
+            if abs(st.error0) < si.Ttol:
                 break
 
-            if k0 == timeout - 1:
-                print("******OUTER TIMEOUT! Loosen Ttol or reduce under-relaxation factor. Set verbosity = 2!*******")
-                #sys.exit()
+            if k0 == si.timeout - 1: raise Exception("Failed to converge temperature loop")
 
             
         """------COLLECT PROFILE DATA------"""
         
-        if control_variable == "power":
-            output["cvar"].append(1/cvar) # so that output is in Wm-2
+        if si.control_variable == "power":
+            output["cvar"].append(1/st.cvar) # so that output is in Wm-2
         else:
-            output["cvar"].append(cvar)
+            output["cvar"].append(st.cvar)
             
-        output["Tprofiles"].append(out["T"])
-        output["Sprofiles"].append(s)
-        output["Qprofiles"].append(out["q"])
         
         Qrad = []
-        for Tf in out["T"]:
-            if control_variable == "impurity_frac":
-                Qrad.append(((nu0**2*Tu**2)/Tf**2)*cvar*Lfunc(Tf))
-            elif control_variable == "density":
-                Qrad.append(((cvar**2*Tu**2)/Tf**2)*cz0*Lfunc(Tf))
-            elif control_variable == "power":
-                Qrad.append(((nu0**2*Tu**2)/Tf**2)*cz0*Lfunc(Tf))
+        for Tf in st.T:
+            if si.control_variable == "impurity_frac":
+                Qrad.append(((si.nu0**2*st.Tu**2)/Tf**2)*st.cvar*si.Lfunc(Tf))
+            elif si.control_variable == "density":
+                Qrad.append(((st.cvar**2*st.Tu**2)/Tf**2)*si.cz0*si.Lfunc(Tf))
+            elif si.control_variable == "power":
+                Qrad.append(((si.nu0**2*st.Tu**2)/Tf**2)*si.cz0*si.Lfunc(Tf))
             
         output["Rprofiles"].append(Qrad)
-        output["logs"].append(log)
+        output["logs"].append(st.log)
         
     """------COLLECT RESULTS------"""
     if len(SparRange) > 1:
@@ -440,28 +401,29 @@ def LRBv21(constants,radios,d,SparRange,
         splot = output["Splot"]
         spolplot = output["SpolPlot"]
         
-        # Below code finds the first stable detachment solution - useful if dealing with inner divertor leg
-        # which may have an unstable region. It returns cvar and crel trim which exclude unstable values for plotting purposes.
-        
-        # Trim negative gradient
+        # Trim any unstable detachment (negative gradient) region for post-processing reasons 
         crel_list_trim = crel_list.copy()
         cvar_list_trim = cvar_list.copy()
 
         # Find values on either side of C = 1 and interpolate onto 1 
-        for i in range(len(crel_list)-1):
-            if np.sign(crel_list[i]-1) != np.sign(crel_list[i+1]-1) and i > 0:
-
-                interp_par = interpolate.interp1d([crel_list[i], crel_list[i+1]], [splot[i], splot[i+1]])
-                interp_pol = interpolate.interp1d([crel_list[i], crel_list[i+1]], [spolplot[i], spolplot[i+1]])
-                
-                spar_onset = float(interp_par(1))
-                spol_onset = float(interp_pol(1))
-                break
-            if i == len(crel_list)-2:
-                spar_onset = 0
-                spol_onset = 0
-
         if len(crel_list)>1:
+            for i in range(len(crel_list)-1):
+                if np.sign(crel_list[i]-1) != np.sign(crel_list[i+1]-1) and i > 0:
+
+                    interp_par = interpolate.interp1d([crel_list[i], crel_list[i+1]], [splot[i], splot[i+1]])
+                    interp_pol = interpolate.interp1d([crel_list[i], crel_list[i+1]], [spolplot[i], spolplot[i+1]])
+                    
+                    spar_onset = float(interp_par(1))
+                    spol_onset = float(interp_pol(1))
+                    break
+                if i == len(crel_list)-2:
+                    spar_onset = 0
+                    spol_onset = 0
+                    
+            output["spar_onset"] = spar_onset
+            output["spol_onset"] = spol_onset
+
+        
             grad = np.gradient(crel_list)
             for i, val in enumerate(grad):
                 if i > 0 and np.sign(grad[i]) != np.sign(grad[i-1]):
@@ -470,7 +432,7 @@ def LRBv21(constants,radios,d,SparRange,
                     
         # Pack things into the output dictionary.
         output["splot"] = splot
-        output["indexRange"] = indexRange    
+        output["indexRange"] = si.indexRange    
         output["cvar"] = cvar_list
         output["crel"] = crel_list
         output["cvar_trim"] = cvar_list_trim
@@ -478,58 +440,17 @@ def LRBv21(constants,radios,d,SparRange,
         output["threshold"] = cvar_list[0]
         output["window"] = cvar_list[-1] - cvar_list[0]
         output["window_ratio"] = cvar_list[-1] / cvar_list[0]
-        output["spar_onset"] = spar_onset
-        output["spol_onset"] = spol_onset
+
         output["constants"] = constants
-        output["radios"] = radios
+        output["radios"] = si.radios
+        output["state"] = st
     
     # Convert back to regular dict
     output = dict(output)
     t1 = timer()
     
     print("Complete in {:.1f} seconds".format(t1-t0))
+    
+    
         
     return output
-
-def make_dynamic_grid(S, Spol, Xpoint, res, front_index):
-    """
-    WIP - DO NOT USE.
-    
-    Scales the grid (S, Spol, Btot, Bpol) to provide a uniformly distributed
-    resolution res between the front location and the Xpoint.
-    Inputs: 
-    d: grid data dict with d["S"], d["Spol"], d["Bpol"], d["Btot"], d["Xpoint"]
-    res: desired number of points in the hi res region
-    front_index: index of front location in the input grid
-    Outputs:
-    d2: like d but scaled
-    """
-    d = dict()
-    d["S"] = S
-    d["Spol"] = Spol
-    # Xpoint = int(Xpoint)
-    Spolx = Spol[Xpoint]
-    Sx = S[Xpoint]
-
-    # UP TO IS EXCLUSIVE. FROM IS INCLUSIVE
-    below = dict(); front = dict(); above = dict()
-    print("HERE",Xpoint)
-    for param in ["S", "Spol"]:
-        below[param] = d[param][:front_index]
-        front[param] = d[param][front_index:Xpoint+1]
-        above[param] = d[param][Xpoint+1:]
-
-    new_front = dict()
-    new_front["S"] = np.linspace(front["S"][0], front["S"][-1], res)
-
-    d2 = dict()
-    for param in ["S", "Spol"]:
-        interp = interpolate.interp1d(front["S"], front[param], kind = "cubic")
-
-        new_front[param] = interp(new_front["S"])
-        d2[param] = np.concatenate([below[param], new_front[param], above[param]])
-
-    d2["S"] = np.concatenate([below["S"], new_front["S"], above["S"]])
-    d2["Xpoint"] = len(below["S"]) + len(new_front["S"]) -1
-    
-    return d2["S"], d2["Spol"], d2["Xpoint"]
