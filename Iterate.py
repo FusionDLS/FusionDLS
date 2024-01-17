@@ -133,8 +133,9 @@ def iterate(si, st):
 
     # Set qpllu1 to lowest q value in array. 
     # Prevents unphysical results when ODEINT bugs causing negative q in middle but still positive q at end, fooling solver to go in wrong direction
+    # Sometimes this also creates a single NaN which breaks np.min(), hence nanmin()
     if len(st.q[st.q<0]) > 0:
-        st.qpllu1 = np.min(st.q) # minimum q
+        st.qpllu1 = np.nanmin(st.q) # minimum q
     else:
         st.qpllu1 = st.q[-1] # upstream q
 
