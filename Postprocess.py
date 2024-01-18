@@ -9,7 +9,61 @@ import os, sys
 import pickle as pkl
 import scipy as sp
 
+def get_sensitivity(crel_trim, SpolPlot, fluctuation=1.1, location=0, verbose = False):
+        """
+        Get detachment sensitivity at a certain location
+        Sensitivity defined the location of front after a given fluctuation
+        as a fraction of the total poloidal leg length.
+        
+        Inputs
+        ------
+        crel_trim: 1D array
+            Crel values of detachment front with unstable regions trimmed (from DLS)
+        SpolPlot: 1D array
+            Poloidal distance from the DLS result
+        fluctuation: float
+            Fluctuation to calculate sensitivity as fraction of distance to X-point
+            Default: 1.1
+        location: float
+            Location to calculate sensitivity as fraction of distance to X-point
+            Default: target (0)
+        verbose: bool
+            Print results
+            
+        Returns
+        -------
+        sensitivity: float
+            Sensitivity: position of front as fraction of distance towards X-point
+            
+        """
+        # Drop NaNs for points in unstable region
+        xy = pd.DataFrame()
+        xy["crel"] = crel_trim
+        xy["spol"] = SpolPlot
+        xy = xy.dropna()
 
+        Spol_from_crel = sp.interpolate.InterpolatedUnivariateSpline(xy["crel"], xy["spol"])
+        Crel_from_spol = sp.interpolate.InterpolatedUnivariateSpline(xy["spol"], xy["crel"])
+
+        Spol_at_loc = xy["spol"].iloc[-1] * location
+        Crel_at_loc = Crel_from_spol(Spol_at_loc)
+        Spol_total = xy["spol"].iloc[-1]
+
+
+        if (Crel_at_loc - xy["crel"].iloc[0]) < -1e-6:
+            sensitivity = 1   # Front in unstable region
+        else:
+            sensitivity = Spol_from_crel(Crel_at_loc*fluctuation) / Spol_total
+
+        if verbose is True:
+            print(f"Spol at location: {Spol_at_loc:.3f}")
+            print(f"Crel at location: {Crel_at_loc:.3f}")
+            print(f"Sensitivity: {sensitivity:.3f}")
+            
+        return sensitivity
+    
+    
+    
 def get_band_widths(d, o, cvar, size = 0.05):
     
     """ 

@@ -53,14 +53,14 @@ class Profile():
         return self.S[-1] - self.S[0]
     
     
-    def get_total_flux_expansion(self, prof):
+    def get_total_flux_expansion(self):
         """
         Return total flux expansion of profile
         """
         return self.Btot[self.Xpoint] / self.Btot[0]
     
     
-    def get_average_frac_gradB(self, prof):
+    def get_average_frac_gradB(self):
         """
         Return the average fractional Btot gradient
         below the X-point
@@ -68,11 +68,89 @@ class Profile():
         return ((np.gradient(self.Btot, self.Spol) / self.Btot)[:self.Xpoint]).mean()
     
     
-    def get_average_B_ratio(self, prof):
+    def get_average_B_ratio(self):
         """
         Return the average Btot below X-point
         """
         return self.Btot[self.Xpoint] / (self.Btot[:self.Xpoint]).mean()
+    
+
+    
+    def scale_BxBt(self, scale_factor = None, BxBt = None):
+        """
+        Scale a Btot profile to have an arbitrary flux expansion
+        Specify either a scale factor or requried flux expansion
+        Will not modify R,Z coordinates!
+        """
+
+        Btot = self.Btot
+        breakpoint = self.Xpoint + 1
+        
+        Bt_base = Btot[0]
+        Bx_base = Btot[breakpoint]
+        BxBt_base = Bx_base / Bt_base
+        
+        if BxBt == None and scale_factor != None:
+            BxBt = BxBt_base * scale_factor
+        elif BxBt == None and scale_factor == None:
+            raise ValueError("Specify either scale factor or flux expansion")    
+        if BxBt == 0:
+            raise ValueError("BxBt cannot be 0")
+
+        # Keep Bx the same, scale Bt.
+        # Calc new Bt based on desired BtBx
+        Bt_new = 1/(BxBt / Bx_base)
+
+        
+        Btot_new = Btot * (Bx_base - Bt_new) / (Bx_base - Bt_base)
+        
+        # Translate to keep the same Bx as before
+        transl_factor = Btot_new[breakpoint] - Bx_base
+        Btot_new = Btot_new - transl_factor
+        
+        # Replace upstream of the Xpoint with the old data
+        # So that we are only scaling downstream of Xpoint
+        Btot_new[breakpoint:] = Btot[breakpoint:]
+        
+        print("Warning: scaling flux expansion. R,Z coordinates will no longer be physical")
+        
+        self.Btot = Btot_new
+        
+        
+    def scale_Lc(self, scale_factor = None, Lc = None):
+        """
+        Scale Spar and Spol profiles for arbitrary connection length
+        Specify either a scale factor or requried connection length
+        Will not modify R,Z coordinates!
+        """
+        
+        if scale_factor == None and Lc == None:
+            raise ValueError("Specify either scale factor or connection length")
+        
+        breakpoint = self.Xpoint+1
+
+        def scale_leg(S, scale_factor):
+            L_upstream = S[-1] - S[breakpoint]
+            L_leg = S[breakpoint]
+            L_total = S[-1]
+            
+            if Lc == None:
+                L_leg_new = L_total * scale_factor - L_upstream
+            else:
+                L_leg_new = Lc - L_upstream
+
+            S_leg = S[:breakpoint]
+            S_upstream = S[breakpoint:]
+            S_leg_new = S_leg * L_leg_new / L_leg
+            S_upstream_new = S_upstream + S_leg_new[-1] - S_leg[-1]
+            S_new = np.concatenate((S_leg_new, S_upstream_new))
+            
+            return S_new
+            
+        self["S"] = scale_leg(self["S"], scale_factor)
+        self["Spol"] = scale_leg(self["Spol"], scale_factor)
+        print("Warning: Scaling connection length. R,Z coordinates will no longer be valid")
+        
     
     
     def offset_control_points(self, offsets, factor = 1):
@@ -363,58 +441,7 @@ class Morph():
     
     
     
-    def get_sensitivity(self, crel_trim, SpolPlot, fluctuation=1.1, location=0, verbose = False):
-        """
-        Get detachment sensitivity at a certain location
-        Sensitivity defined the location of front after a given fluctuation
-        as a fraction of the total poloidal leg length.
-        
-        Inputs
-        ------
-        crel_trim: 1D array
-            Crel values of detachment front with unstable regions trimmed (from DLS)
-        SpolPlot: 1D array
-            Poloidal distance from the DLS result
-        fluctuation: float
-            Fluctuation to calculate sensitivity as fraction of distance to X-point
-            Default: 1.1
-        location: float
-            Location to calculate sensitivity as fraction of distance to X-point
-            Default: target (0)
-        verbose: bool
-            Print results
-            
-        Returns
-        -------
-        sensitivity: float
-            Sensitivity: position of front as fraction of distance towards X-point
-            
-        """
-        # Drop NaNs for points in unstable region
-        xy = pd.DataFrame()
-        xy["crel"] = crel_trim
-        xy["spol"] = SpolPlot
-        xy = xy.dropna()
-
-        Spol_from_crel = sp.interpolate.InterpolatedUnivariateSpline(xy["crel"], xy["spol"])
-        Crel_from_spol = sp.interpolate.InterpolatedUnivariateSpline(xy["spol"], xy["crel"])
-
-        Spol_at_loc = xy["spol"].iloc[-1] * location
-        Crel_at_loc = Crel_from_spol(Spol_at_loc)
-        Spol_total = xy["spol"].iloc[-1]
-
-
-        if (Crel_at_loc - xy["crel"].iloc[0]) < -1e-6:
-            sensitivity = 1   # Front in unstable region
-        else:
-            sensitivity = Spol_from_crel(Crel_at_loc*fluctuation) / Spol_total
-
-        if verbose is True:
-            print(f"Spol at location: {Spol_at_loc:.3f}")
-            print(f"Crel at location: {Crel_at_loc:.3f}")
-            print(f"Sensitivity: {sensitivity:.3f}")
-            
-        return sensitivity
+    
     
     
     
