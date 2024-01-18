@@ -1,3 +1,4 @@
+import copy
 from netCDF4 import Dataset
 import pandas as pd
 import numpy as np
@@ -8,6 +9,237 @@ import os, sys
 import pickle as pkl
 import scipy as sp
 
+class Profile():
+    """
+    Class defining a single field line profile (field line with topology)
+    """
+    
+    def __init__(self, R, Z, Xpoint, Btot, Bpol, S, Spol, name = "base"):
+        self.R = R
+        self.Z = Z
+        self.Xpoint = Xpoint
+        
+        # Split into leg up to and incl. xpoint
+        self.R_leg = R[:Xpoint+1]
+        self.Z_leg = Z[:Xpoint+1]
+        
+        self.Btot = Btot
+        self.Bpol = Bpol
+        self.S = S
+        self.Spol = Spol
+        
+        self.name = name
+    
+    ## Allows to get attributes, set attributes as if it was a dict
+    def __getitem__(self, key):
+        return getattr(self, key)
+    
+    def __setitem__(self, key, value):
+        setattr(self, key, value)
+        
+    ## Allows copying
+    def copy(self):
+        # obj = type(self).__new__(self.__class__)
+        # obj.__dict__.update(self.__dict__)
+        # return obj
+    
+        return copy.deepcopy(self)
+        
+        
+    def get_connection_length(self):
+        """ 
+        Return connection length of profile
+        """
+        return self.S[-1] - self.S[0]
+    
+    
+    def get_total_flux_expansion(self, prof):
+        """
+        Return total flux expansion of profile
+        """
+        return self.Btot[self.Xpoint] / self.Btot[0]
+    
+    
+    def get_average_frac_gradB(self, prof):
+        """
+        Return the average fractional Btot gradient
+        below the X-point
+        """
+        return ((np.gradient(self.Btot, self.Spol) / self.Btot)[:self.Xpoint]).mean()
+    
+    
+    def get_average_B_ratio(self, prof):
+        """
+        Return the average Btot below X-point
+        """
+        return self.Btot[self.Xpoint] / (self.Btot[:self.Xpoint]).mean()
+    
+    
+    def offset_control_points(self, offsets, factor = 1):
+        """
+        Take profile and add control points [x,y] 
+        Then perform cord spline interpolation to get interpolated profile in [xs,ys]
+        The degree of the morph can be controlled by the factor
+        Saves control points as R_control, Z_control
+        """
+
+        self.R_control, self.Z_control = shift_points(self.R_leg, self.Z_leg, offsets, factor = factor)    # Control points defining profile
+        
+        self.interpolate_leg_from_control_points()
+        self.recalculate_topology()
+        
+        
+    def interpolate_leg_from_control_points(self):
+        """
+        Takes saved R_control and Z_control and uses them to interpolate new R,Z 
+        coordinates for the entire profile
+        Saves new R and Z as well as the leg interpolations R_leg_spline and Z_leg_spline
+        """
+        
+        self.R_leg_spline, self.Z_leg_spline = cord_spline(self.R_control, self.Z_control)   # Interpolate
+        
+        ## Calculate the new leg RZ from the spline
+        # Note xs and ys are backwards
+        dist = get_cord_distance(self["R_leg"], self["Z_leg"])   # Distances along old leg
+        spl = cord_spline(self["R_control"][::-1], self["Z_control"][::-1], return_spline = True)
+            
+        # spl = cord_spline(self["R_leg_spline"][::-1], self["Z_leg_spline"][::-1], return_spline = True)   # Spline interp for new leg
+        self["R_leg_spline"], self["Z_leg_spline"] = spl(dist)     # New leg interpolated onto same points as old leg
+    
+    
+        ## Calculate total RZ by adding upstream
+        self["R"] = np.concatenate([
+            self["R_leg_spline"],
+            self["R"][self["Xpoint"]+1:], 
+            ])
+        
+        self["Z"] = np.concatenate([
+            self["Z_leg_spline"],
+            self["Z"][self["Xpoint"]+1:], 
+            ])
+        
+        
+    def recalculate_topology(self):
+        """ 
+        Recalculate Spol, S, Btor, Bpol and Btot from R,Z
+        If doing this after morphing a profile:
+        - It requires R_leg and Z_leg to be the original leg
+        - The new leg is contained in R_leg_spline and Z_leg_spline
+        - The above are used to calculate new topology 
+        Currently only supports changing topology below the X-point
+        """
+        
+
+        ## Calculate poloidal dist and field
+        self["Spol"] = returnll(self["R"], self["Z"])
+        self["Bpol"] = self["Bpol"].copy()    # Assume same poloidal field as start
+        Bpol_leg = self["Bpol"][:self["Xpoint"]+1]    # For calculating Btot_leg
+        
+        ## Calculate toroidal field (1/R)
+        Btor = np.sqrt(self["Btot"]**2 - self["Bpol"]**2)   # Toroidal field
+        Btor_leg = Btor[:self["Xpoint"]+1]
+        Btor_leg_new = Btor_leg * (self["R_leg"] / self["R_leg_spline"])
+
+        ## Calculate total field (from Btor, Bpol)
+        Btot_leg_new = np.sqrt(Btor_leg_new**2 + Bpol_leg**2)
+        
+        self["Btot"] = np.concatenate([
+            Btot_leg_new,
+            self["Btot"][self["Xpoint"]+1:], 
+            ])
+        
+        ## Calculate parallel connection length
+        self["S"] = returnS(self["R"], self["Z"], self["Btot"], self["Bpol"])
+        
+        # Recalculate new R_leg and Z_leg. Must be at the end to preserve reference
+        # to old leg for Btor
+        self["R_leg"] = self["R"][:self["Xpoint"]+1]
+        self["Z_leg"] = self["Z"][:self["Xpoint"]+1]
+        
+        
+    def plot_topology(self):
+
+        fig, axes = plt.subplots(2,2, figsize = (8,8))
+
+        basestyle = dict(c = "black")
+        xstyle = dict(marker = "+", linewidth = 2, s = 150, c = "r", zorder = 100)
+
+        ax = axes[0,0]
+        ax.set_title("Fractional $B_{tot}$ gradient")
+        ax.plot(self["Spol"], np.gradient(self["Btot"], self["Spol"]) / self["Btot"], **basestyle)
+        ax.scatter(self["Spol"][self["Xpoint"]], (np.gradient(self["Btot"], self["Spol"]) / self["Btot"])[self["Xpoint"]], **xstyle)
+        ax.set_xlabel(r"$S_{\theta} \   [m]$");   
+        ax.set_ylabel("$B_{tot}$ $[T]$")
+
+
+        ax = axes[1,0]
+        ax.set_title("$B_{tot}$")
+        ax.plot(self["Spol"], self["Btot"], **basestyle)
+        ax.scatter(self["Spol"][self["Xpoint"]], self["Btot"][self["Xpoint"]], **xstyle)
+        ax.set_xlabel(r"$S_{\theta} \   [m]$")
+        ax.set_ylabel("$B_{tot}$ $[T]$")
+
+
+        ax = axes[0,1]
+        ax.set_title(r"Field line pitch $B_{pol}/B_{tot}$")
+        ax.plot(self["Spol"], self["Bpol"]/self["Btot"], **basestyle)
+        ax.scatter(self["Spol"][self["Xpoint"]], (self["Bpol"]/self["Btot"])[self["Xpoint"]], **xstyle)
+        ax.set_xlabel(r"$S_{\theta} \   [m]$")
+        ax.set_ylabel(r"$B_{pol} \ / B_{tot}$ ")
+
+        ax = axes[1,1]
+        ax.set_title("$B_{pol}$")
+        ax.plot(self["Spol"], self["Bpol"], **basestyle)
+        ax.scatter(self["Spol"][self["Xpoint"]],  (self["Bpol"])[self["Xpoint"]], **xstyle)
+        ax.set_xlabel(r"$S_{\theta} \   [m]$")
+        ax.set_ylabel(r"$B_{\theta}$ $[T]$")
+
+        fig.tight_layout()
+        
+        
+    def plot_control_points(
+        self, 
+        linesettings = {}, 
+        markersettings = {}, 
+        ylim = (None, None), 
+        xlim = (None, None), 
+        dpi = 100,
+        ax = None,
+        ):
+        
+        if ax == None:
+            fig, ax = plt.subplots(dpi = dpi)
+            ax.plot(self["R"], self["Z"], linewidth = 3, marker = "o", markersize = 0, color = "black", alpha = 1)
+        
+        default_line_args = {"c" : "forestgreen", "alpha" : 0.7, "zorder" : 100}
+        default_marker_args = {"c" : "limegreen", "marker" : "+", "linewidth" : 15, "s" : 3, "zorder" : 100}
+        
+        line_args = {**default_line_args, **linesettings}
+        marker_args = {**default_marker_args, **markersettings}
+
+        ax.plot(self["R_leg_spline"], self["Z_leg_spline"], **line_args, label = self.name)
+        ax.scatter(self["R_control"], self["Z_control"], **marker_args)
+
+        ax.set_xlabel("$R\ (m)$", fontsize = 15)
+        ax.set_ylabel("$Z\ (m)$")
+        
+        if ylim != (None,None):
+            ax.set_ylim(ylim)
+        if xlim != (None,None):
+            ax.set_xlim(xlim)
+
+        ax.set_title("RZ Space")
+        ax.grid(alpha = 0.3, color = "k")
+        ax.set_aspect("equal")
+        
+        
+        
+        
+    
+        
+
+        
+    
 
 class Morph():
     
@@ -27,10 +259,10 @@ class Morph():
         self.S = S
         self.Spol = Spol
         
+    
 
-
-    def set_start_profile(self, offsets):
-        self.start = self._set_profile(offsets)
+    def set_start_profile(self, profile, offsets):
+        self.start = self.make_profile_spline(profile, offsets)
         self.start["R_leg"] = self.R_leg
         self.start["Z_leg"] = self.Z_leg
         self.start["R"] = self.R
@@ -44,7 +276,7 @@ class Morph():
         
         
     def set_end_profile(self, offsets):
-        self.end = self._set_profile(offsets)
+        self.end = self.make_profile_spline(offsets)
         self.end = self._populate_profile(self.end)
         
         
@@ -75,12 +307,7 @@ class Morph():
         
         
         
-    def _set_profile(self, offsets):
-        prof = {}
-        prof["x"], prof["y"] = shift_points(self.R_leg, self.Z_leg, offsets)    # Points defining profile
-        prof["xs"], prof["ys"] = cord_spline(prof["x"],prof["y"])   # Interpolate
-        
-        return prof
+    
     
     
     
@@ -133,34 +360,7 @@ class Morph():
     
     
     
-    def get_connection_length(self, prof):
-        """ 
-        Return connection length of profile
-        """
-        return prof["S"][-1] - prof["S"][0]
     
-    
-    
-    def get_total_flux_expansion(self, prof):
-        """
-        Return total flux expansion of profile
-        """
-        return prof["Btot"][prof["Xpoint"]] / prof["Btot"][0]
-    
-    
-    
-    def get_average_frac_gradB(self, prof):
-        """
-        Return the average fractional Btot gradient
-        below the X-point
-        """
-        return ((np.gradient(prof["Btot"], prof["Spol"]) / prof["Btot"])[:prof["Xpoint"]]).mean()
-    
-    def get_average_B_ratio(self, prof):
-        """
-        Return the average Btot below X-point
-        """
-        return prof["Btot"][prof["Xpoint"]] / (prof["Btot"][:prof["Xpoint"]]).mean()
     
     
     def get_sensitivity(self, crel_trim, SpolPlot, fluctuation=1.1, location=0, verbose = False):
@@ -248,76 +448,76 @@ class Morph():
         
         
         
-    def plot_profile_topology(self, base_profile, profiles):
+def compare_profile_topologies(base_profile, profiles):
 
-        d = base_profile
-        
-        fig, axes = plt.subplots(2,2, figsize = (8,8))
-        markers = ["o", "v"]
+    d = base_profile
+    
+    fig, axes = plt.subplots(2,2, figsize = (8,8))
+    markers = ["o", "v"]
 
-        profstyle = dict(alpha = 0.3)
-        
+    profstyle = dict(alpha = 0.3)
+    
 
-        basestyle = dict(c = "black")
-        xstyle = dict(marker = "+", linewidth = 2, s = 150, c = "r", zorder = 100)
+    basestyle = dict(c = "black")
+    xstyle = dict(marker = "+", linewidth = 2, s = 150, c = "r", zorder = 100)
 
-        S_xpoint_max = max([p["S"][p["Xpoint"]] for p in profiles])
-        S_pol_xpoint_max = max([p["Spol"][p["Xpoint"]] for p in profiles])
+    S_xpoint_max = max([p["S"][p["Xpoint"]] for p in profiles])
+    S_pol_xpoint_max = max([p["Spol"][p["Xpoint"]] for p in profiles])
 
-        Spol_shift_base = S_pol_xpoint_max - d["Spol"][d["Xpoint"]] 
-
-
-
-        ax = axes[0,0]
-        ax.set_title("Fractional $B_{tot}$ gradient")
-
-        ax.plot(d["Spol"] + Spol_shift_base, np.gradient(d["Btot"], d["Spol"]) / d["Btot"], **basestyle)
-        ax.scatter(d["Spol"][d["Xpoint"]] + Spol_shift_base, (np.gradient(d["Btot"], d["Spol"]) / d["Btot"])[d["Xpoint"]], **xstyle)
-        for i, p in enumerate(profiles): 
-            Spol_shift = S_pol_xpoint_max  - p["Spol"][p["Xpoint"]]
-            ax.plot(p["Spol"] + Spol_shift, np.gradient(p["Btot"], p["Spol"]) / p["Btot"], **profstyle, marker = markers[i])
-            # ax.scatter(p["Spol"][p["Xpoint"]]+ Spol_shift, (np.gradient(p["Btot"], p["Spol"]) / p["Btot"])[p["Xpoint"]], **xstyle)
-            ax.set_xlabel(r"$S_{\theta} \   [m]$");   
-            ax.set_ylabel("$B_{tot}$ $[T]$")
+    Spol_shift_base = S_pol_xpoint_max - d["Spol"][d["Xpoint"]] 
 
 
-        ax = axes[1,0]
-        ax.set_title("$B_{tot}$")
 
-        ax.plot(d["Spol"] + Spol_shift_base, d["Btot"], **basestyle)
-        ax.scatter(d["Spol"][d["Xpoint"]] + Spol_shift_base, d["Btot"][d["Xpoint"]], **xstyle)
-        for i, p in enumerate(profiles): 
-            Spol_shift = S_pol_xpoint_max  - p["Spol"][p["Xpoint"]]
-            ax.plot(p["Spol"] + Spol_shift, p["Btot"], **profstyle, marker = markers[i])
-            ax.set_xlabel(r"$S_{\theta} \   [m]$")
-            ax.set_ylabel("$B_{tot}$ $[T]$")
+    ax = axes[0,0]
+    ax.set_title("Fractional $B_{tot}$ gradient")
+
+    ax.plot(d["Spol"] + Spol_shift_base, np.gradient(d["Btot"], d["Spol"]) / d["Btot"], **basestyle)
+    ax.scatter(d["Spol"][d["Xpoint"]] + Spol_shift_base, (np.gradient(d["Btot"], d["Spol"]) / d["Btot"])[d["Xpoint"]], **xstyle)
+    for i, p in enumerate(profiles): 
+        Spol_shift = S_pol_xpoint_max  - p["Spol"][p["Xpoint"]]
+        ax.plot(p["Spol"] + Spol_shift, np.gradient(p["Btot"], p["Spol"]) / p["Btot"], **profstyle, marker = markers[i])
+        # ax.scatter(p["Spol"][p["Xpoint"]]+ Spol_shift, (np.gradient(p["Btot"], p["Spol"]) / p["Btot"])[p["Xpoint"]], **xstyle)
+        ax.set_xlabel(r"$S_{\theta} \   [m]$");   
+        ax.set_ylabel("$B_{tot}$ $[T]$")
 
 
-        ax = axes[0,1]
+    ax = axes[1,0]
+    ax.set_title("$B_{tot}$")
 
-        ax.set_title(r"Field line pitch $B_{pol}/B_{tot}$")
-        ax.plot(d["Spol"] + Spol_shift_base, d["Bpol"]/d["Btot"], **basestyle)
-        ax.scatter(d["Spol"][d["Xpoint"]]+ Spol_shift_base, (d["Bpol"]/d["Btot"])[d["Xpoint"]], **xstyle)
-        for i, p in enumerate(profiles): 
-            Spol_shift = S_pol_xpoint_max  - p["Spol"][p["Xpoint"]]
-            ax.plot(p["Spol"] + Spol_shift, p["Bpol"]/p["Btot"], **profstyle, marker = markers[i])
+    ax.plot(d["Spol"] + Spol_shift_base, d["Btot"], **basestyle)
+    ax.scatter(d["Spol"][d["Xpoint"]] + Spol_shift_base, d["Btot"][d["Xpoint"]], **xstyle)
+    for i, p in enumerate(profiles): 
+        Spol_shift = S_pol_xpoint_max  - p["Spol"][p["Xpoint"]]
+        ax.plot(p["Spol"] + Spol_shift, p["Btot"], **profstyle, marker = markers[i])
         ax.set_xlabel(r"$S_{\theta} \   [m]$")
-        ax.set_ylabel(r"$B_{pol} \ / B_{tot}$ ")
-
-        ax = axes[1,1]
-        ax.set_title("$B_{pol}$")
-
-        ax.plot(d["Spol"] + Spol_shift_base, d["Bpol"], **basestyle)
-        ax.scatter(d["Spol"][d["Xpoint"]] + Spol_shift_base,  (d["Bpol"])[d["Xpoint"]], **xstyle)
-        for i, p in enumerate(profiles): 
-            Spol_shift = S_pol_xpoint_max  - p["Spol"][p["Xpoint"]]
-            ax.plot(p["Spol"] + Spol_shift, p["Bpol"], **profstyle, marker = markers[i])
-            ax.scatter(p["Spol"][p["Xpoint"]] + Spol_shift,  (p["Bpol"])[p["Xpoint"]], **xstyle)
-        ax.set_xlabel(r"$S_{\theta} \   [m]$")
-        ax.set_ylabel(r"$B_{\theta}$ $[T]$")
+        ax.set_ylabel("$B_{tot}$ $[T]$")
 
 
-        fig.tight_layout()
+    ax = axes[0,1]
+
+    ax.set_title(r"Field line pitch $B_{pol}/B_{tot}$")
+    ax.plot(d["Spol"] + Spol_shift_base, d["Bpol"]/d["Btot"], **basestyle)
+    ax.scatter(d["Spol"][d["Xpoint"]]+ Spol_shift_base, (d["Bpol"]/d["Btot"])[d["Xpoint"]], **xstyle)
+    for i, p in enumerate(profiles): 
+        Spol_shift = S_pol_xpoint_max  - p["Spol"][p["Xpoint"]]
+        ax.plot(p["Spol"] + Spol_shift, p["Bpol"]/p["Btot"], **profstyle, marker = markers[i])
+    ax.set_xlabel(r"$S_{\theta} \   [m]$")
+    ax.set_ylabel(r"$B_{pol} \ / B_{tot}$ ")
+
+    ax = axes[1,1]
+    ax.set_title("$B_{pol}$")
+
+    ax.plot(d["Spol"] + Spol_shift_base, d["Bpol"], **basestyle)
+    ax.scatter(d["Spol"][d["Xpoint"]] + Spol_shift_base,  (d["Bpol"])[d["Xpoint"]], **xstyle)
+    for i, p in enumerate(profiles): 
+        Spol_shift = S_pol_xpoint_max  - p["Spol"][p["Xpoint"]]
+        ax.plot(p["Spol"] + Spol_shift, p["Bpol"], **profstyle, marker = markers[i])
+        ax.scatter(p["Spol"][p["Xpoint"]] + Spol_shift,  (p["Bpol"])[p["Xpoint"]], **xstyle)
+    ax.set_xlabel(r"$S_{\theta} \   [m]$")
+    ax.set_ylabel(r"$B_{\theta}$ $[T]$")
+
+
+    fig.tight_layout()
     
     
     
@@ -360,7 +560,7 @@ def get_cord_distance(x,y):
 
 
 
-def shift_points(R, Z, offsets):
+def shift_points(R, Z, offsets, factor = 1):
     """ 
     Make control points on a field line according to points of index in list i.
     
@@ -387,6 +587,9 @@ def shift_points(R, Z, offsets):
         position = point["pos"]
         offsetx = point["offsetx"] if "offsetx" in point else 0
         offsety = point["offsety"] if "offsety" in point else 0
+        
+        offsetx *= factor
+        offsety *= factor
         
         Rs, Zs = spl(position)
         x.append(Rs+offsetx)
