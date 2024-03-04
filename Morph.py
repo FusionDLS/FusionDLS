@@ -76,7 +76,7 @@ class Profile():
     
 
     
-    def scale_BxBt(self, scale_factor = None, BxBt = None):
+    def scale_BxBt(self, scale_factor = None, BxBt = None, verbose = True):
         """
         Scale a Btot profile to have an arbitrary flux expansion
         Specify either a scale factor or requried flux expansion
@@ -87,42 +87,42 @@ class Profile():
         breakpoint = self.Xpoint + 1
         
         Bt_base = Btot[0]
-        Bx_base = Btot[breakpoint]
-        BxBt_base = Bx_base / Bt_base
+        Bx = Btot[self.Xpoint]
+        BxBt_base = Bx / Bt_base
         
-        if BxBt == None and scale_factor != None:
+        if BxBt == None and scale_factor == None:
+            raise ValueError("Specify either scale factor or flux expansion")   
+        elif BxBt == None:
             BxBt = BxBt_base * scale_factor
-        elif BxBt == None and scale_factor == None:
-            raise ValueError("Specify either scale factor or flux expansion")    
+         
         if BxBt == 0:
             raise ValueError("BxBt cannot be 0")
 
         # Keep Bx the same, scale Bt.
         # Calc new Bt based on desired BtBx
-        Bt_new = 1/(BxBt / Bx_base)
-
+        Bt_new = 1/(BxBt / Bx)
         
-        Btot_new = Btot * (Bx_base - Bt_new) / (Bx_base - Bt_base)
+        Btot_upstream = Btot[breakpoint:]
+        Btot_leg = Btot[:breakpoint]
         
-        # Translate to keep the same Bx as before
-        transl_factor = Btot_new[breakpoint] - Bx_base
-        Btot_new = Btot_new - transl_factor
+        old_span = Bx - Bt_base
+        new_span = Bx - Bt_new
+        Btot_leg_new = Btot_leg * (new_span / old_span)   # Scale to get Bx/Bt ratio
+        Btot_leg_new = Btot_leg_new - (Btot_leg_new[-1] - Bx)  # Offset to realign Bx
         
-        # Replace upstream of the Xpoint with the old data
-        # So that we are only scaling downstream of Xpoint
-        Btot_new[breakpoint:] = Btot[breakpoint:]
+        if verbose is True:
+            print("Warning: scaling flux expansion. R,Z coordinates will no longer be physical")
         
-        print("Warning: scaling flux expansion. R,Z coordinates will no longer be physical")
-        
-        self.Btot = Btot_new
+        self.Btot = np.concatenate((Btot_leg_new, Btot_upstream))
         
         
-    def scale_Lc(self, scale_factor = None, Lc = None):
+    def scale_Lc(self, scale_factor = None, Lc = None, verbose = True):
         """
         Scale Spar and Spol profiles for arbitrary connection length
         Specify either a scale factor or requried connection length
         Will not modify R,Z coordinates!
         """
+        # FIXME looks to have about 5% error when using Lc
         
         if scale_factor == None and Lc == None:
             raise ValueError("Specify either scale factor or connection length")
@@ -149,7 +149,9 @@ class Profile():
             
         self["S"] = scale_leg(self["S"], scale_factor)
         self["Spol"] = scale_leg(self["Spol"], scale_factor)
-        print("Warning: Scaling connection length. R,Z coordinates will no longer be valid")
+        
+        if verbose is True:
+            print("Warning: Scaling connection length. R,Z coordinates will no longer be valid")
         
     
     
@@ -521,8 +523,8 @@ def compare_profile_topologies(base_profile, profiles):
 
 
     ax = axes[0,1]
-
     ax.set_title(r"Field line pitch $B_{pol}/B_{tot}$")
+    
     ax.plot(d["Spol"] + Spol_shift_base, d["Bpol"]/d["Btot"], **basestyle)
     ax.scatter(d["Spol"][d["Xpoint"]]+ Spol_shift_base, (d["Bpol"]/d["Btot"])[d["Xpoint"]], **xstyle)
     for i, p in enumerate(profiles): 
