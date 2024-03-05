@@ -192,22 +192,12 @@ def unpackConfigurationMK(File,
             d["Btot"] = abs(d["Btot"])
             d["Bpol"] = abs(d["Bpol"])
         
+        # Poloidal distance
         d["Spol"] = np.array(returnll(d["R"], d["Z"]))
             
         
-        # Assemble all the output variables
-        d["Bx"] = d["Btot"][d["Xpoint"]]
-        d["zl"] = np.array(returnzl(d["R"], d["Z"], d["Bx"], np.absolute(d["Bpol"])))
-        d["zx"] = d["zl"][d["Xpoint"]]   
-        d["S"] = np.array(returnS(d["R"], d["Z"], d["Btot"], d["Bpol"]))
-        d["Sx"] = d["S"][d["Xpoint"]]
-        d["Spolx"] = d["Spol"][d["Xpoint"]]
-
-        # Full arrays of R and Z
-        d["R_full"] = Rs
-        d["Z_full"] = Zs
-        d["R_ring"] = Rs[sep]
-        d["Z_ring"] = Zs[sep]
+        # Z space distance (combined parallel and flux expansion, see Lipschultz 2016)
+        d["zl"] = np.array(returnzl(d["R"], d["Z"], d["Btot"][d["Xpoint"]], np.absolute(d["Bpol"])))
         
 
     """------OUTPUT"""    
@@ -286,3 +276,4 @@ def returnzl(R,Z, BX, Bpol):
         PrevR = R[i]
         PrevZ = Z[i]
     return zl
+
