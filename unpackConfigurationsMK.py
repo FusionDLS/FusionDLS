@@ -11,8 +11,7 @@ def unpackConfigurationMK(File,
                           resolution = 300, 
                           convention = "target_to_midplane", 
                           diagnostic_plot = False,
-                          absolute_B = True,
-                          log_grid = False):
+                          absolute_B = True):
     """
     Extract interpolated variables along the SOL for connected double null configurations
     File = balance file path
@@ -194,32 +193,6 @@ def unpackConfigurationMK(File,
             d["Bpol"] = abs(d["Bpol"])
         
         d["Spol"] = np.array(returnll(d["R"], d["Z"]))
-        
-        if log_grid == True:
-        # Create log grid from Xpoint to target in Spol space. Half the res goes above and half
-        # goes below the Xpoint. This is much easier to do after the transformations above
-        # because Spol and Xpoints exist and they're all in the right convention.
-
-            Xpoint = d["Xpoint"]
-            # print("side:",side,d["Spol"][Xpoint+1])
-            dymin = 0.001 # size of cell at the target
-            abovex = np.linspace(d["Spol"][Xpoint], d["Spol"][-1],
-                                 int(np.floor(resolution/2)))
-            belowx = np.logspace(np.log10(dymin), np.log10(d["Spol"][Xpoint]),
-                                 int(np.ceil(resolution/2)))
-            belowx = np.insert(belowx, 0, 0) # logspace won't go to 0. Ensure there is one
-            belowx = np.delete(belowx, -1) # Delete duplicate point shared with abovex
-            path_grid_log = np.concatenate([belowx, abovex])
-            
-            # STILL OKAY AT THIS POINT
-
-            # Reinterpolate the grid and redo all the transformations
-            for param in full.keys():
-                loginterp = interpolate.interp1d(d["Spol"], d[param])
-                d[param] = loginterp(path_grid_log)
-     
-            d["Spol"] = path_grid_log
-            d["Xpoint"] = len(belowx)
             
         
         # Assemble all the output variables
