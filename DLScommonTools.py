@@ -8,17 +8,13 @@ from unpackConfigurationsMK import *
 from matplotlib.collections import LineCollection
 import os
 import pickle as pkl
-from LRBv21 import LRBv21
 import matplotlib as mpl
 import copy
 # import colorcet as cc
 from scipy import interpolate
 from matplotlib.ticker import FormatStrFormatter, StrMethodFormatter, MultipleLocator, FormatStrFormatter, AutoMinorLocator
 
-# from unpackConfigurations import unpackConfiguration
-# from LengyelReinkeFormulation import *
-# import ThermalFrontFormulation as TF
-# from LRBv2 import LRBv2
+
 
 def scale_BxBt(Btot, Xpoint, scale_factor = 0, BxBt = 0):
 # Scale a Btot profile to have an arbitrary flux expansion
@@ -275,6 +271,20 @@ def make_colors(number, cmap):
 def mike_cmap(number):
     colors = ["teal", "darkorange", "firebrick",  "limegreen", "magenta","cyan", "navy"]
     return colors[:number]
+
+def pad_profile(S, data):
+    """
+    DLS terminates the domain at the front meaning downstream domain is ignored.
+    This adds zeros to a result array data to fill those with zeros according to 
+    the distance array S.
+    """
+
+    intended_length = len(S)
+    actual_length = len(data)
+
+    out = np.insert(data, 0, np.zeros((intended_length - actual_length)))
+    
+    return out
 
 def set_matplotlib_defaults():
     fontsize = 14
