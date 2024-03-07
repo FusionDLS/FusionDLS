@@ -2,8 +2,16 @@
 import numpy as np
 import scipy as sp
 import matplotlib.pyplot as plt
+from DLScommonTools import pad_profile
 
-def refineGrid(p, Sfront, fine_ratio = 2, width = 2, resolution = None, diagnostic_plot = False):
+def refineGrid(p, 
+               Sfront, 
+               fine_ratio = 1.5, 
+               width = 4, 
+               resolution = None, 
+               diagnostic_plot = False,
+               tolerance = 1e-3,
+               timeout = 50):
     """
     Refines the grid around the front location.
     Refinement is in the form of a Gaussian distribution
@@ -28,50 +36,70 @@ def refineGrid(p, Sfront, fine_ratio = 2, width = 2, resolution = None, diagnost
     
     S = p["S"]
 
-    ## Create new cell widths and calculate new S array
     if  resolution == None:
         resolution = len(S)
 
-    Snew = np.linspace(S[0], S[-1], resolution - 1)      # Estimate of new S. N-1 cause N(0) = 0
-    dSnew = 1/(np.exp(-0.5 * ((Snew - Sfront)/(width))**2) * (fine_ratio-1) + 1)
-    dSnew *= S[-1] / dSnew.sum()      # Normalise to the original S
-    Snew = np.cumsum(np.insert(dSnew, 0, 0))
+    ## Grid generation is an iterative process because dSnew must know where to put the gaussian
+    # refinement in S space, so it needs an initial S guess. Then we calculate new S from the dS
+    # and loop again until it stops changing.
+    Snew = np.linspace(S[0], S[-1], resolution - 1)      # Initialise S with uniform spacing
+    residual = 1
     
-    ## Assemble new grid
+    if diagnostic_plot is True:
+        fig, axes = plt.subplots(2,1, figsize = (5,5), height_ratios = (8,4))
+        
+    for i in range(timeout):
+        dSnew = 1/((width*np.sqrt(2*np.pi)) * np.exp(-0.5 * ((Snew- Sfront)/(width))**2) * (fine_ratio-1) + 1)
+        dSnew *= S[-1] / dSnew.sum()      # Normalise to the original S
+        Snew = np.cumsum(dSnew)
+        if i != 0:
+            residual = abs((dSnew2[-1] - dSnew[-1]) / dSnew2[-1])
+        dSnew2 = dSnew
+        
+        if diagnostic_plot is True:
+            axes[0].plot(Snew, dSnew, label = i)
+            axes[1].scatter(Snew, np.ones_like(Snew)*-i, marker = "|", s = 5, linewidths = 0.5, alpha = 0.1)
+        
+        if residual < tolerance:
+            # print(f"Residual is {residual}, breaking")
+            break
+        
+        if i == timeout-1:
+            raise Exception("Iterative grid adaption iteration limit reached, try running with diagnostic plot")
+    
+    Snew = np.insert(Snew, 0, 0)   # len(dS) = len(S) - 1
+    
+    # Grid width diagnostics plot settings
+    if diagnostic_plot is True:
+        
+        axes[1].set_yticklabels([])
+        fig.tight_layout()
+        fig.legend(loc = "upper center", bbox_to_anchor = (0.5, 0), ncols = 5)
+        axes[0].set_title("Adaptive grid iterations")
+
+        axes[0].set_ylabel("dS [m]")
+        axes[0].set_xlabel("S [m]")
+        axes[1].set_title("S spacing")
+        axes[1].set_xlabel("S [m]")
+        fig.tight_layout()
+    
+    ## Interpolate geometry and field onto the new S coordinate
     pnew = {}
     pnew["S"] = Snew
     for par in p.keys():
         if par != "Xpoint" and par != "S":
-            pnew[par] = sp.interpolate.make_interp_spline(S, p[par], k = 2)
+            pnew[par] = sp.interpolate.make_interp_spline(S, p[par], k = 2)(Snew)
+            
+            if diagnostic_plot is True:
+                fig, ax = plt.subplots(dpi = 100)
+                ax.plot(p["S"], p[par], label = "Original", marker = "o", 
+                        color = "darkorange", alpha = 0.3, 
+                        ms = 10, markerfacecolor = "None")
+                ax.plot(pnew["S"], pnew[par], label = "New", marker = "o", ms = 3)
+                ax.set_title(par)
 
     pnew["Xpoint"] = np.argmin(np.abs(Snew - S[p["Xpoint"]]))
     
     
-    ## Diagnostic plot
-    if diagnostic_plot is True:
-        fig, axes = plt.subplots(1,3, figsize = (15,5), dpi = 100)
-
-        axes[0].plot(S, Snew, marker = "o", lw = 0)
-        axes[0].plot(S, S, ls = "--", c = "k", lw = 1)
-        axes[0].set_xlabel("Old Spar")
-        axes[0].set_ylabel("New Spar")
-        axes[0].set_title("Old vs. new Spar map")
-
-        axes[1].plot(Snew[1:], dSnew)
-        axes[1].set_xlabel("S")
-        axes[1].set_ylabel("dS")
-        axes[1].set_title("Grid width profile")
-
-        axes[2].set_title("Btot profile")
-        axes[2].plot(S, p["Btot"], marker = "o", lw = 0, ms = 6, markerfacecolor = "None", c = "darkorange", label = "Original")
-        axes[2].plot(S, interpfun(S), c = "darkorange", lw = 1, label = "Original, interpolated")
-        axes[2].plot(Snew, pnew["Btot"], marker = "o", ms = 3, lw = 0, label = "New grid")
-        axes[2].scatter(S[p["Xpoint"]], p["Btot"][p["Xpoint"]], c = "r", label = "Old Xpoint", zorder = 100, s = 150, linewidths=1, marker = "x")
-        axes[2].scatter(Snew[pnew["Xpoint"]], pnew["Btot"][pnew["Xpoint"]], c = "blue", label = "New Xpoint", zorder = 100, s = 250, linewidths=1, marker = "+")
-        axes[2].set_xlabel("S [m]")
-        axes[2].set_ylabel("Btot [T]")
-        
-        axes[2].legend(fontsize = 12)
-        fig.tight_layout()
         
     return pnew
