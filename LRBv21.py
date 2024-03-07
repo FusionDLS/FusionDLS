@@ -437,9 +437,10 @@ def LRBv21(constants,radios,d,SparRange,
         output["crel"] = crel_list
         output["cvar_trim"] = cvar_list_trim
         output["crel_trim"] = crel_list_trim
-        output["threshold"] = cvar_list[0]
-        output["window"] = cvar_list[-1] - cvar_list[0]
-        output["window_ratio"] = cvar_list[-1] / cvar_list[0]
+        output["threshold"] = cvar_list[0]                                # Ct
+        output["window"] = cvar_list[-1] - cvar_list[0]                   # Cx - Ct
+        output["window_frac"] = output["window"] / output["threshold"]    # (Cx - Ct) / Ct
+        output["window_ratio"] = cvar_list[-1] / cvar_list[0]             # Cx / Ct
 
         output["constants"] = constants
         output["radios"] = si.radios
