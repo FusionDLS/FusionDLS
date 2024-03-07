@@ -194,7 +194,7 @@ def unpackConfigurationMK(File,
         
         # Poloidal distance
         d["Spol"] = np.array(returnll(d["R"], d["Z"]))
-            
+        d["S"] = np.array(returnS(d["R"], d["Z"], d["Btot"], d["Bpol"]))
         
         # Z space distance (combined parallel and flux expansion, see Lipschultz 2016)
         d["zl"] = np.array(returnzl(d["R"], d["Z"], d["Btot"][d["Xpoint"]], np.absolute(d["Bpol"])))
