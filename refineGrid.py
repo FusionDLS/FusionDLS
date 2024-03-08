@@ -65,7 +65,7 @@ def refineGrid(p,
             break
         
         if i == timeout-1:
-            raise Exception("Iterative grid adaption iteration limit reached, try running with diagnostic plot")
+            raise Exception("Iterative grid adaption iteration limit reached, try reducing refinement ratio and running with diagnostic plot")
     
     Snew = np.insert(Snew, 0, 0)   # len(dS) = len(S) - 1
     
