@@ -201,7 +201,8 @@ def LRBv21(constants,radios,d,SparRange,
                              timeout = 20,
                              dynamicGrid = False,
                              dynamicGridRefinementRatio = 5,
-                             dynamicGridRefinementWidth = 2,
+                             dynamicGridRefinementWidth = 1,
+                             dynamicGridDiagnosticPlot = False
                              ):
     """ function that returns the impurity fraction required for a given temperature at the target. Can request a low temperature at a given position to mimick a detachment front at that position.
     constants: dict of options
@@ -273,16 +274,17 @@ def LRBv21(constants,radios,d,SparRange,
             newProfile = refineGrid(d, SparFront, 
                                     fine_ratio = dynamicGridRefinementRatio, 
                                     width = dynamicGridRefinementWidth,
-                                    diagnostic_plot = False)
+                                    diagnostic_plot = dynamicGridDiagnosticPlot)
             si.Xpoint = newProfile["Xpoint"]
             si.S = newProfile["S"]
             si.Spol = newProfile["Spol"]
             si.Btot = newProfile["Btot"]
+            si.Bpol = newProfile["Bpol"]
             si.B = interpolate.interp1d(si.S, si.Btot, kind = "cubic")   # TODO: is this necessary?  We have Btot already
             
-            # Find nearest point on new grid
-            old_S = si.SparRange[idx]
-            point = st.point = np.argmin(abs(si.S - old_S))
+            # Find index of front location on new grid
+            SparFrontOld = si.SparRange[idx]
+            point = st.point = np.argmin(abs(si.S - SparFrontOld))
         
         else:
             point = st.point = np.argmin(abs(d["S"] - SparFront))  
@@ -432,6 +434,8 @@ def LRBv21(constants,radios,d,SparRange,
         output["Tprofiles"].append(st.T)
         output["Sprofiles"].append(si.S)
         output["Spolprofiles"].append(si.Spol)
+        output["Btotprofiles"].append(si.Btot)
+        output["Bpolprofiles"].append(si.Bpol)
         output["logs"].append(st.log)
         
     """------COLLECT RESULTS------"""
