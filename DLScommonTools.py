@@ -262,30 +262,6 @@ def file_read(filename):
         
     return data
 
-def make_colors(number, cmap):
-    """make_colors(number of colours, matplotlib colormap function)"""
-    colors = []
-    idx = np.linspace(0,255,number)
-    
-    for i in range(number):
-        colors.append(cmap(int(idx[i])))
-                      
-    return colors
 
-def mike_cmap(number):
-    colors = ["teal", "darkorange", "firebrick",  "limegreen", "magenta","cyan", "navy"]
-    return colors[:number]
-
-def set_matplotlib_defaults():
-    fontsize = 14
-    plt.rc('font', size=fontsize) #controls default text size
-    plt.rc('axes', titlesize=fontsize) #fontsize of the title
-    plt.rc('axes', labelsize=fontsize) #fontsize of the x and y labels
-    plt.rc('xtick', labelsize=fontsize) #fontsize of the x tick labels
-    plt.rc('ytick', labelsize=fontsize) #fontsize of the y tick labels
-    plt.rc('legend', fontsize=fontsize) #fontsize of the legend
-    plt.rc('lines', linewidth=3)
-    plt.rc('figure', figsize=(8,6))
-    plt.rc('axes', grid = True)
     
     
