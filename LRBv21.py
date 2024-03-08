@@ -12,6 +12,9 @@ import pandas as pd
 import sys
 
 from Iterate import LengFunc, iterate
+from refineGrid import refineGrid
+from DLScommonTools import pad_profile
+
 
 
 class SimulationState():
@@ -63,22 +66,32 @@ class SimulationState():
         self.upper_bound = 0
         
         # Initialise log: one per front position index
-        self.log = {}
-        for i in si.indexRange:
-            self.log[i] = defaultdict(list)
+        self.singleLog = {}
+        
+        logParams = ["error0", "error1", "cvar", "qpllu1", "Tu", "lower_bound", "upper_bound"]
+        for x in logParams:
+            self.singleLog[x] = []
+            
+        self.log = {}   # Log for all front positions
     
     ## Update primary log
     def update_log(self):
+
         for param in ["error0", "error1", "cvar", "qpllu1", "Tu", "lower_bound", "upper_bound"]:
-            self.log[self.point][param].append(self.get(param))
             
-        l = self.log[self.point]
+            self.singleLog[param].append(self.get(param))
+            
+        self.log[self.SparFront] = self.singleLog   # Put in global log
+            
+        
+            
+        l = self.singleLog
         
         
         if self.si.verbosity >= 2:
             
             if len(l["error0"]) == 1:   # Print header on first iteration
-                print(f"\n\n Solving at index {self.point}")
+                print(f"\n\n Solving at parallel location {self.SparFront}")
                 print("--------------------------------")
                     
             print("error0: {:.3E}, Tu: {:.2f}, error1: {:.3E}, cvar: {:.3E}, lower_bound: {:.3E}, upper_bound: {:.3E}".format(
@@ -86,7 +99,7 @@ class SimulationState():
             
     # Update many variables
     def update(self, **kwargs):
-            self.__dict__.update(kwargs)
+        self.__dict__.update(kwargs)
 
     # Will return this if called as string
     def __repr__(self):
@@ -181,9 +194,16 @@ class SimulationInputs():
 
 def LRBv21(constants,radios,d,SparRange, 
                              control_variable = "impurity_frac",
-                             verbosity = 0, Ctol = 1e-3, Ttol = 1e-2, 
+                             verbosity = 0, 
+                             Ctol = 1e-3, 
+                             Ttol = 1e-2, 
                              URF = 1,
-                             timeout = 20):
+                             timeout = 20,
+                             dynamicGrid = False,
+                             dynamicGridRefinementRatio = 5,
+                             dynamicGridRefinementWidth = 1,
+                             dynamicGridDiagnosticPlot = False
+                             ):
     """ function that returns the impurity fraction required for a given temperature at the target. Can request a low temperature at a given position to mimick a detachment front at that position.
     constants: dict of options
     radios: dict of options
@@ -193,7 +213,9 @@ def LRBv21(constants,radios,d,SparRange,
     Ttol: error tolerance target for the outer loop (i.e. rerrunning until Tu convergence)
     URF: under-relaxation factor for temperature. If URF is 0.2, Tu_new = Tu_old*0.8 + Tu_calculated*0.2. Always set to 1.
     Timeout: controls timeout for all three loops within the code. Each has different message on timeout. Default 20
-    
+    dynamicGrid: enables iterative grid refinement around the front (recommended)
+    dynamicGridRefinementRatio: ratio of finest to coarsest cell width in dynamic grid
+    dynamicGridRefinementWidth: size of dynamic grid refinement region in metres parallel
     """
     # Start timer
     t0 = timer()
@@ -211,15 +233,17 @@ def LRBv21(constants,radios,d,SparRange,
     si.radios = radios
     si.control_variable = control_variable
     
+
+    
     # Extract topology data
     si.Xpoint = d["Xpoint"]
     si.S = d["S"]
     si.Spol = d["Spol"]
     si.Btot = d["Btot"]
-    si.B = interpolate.interp1d(si.S, si.Btot, kind = "cubic")
+    si.B = interpolate.interp1d(si.S, si.Btot, kind = "cubic") 
     si.SparRange = SparRange
-    si.indexRange = [np.argmin(abs(d["S"] - x)) for x in SparRange] # Indices of topology arrays to solve code at
-    si.indexRange = np.unique(si.indexRange)   # Drop duplicates
+    # si.indexRange = [np.argmin(abs(d["S"] - x)) for x in SparRange] # Indices of topology arrays to solve code at
+    # si.indexRange = np.unique(si.indexRange)   # Drop duplicates
     
     # Initialise simulation state object
     st = SimulationState(si)
@@ -242,11 +266,30 @@ def LRBv21(constants,radios,d,SparRange,
     
     
     """------SOLVE------"""
-
-    for point in si.indexRange: # For each detachment front location:
-        st.point = point
+    for idx, SparFront in enumerate(si.SparRange): # For each detachment front location:
+        
+        st.SparFront = SparFront   # Current prescribed parallel front location
+        
+        if dynamicGrid is True:
+            newProfile = refineGrid(d, SparFront, 
+                                    fine_ratio = dynamicGridRefinementRatio, 
+                                    width = dynamicGridRefinementWidth,
+                                    diagnostic_plot = dynamicGridDiagnosticPlot)
+            si.Xpoint = newProfile["Xpoint"]
+            si.S = newProfile["S"]
+            si.Spol = newProfile["Spol"]
+            si.Btot = newProfile["Btot"]
+            si.Bpol = newProfile["Bpol"]
+            si.B = interpolate.interp1d(si.S, si.Btot, kind = "cubic")   # TODO: is this necessary?  We have Btot already
             
-        print("{}...".format(point), end="")    
+            # Find index of front location on new grid
+            SparFrontOld = si.SparRange[idx]
+            point = st.point = np.argmin(abs(si.S - SparFrontOld))
+        
+        else:
+            point = st.point = np.argmin(abs(d["S"] - SparFront))  
+            
+        print(f"{SparFront:.2f}...", end="")    
             
         """------INITIAL GUESSES------"""
         
@@ -319,7 +362,7 @@ def LRBv21(constants,radios,d,SparRange,
 
                 st = iterate(si, st)
 
-                if np.sign(st.log[point]["error1"][k1+1]) != np.sign(st.log[point]["error1"][k1+2]): # It's initialised with a 1 already, hence k1+1 and k1+2
+                if np.sign(st.log[st.SparFront]["error1"][k1+1]) != np.sign(st.log[st.SparFront]["error1"][k1+2]): # It's initialised with a 1 already, hence k1+1 and k1+2
                     break
                     
                 if k1 == si.timeout - 1: raise Exception("Initial bounding failed")
@@ -329,8 +372,8 @@ def LRBv21(constants,radios,d,SparRange,
                 
             # We have bounded the problem -  the last two iterations
             # are on either side of the solution
-            st.lower_bound = min(st.log[point]["cvar"][-1], st.log[point]["cvar"][-2])
-            st.upper_bound = max(st.log[point]["cvar"][-1], st.log[point]["cvar"][-2])
+            st.lower_bound = min(st.log[st.SparFront]["cvar"][-1], st.log[st.SparFront]["cvar"][-2])
+            st.upper_bound = max(st.log[st.SparFront]["cvar"][-1], st.log[st.SparFront]["cvar"][-2])
 
 
             """------INNER LOOP------"""
@@ -389,6 +432,10 @@ def LRBv21(constants,radios,d,SparRange,
         output["Rprofiles"].append(Qrad)
         output["Qprofiles"].append(st.q)
         output["Tprofiles"].append(st.T)
+        output["Sprofiles"].append(si.S)
+        output["Spolprofiles"].append(si.Spol)
+        output["Btotprofiles"].append(si.Btot)
+        output["Bpolprofiles"].append(si.Bpol)
         output["logs"].append(st.log)
         
     """------COLLECT RESULTS------"""
@@ -433,8 +480,7 @@ def LRBv21(constants,radios,d,SparRange,
                     cvar_list_trim[:i] = np.nan
                     
         # Pack things into the output dictionary.
-        output["splot"] = splot
-        output["indexRange"] = si.indexRange    
+        output["splot"] = splot  
         output["cvar"] = cvar_list
         output["crel"] = crel_list
         output["cvar_trim"] = cvar_list_trim
