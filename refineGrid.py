@@ -1,4 +1,3 @@
-
 import numpy as np
 import scipy as sp
 import matplotlib.pyplot as plt
@@ -86,7 +85,7 @@ def refineGrid(p,
     ## Interpolate geometry and field onto the new S coordinate
     pnew = {}
     pnew["S"] = Snew
-    for par in p.keys():
+    for par in ["S", "Spol", "R", "Z", "Btot", "Bpol"]:
         if par != "Xpoint" and par != "S":
             pnew[par] = sp.interpolate.make_interp_spline(S, p[par], k = 2)(Snew)
             
