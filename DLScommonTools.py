@@ -260,4 +260,16 @@ def file_read(filename):
 
 
     
-    
+def pad_profile(S, data):
+    """
+    DLS terminates the domain at the front meaning downstream domain is ignored.
+    This adds zeros to a result array data to fill those with zeros according to 
+    the distance array S.
+    """
+
+    intended_length = len(S)
+    actual_length = len(data)
+
+    out = np.insert(data, 0, np.zeros((intended_length - actual_length)))
+
+    return out
