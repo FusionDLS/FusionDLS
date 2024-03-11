@@ -37,6 +37,9 @@ class Profile():
     def __setitem__(self, key, value):
         setattr(self, key, value)
         
+    def keys(self):
+        return self.__dict__.keys()
+        
     ## Allows copying
     def copy(self):
         # obj = type(self).__new__(self.__class__)
@@ -72,7 +75,7 @@ class Profile():
         """
         Return the average Btot below X-point
         """
-        return self.Btot[self.Xpoint] / (self.Btot[:self.Xpoint]).mean()
+        return self.Btot[-1] / (self.Btot[:self.Xpoint]).mean()
     
 
     
