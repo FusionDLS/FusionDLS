@@ -387,6 +387,7 @@ def LRBv21(constants,radios,d,SparRange,
                 Qrad.append(((si.nu0**2*st.Tu**2)/Tf**2)*si.cz0*si.Lfunc(Tf))
             
         output["Rprofiles"].append(Qrad)
+        output["Qprofiles"].append(st.q)
         output["logs"].append(st.log)
         
     """------COLLECT RESULTS------"""
