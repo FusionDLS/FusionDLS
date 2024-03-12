@@ -1,5 +1,6 @@
 /__pychache__/
 *.png
+*.pyc
 LengFunc.m
 runLeng.m
 LengyelSolver.py
