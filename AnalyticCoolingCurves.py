@@ -421,22 +421,22 @@ def LfuncKallenbach(species_choice):
     
     # Kallenbach goes only to 1eV.
     # Here we force the interpolator to return 0 
-    # at less than 1eV by advising it that 
-    # radiation at T = 0 and T = 0.99 is 0.
+    # at less than 0.5eV by advising it that 
+    # radiation at T = 0 and T = 0.49 is 0.
     
-    T = np.insert(T, 0, [-1e10, 0,0.99])
+    T = np.insert(T, 0, [-1e10, 0,0.49])
 
     radiation[species_choice] = np.insert(radiation[species_choice], 0, [0,0,0])
         
     # Now let's trim the curves to a specific temperature
     # First find the last index before temperature of interest
-    Tmax = 100
+    Tmax = 3000
     Tmax_idx = np.argmin(np.abs(T-Tmax))
     T[Tmax_idx] = Tmax # Make sure this point is exactly Tmax
     radiation[species_choice][Tmax_idx+1:] = 0
     
     
-    Lfunc = interpolate.interp1d(T, radiation[species_choice])
+    Lfunc = interpolate.CubicSpline(T, radiation[species_choice])
     
     return Lfunc
 

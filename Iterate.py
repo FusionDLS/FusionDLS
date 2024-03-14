@@ -49,18 +49,16 @@ def LengFunc(y, s, si, st):
         if s >S[Xpoint]:
             # The second term here converts the x point qpar to a radial heat source acting between midplane and the xpoint
             try:
-                dqoverBds = ((nu**2*Tu**2)/T**2)*cz*Lfunc(T) - qradial * fieldValue / B(S[Xpoint]) # account for flux expansion to Xpoint
+                dqoverBds = ((nu**2*Tu**2)/T**2)*cz*Lfunc(T)/fieldValue - qradial/fieldValue #/fieldValue * fieldValue / B(S[Xpoint]) # account for flux expansion to Xpoint
             except:
                 print("Failed. s: {:.2f}".format(s))
-            else:
-                dqoverBds = ((nu**2*Tu**2)/T**2)*cz*Lfunc(T) - qradial  
         else:
-            dqoverBds = ((nu**2*Tu**2)/T**2)*cz*Lfunc(T) 
+            dqoverBds = ((nu**2*Tu**2)/T**2)*cz*Lfunc(T)/fieldValue
     else:
-        dqoverBds = ((nu**2*Tu**2)/T**2)*cz*Lfunc(T) 
+        dqoverBds = ((nu**2*Tu**2)/T**2)*cz*Lfunc(T)/fieldValue
     
     # working on neutral/ionisation model
-    dqoverBds = dqoverBds/fieldValue
+    # dqoverBds = dqoverBds/fieldValue
     
     # Flux limiter
     dtds = 0
@@ -108,8 +106,9 @@ def iterate(si, st):
         st.cz = si.cz0
         st.nu = st.cvar
 
-    si.Btot = [si.B(x) for x in si.S]
-    st.qradial = si.qpllu0/ np.trapz(si.Btot[si.Xpoint:] / si.Btot[si.Xpoint], x = si.S[si.Xpoint:])
+    # si.Btot = [si.B(x) for x in si.S]   ## FIXME This shouldn't be here, we already have a Btot
+    st.qradial = (si.qpllu0 / si.Btot[si.Xpoint]) / np.trapz(1/si.Btot[si.Xpoint:], x = si.S[si.Xpoint:])
+    
         
     if si.control_variable == "power":
         st.cz = si.cz0
@@ -118,7 +117,7 @@ def iterate(si, st):
 
     if si.verbosity>2:
         print(f"qpllu0: {si.qpllu0:.3E} | nu: {st.nu:.3E} | Tu: {st.Tu:.1f} | cz: {st.cz:.3E} | cvar: {st.cvar:.2E}", end = "")
-
+    
     result = odeint(LengFunc, 
                     y0 = [st.qpllt/si.B(st.s[0]),si.Tt],
                     t = st.s,

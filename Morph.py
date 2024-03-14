@@ -75,7 +75,7 @@ class Profile():
         """
         Return the average Btot below X-point
         """
-        return self.Btot[-1] / (self.Btot[:self.Xpoint]).mean()
+        return self.Btot[self.Xpoint] / (self.Btot[:self.Xpoint]).mean()
     
 
     
