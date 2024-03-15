@@ -353,26 +353,8 @@ def LRBv21(constants,radios,d,SparRange,
         for k0 in range(si.timeout):
             
             # Initialise
-            try:
-                st = iterate(si, st)
-            except Exception as e:
-                print(f"Iteration failed, retrying",e)
-                
-                try:
-                    st = iterate(si, st)
-                except Exception as e:
-                    print(f"Iteration failed, retrying",e)    
-                    
-                    try:
-                        st = iterate(si, st)
-                    except Exception as e:
-                        print(f"Iteration failed, retrying",e)    
-                        
-                        try:
-                            st = iterate(si, st)
-                        except Exception as e:
-                            print(f"Iteration failed, stopping")
-                            print(e)  
+            st = iterate(si, st)
+
 
             """------INITIAL SOLUTION BOUNDING------"""
 
@@ -384,26 +366,8 @@ def LRBv21(constants,radios,d,SparRange,
                 elif st.error1 < 0:
                     st.cvar = st.cvar * 2
 
-                try:
-                    st = iterate(si, st)
-                except Exception as e:
-                    print(f"Iteration failed, retrying",e)
-                    
-                    try:
-                        st = iterate(si, st)
-                    except Exception as e:
-                        print(f"Iteration failed, retrying",e)    
-                        
-                        try:
-                            st = iterate(si, st)
-                        except Exception as e:
-                            print(f"Iteration failed, retrying",e)    
-                            
-                            try:
-                                st = iterate(si, st)
-                            except Exception as e:
-                                print(f"Iteration failed, stopping")
-                                print(e)  
+                st = iterate(si, st)
+
 
                 if np.sign(st.log[st.SparFront]["error1"][k1+1]) != np.sign(st.log[st.SparFront]["error1"][k1+2]): # It's initialised with a 1 already, hence k1+1 and k1+2
                     break
@@ -426,27 +390,7 @@ def LRBv21(constants,radios,d,SparRange,
                 # New cvar guess is halfway between the upper and lower bound.
                 st.cvar = st.lower_bound + (st.upper_bound-st.lower_bound)/2
                 
-                try:
-                    st = iterate(si, st)
-                except Exception as e:
-                    print(f"Iteration failed, retrying",e)
-                    
-                    try:
-                        st = iterate(si, st)
-                    except Exception as e:
-                        print(f"Iteration failed, retrying",e)    
-                        
-                        try:
-                            st = iterate(si, st)
-                        except Exception as e:
-                            print(f"Iteration failed, retrying",e)    
-                            
-                            try:
-                                st = iterate(si, st)
-                            except Exception as e:
-                                print(f"Iteration failed, stopping")
-                                print(e)  
-                
+                st = iterate(si, st)
 
                 # Narrow bounds based on the results.
                 if st.error1 < 0:
@@ -502,8 +446,8 @@ def LRBv21(constants,radios,d,SparRange,
         # Pad some profiles with zeros to ensure same length as S
         output["Sprofiles"].append(si.S)
         output["Tprofiles"].append(pad_profile(si.S, st.T))
-        output["Rprofiles"].append(pad_profile(si.S, Qrad))
-        output["Qprofiles"].append(pad_profile(si.S, st.q))
+        output["Rprofiles"].append(pad_profile(si.S, Qrad))   # Radiation in W/m3
+        output["Qprofiles"].append(pad_profile(si.S, st.q))   # Heat flux in W/m2
         output["Spolprofiles"].append(si.Spol)
         output["Btotprofiles"].append(np.array(si.Btot))
         output["Bpolprofiles"].append(np.array(si.Bpol))
