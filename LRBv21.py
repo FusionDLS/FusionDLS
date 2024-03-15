@@ -497,8 +497,13 @@ def LRBv21(constants,radios,d,SparRange,
                     cvar_list_trim[:i] = np.nan
                     
         # Pack things into the output dictionary.
+        
+        output["splot"] = splot  
+        output["cvar"] = cvar_list
+        output["crel"] = crel_list
         output["cvar_trim"] = cvar_list_trim
         output["crel_trim"] = crel_list_trim
+        output["threshold"] = cvar_list[0]    
                                       # Ct
         output["window"] = cvar_list[-1] - cvar_list[0]                   # Cx - Ct
         output["window_frac"] = output["window"] / output["threshold"]    # (Cx - Ct) / Ct
@@ -506,8 +511,7 @@ def LRBv21(constants,radios,d,SparRange,
         
     elif len(SparRange) == 1:
         output["crel"] = 1
-
-    output["threshold"] = st.cvar
+        output["threshold"] = st.cvar
     output["constants"] = constants
     output["radios"] = si.radios
     output["state"] = st
