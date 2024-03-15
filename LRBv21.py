@@ -399,7 +399,12 @@ def LRBv21(constants,radios,d,SparRange,
                     st.upper_bound = st.cvar
 
                 # Break on success
-                if abs(st.error1) < si.Ctol:
+                if k0 < 2:
+                    tolerance = 1e-2   # Looser tolerance for the first two T iterations
+                else:
+                    tolerance = si.Ctol
+                    
+                if abs(st.error1) < tolerance:
                     break
 
                 if k2 == si.timeout - 1: print("WARNING: Failed to converge control variable loop")
