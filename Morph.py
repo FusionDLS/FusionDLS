@@ -83,6 +83,7 @@ class Profile():
         """
         Scale a Btot profile to have an arbitrary flux expansion
         Specify either a scale factor or requried flux expansion
+        Will keep Spol the same (not pitch angle)
         Will not modify R,Z coordinates!
         """
 
@@ -123,6 +124,7 @@ class Profile():
         """
         Scale Spar and Spol profiles for arbitrary connection length
         Specify either a scale factor or requried connection length
+        Will keep Spol the same (not pitch angle)
         Will not modify R,Z coordinates!
         """
         # FIXME looks to have about 5% error when using Lc
@@ -202,7 +204,7 @@ class Profile():
             ])
         
         
-    def recalculate_topology(self):
+    def recalculate_topology(self, constant_pitch = True):
         """ 
         Recalculate Spol, S, Btor, Bpol and Btot from R,Z
         If doing this after morphing a profile:
@@ -213,18 +215,40 @@ class Profile():
         """
         
 
-        ## Calculate poloidal dist and field
+        
+        
+        
+        ## Calculate existing toroidal field (1/R)
+        Btor = np.sqrt(self["Btot"]**2 - self["Bpol"]**2)   # Toroidal field
+        Bpitch = self["Bpol"] / self["Btot"]
+        
+        ## Save existing parameters
+        self["Bpol"] = self["Bpol"].copy()  
+        Btor_leg = Btor[:self["Xpoint"]+1]
+        Bpol_leg = self["Bpol"][:self["Xpoint"]+1]   
+        Bpitch_leg = Bpitch[:self["Xpoint"]+1]  
+        
+        ## Calculate new S poloidal from R,Z
         self["Spol"] = returnll(self["R"], self["Z"])
-        self["Bpol"] = self["Bpol"].copy()    # Assume same poloidal field as start
-        Bpol_leg = self["Bpol"][:self["Xpoint"]+1]    # For calculating Btot_leg
         
         ## Calculate toroidal field (1/R)
-        Btor = np.sqrt(self["Btot"]**2 - self["Bpol"]**2)   # Toroidal field
-        Btor_leg = Btor[:self["Xpoint"]+1]
+        
+        
         Btor_leg_new = Btor_leg * (self["R_leg"] / self["R_leg_spline"])
 
-        ## Calculate total field (from Btor, Bpol)
-        Btot_leg_new = np.sqrt(Btor_leg_new**2 + Bpol_leg**2)
+        ## Calculate total field
+        # Either keep same Bpitch or same Bpol
+        if constant_pitch is True:
+            Btot_leg_new = np.sqrt(Btor_leg_new**2 / (1 - Bpitch_leg**2))
+            Bpol_leg_new = np.sqrt(Btot_leg_new**2 - Btor_leg_new**2)
+            
+            self["Bpol"] = np.concatenate([
+                Bpol_leg_new,
+                self["Bpol"][self["Xpoint"]+1:], 
+                ])
+            
+        else:
+            Btot_leg_new = np.sqrt(Btor_leg_new**2 + Bpol_leg**2)
         
         self["Btot"] = np.concatenate([
             Btot_leg_new,
