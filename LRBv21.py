@@ -471,9 +471,11 @@ def LRBv21(constants,radios,d,SparRange,
                 
             # Break on outer (temperature) loop success
             if abs(st.error0) < si.Ttol:
+                if verbosity > 2: print(f"\n Converged temperature loop in {k0} iterations")
                 break
-
-            if k0 == si.timeout - 1: raise Exception("Failed to converge temperature loop")
+            if k0 == 10: raise Exception("Failed to converge temperature loop")
+            
+            
 
             
         """------COLLECT PROFILE DATA------"""
@@ -485,13 +487,13 @@ def LRBv21(constants,radios,d,SparRange,
             
         
         Qrad = []
-        for Tf in st.T:
+        for i, Tf in enumerate(st.T):
             if si.control_variable == "impurity_frac":
-                Qrad.append(((si.nu0**2*st.Tu**2)/Tf**2)*st.cvar*si.Lfunc(Tf))
+                Qrad.append(((si.nu0**2*st.Tu**2)/Tf**2)*st.cvar*si.Lfunc(Tf)) 
             elif si.control_variable == "density":
-                Qrad.append(((st.cvar**2*st.Tu**2)/Tf**2)*si.cz0*si.Lfunc(Tf))
+                Qrad.append(((st.cvar**2*st.Tu**2)/Tf**2)*si.cz0*si.Lfunc(Tf)) 
             elif si.control_variable == "power":
-                Qrad.append(((si.nu0**2*st.Tu**2)/Tf**2)*si.cz0*si.Lfunc(Tf))
+                Qrad.append(((si.nu0**2*st.Tu**2)/Tf**2)*si.cz0*si.Lfunc(Tf)) 
             
         
         # Pad some profiles with zeros to ensure same length as S
