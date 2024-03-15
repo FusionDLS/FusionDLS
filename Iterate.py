@@ -114,7 +114,8 @@ def iterate(si, st):
     if si.control_variable == "power":
         st.cz = si.cz0
         st.nu = si.nu0
-        st.qradial = 1/st.cvar # This is needed so that too high a cvar gives positive error            
+        # st.qradial = 1/st.cvar # This is needed so that too high a cvar gives positive error     
+        st.qradial = (1/st.cvar / si.Btot[si.Xpoint]) / np.trapz(1/si.Btot[si.Xpoint:], x = si.S[si.Xpoint:])       
 
     if si.verbosity>2:
         print(f"qpllu0: {si.qpllu0:.3E} | nu: {st.nu:.3E} | Tu: {st.Tu:.1f} | cz: {st.cz:.3E} | cvar: {st.cvar:.2E}", end = "")
