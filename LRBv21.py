@@ -473,7 +473,10 @@ def LRBv21(constants,radios,d,SparRange,
             if abs(st.error0) < si.Ttol:
                 if verbosity > 2: print(f"\n Converged temperature loop in {k0} iterations")
                 break
-            if k0 == 10: raise Exception("Failed to converge temperature loop")
+            if k0 == si.timeout: 
+                output["logs"] = st.log
+                print("Failed to converge temperature loop, exiting and returning logs")
+                return output
             
             
 
@@ -505,7 +508,8 @@ def LRBv21(constants,radios,d,SparRange,
         output["Btotprofiles"].append(np.array(si.Btot))
         output["Bpolprofiles"].append(np.array(si.Bpol))
         output["Xpoints"].append(si.Xpoint)
-        output["logs"].append(st.log)
+        
+    output["logs"] = st.log   # Append log with all front positions
         
     """------COLLECT RESULTS------"""
     if len(SparRange) > 1:
