@@ -204,7 +204,7 @@ class Profile():
             ])
         
         
-    def recalculate_topology(self, constant_pitch = True):
+    def recalculate_topology(self, constant_pitch = True, Bpol_shift = None):
         """ 
         Recalculate Spol, S, Btor, Bpol and Btot from R,Z
         If doing this after morphing a profile:
@@ -212,12 +212,13 @@ class Profile():
         - The new leg is contained in R_leg_spline and Z_leg_spline
         - The above are used to calculate new topology 
         Currently only supports changing topology below the X-point
+        
+        Bpol_shift: dict()
+            Width = gaussian width in m
+            pos = position in m poloidal from the target
+            height = height in Bpol units
         """
-        
 
-        
-        
-        
         ## Calculate existing toroidal field (1/R)
         Btor = np.sqrt(self["Btot"]**2 - self["Bpol"]**2)   # Toroidal field
         Bpitch = self["Bpol"] / self["Btot"]
@@ -232,8 +233,6 @@ class Profile():
         self["Spol"] = returnll(self["R"], self["Z"])
         
         ## Calculate toroidal field (1/R)
-        
-        
         Btor_leg_new = Btor_leg * (self["R_leg"] / self["R_leg_spline"])
 
         ## Calculate total field
@@ -246,6 +245,15 @@ class Profile():
                 Bpol_leg_new,
                 self["Bpol"][self["Xpoint"]+1:], 
                 ])
+            
+            ## Convolve Bpol with a gaussian of a width, position and height
+            if Bpol_shift != None:
+                width = Bpol_shift["width"]
+                pos = Bpol_shift["pos"]
+                height = Bpol_shift["height"]
+                weight = (width*np.sqrt(2*np.pi)) * np.exp(-0.5 * ((np.array(self["Spol"]) - pos)/(width))**2) 
+                weight = weight / np.max(weight) * height
+                self["Bpol"] -= weight
             
         else:
             Btot_leg_new = np.sqrt(Btor_leg_new**2 + Bpol_leg**2)
