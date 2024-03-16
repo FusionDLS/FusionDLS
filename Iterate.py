@@ -144,8 +144,22 @@ def iterate(si, st):
     # st.q = result[:,0]*si.B(st.s)     # q profile
     # st.T = result[:,1]                # Temp profile
     # solve_ivp
-    st.q = result.y[0]*si.B(st.s)     # q profile
-    st.T = result.y[1]                # Temp profile
+    # plt.plot(result.y[0])
+    # plt.show()
+    
+    qoverBresult = result.y[0]
+    Tresult = result.y[1]
+    
+    ## Sometimes when solve_ivp returns negative q upstream, it will trim
+    # the output instead of giving nans. This pads it back to correct length
+    if len(qoverBresult) < len(st.s):
+        if si.verbosity > 3: print("Warning: solver output contains NaNs")
+        
+        qoverBresult = np.insert(qoverBresult, -1, np.zeros((len(st.s) - len(qoverBresult))))
+        Tresult = np.insert(Tresult, -1, np.zeros((len(st.s) - len(qoverBresult))))
+    
+    st.q = qoverBresult*si.B(st.s)     # q profile
+    st.T = Tresult                # Temp profile
     
     st.Tucalc = st.T[-1]              # Upstream temperature. becomes st.Tu in outer loop
     
