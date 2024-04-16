@@ -312,6 +312,7 @@ def LRBv21(constants,radios,d,SparRange,
         # Inital guess for upstream temperature based on guess of qpll ds integral
         Tu0 = ((7/2)*qavLguess*(st.s[-1]-st.s[0])/si.kappa0)**(2/7)
         st.Tu = Tu0
+        st.Pu0 = Tu0 * si.nu0 * si.echarge   # Initial upstream pressure in Pa, calculated so it can be kept constant if required
                                     
         # Cooling curve integral
         Lint = cumtrapz(si.Lz[1]*np.sqrt(si.Lz[0]),si.Lz[0],initial = 0)
@@ -347,6 +348,11 @@ def LRBv21(constants,radios,d,SparRange,
         """------INITIALISATION------"""
         st.error1 = 1 # Inner loop error (error in qpllu based on provided cz/ne)
         st.error0 = 1 # Outer loop residual in upstream temperature
+        # Upstream conditions
+        st.nu = si.nu0
+        st.cz = si.cz0
+        st.qradial = (si.qpllu0 / si.Btot[si.Xpoint]) / np.trapz(1/si.Btot[si.Xpoint:], x = si.S[si.Xpoint:])
+        
         st.update_log()
         
         # Tu convergence loop
@@ -407,7 +413,7 @@ def LRBv21(constants,radios,d,SparRange,
                 if abs(st.error1) < tolerance:
                     break
 
-                if k2 == si.timeout - 1: print("WARNING: Failed to converge control variable loop")
+                if k2 == si.timeout - 1 and verbosity > 0: print("\nWARNING: Failed to converge control variable loop")
                     
             """------OUTER LOOP------"""
             # Upstream temperature error
@@ -457,6 +463,7 @@ def LRBv21(constants,radios,d,SparRange,
         output["Btotprofiles"].append(np.array(si.Btot))
         output["Bpolprofiles"].append(np.array(si.Bpol))
         output["Xpoints"].append(si.Xpoint)
+        output["Wradials"].append(st.qradial)
         
     output["logs"] = st.log   # Append log with all front positions
         
