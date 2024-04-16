@@ -70,6 +70,34 @@ class Profile():
         """
         return ((np.gradient(self.Btot, self.Spol) / self.Btot)[:self.Xpoint]).mean()
     
+    def get_gradB_integral(self):
+        """
+        Return the integral of the fractional Btot gradient
+        below the X-point
+        """
+        return np.trapz((np.gradient(self.Btot, self.Spol) / self.Btot)[:self.Xpoint], self.Spol[:self.Xpoint])
+    
+    def get_gradB_average(self):
+        """
+        Return the integral of the fractional Btot gradient
+        below the X-point
+        """
+        return np.mean((np.gradient(self.Btot, self.Spol) / self.Btot)[:self.Xpoint])
+    
+    def get_Bpitch_integral(self):
+        """
+        Return the integral of the pitch angle Bpol/Btot
+        below the X-point
+        """
+        return np.trapz((self.Bpol/self.Btot)[:self.Xpoint], self.Spol[:self.Xpoint])
+    
+    def get_Bpitch_average(self):
+        """
+        Return the integral of the pitch angle Bpol/Btot
+        below the X-point
+        """
+        return np.mean((self.Bpol/self.Btot)[:self.Xpoint])
+    
     
     def get_average_B_ratio(self):
         """
@@ -335,7 +363,7 @@ class Profile():
         ax.plot(self["R_leg_spline"], self["Z_leg_spline"], **line_args, label = self.name)
         ax.scatter(self["R_control"], self["Z_control"], **marker_args)
 
-        ax.set_xlabel("$R\ (m)$", fontsize = 15)
+        ax.set_xlabel("$R\ (m)$")
         ax.set_ylabel("$Z\ (m)$")
         
         if ylim != (None,None):
