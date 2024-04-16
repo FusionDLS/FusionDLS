@@ -30,8 +30,8 @@ def LengFunc(s, y, si, st):
     kappa0, qpllu0, alpha, radios, S, B, Xpoint, Lfunc = si.kappa0, si.qpllu0, si.alpha, si.radios, si.S, si.B, si.Xpoint, si.Lfunc
 
     qoverB,T = y
-    # set density using constant pressure assumption (missing factor of 2 at target due to lack of Bohm condition)
-    ne = nu*Tu/T
+
+
 
     
     fieldValue = 0
