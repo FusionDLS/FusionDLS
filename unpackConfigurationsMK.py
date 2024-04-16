@@ -95,6 +95,15 @@ def unpackConfigurationMK(File,
     target["iu"] = reversals[3]+1
     target["ou"] = reversals[4]-1
     target["ol"] = len(gradR)
+    
+    if diagnostic_plot is True:
+        fig, ax = plt.subplots(dpi = 150)
+        ax.set_aspect("equal")
+        ax.scatter(full["R"], full["Z"], s = 5)
+        for i in reversals:
+            ax.scatter(full["R"][i], full["Z"][i], color = "red", marker = "*", s = 10)
+        
+        
 
     # Define start and end for each segment, going clockwise from bottom left.
     start = dict(); end = dict()
@@ -199,15 +208,6 @@ def unpackConfigurationMK(File,
         # Z space distance (combined parallel and flux expansion, see Lipschultz 2016)
         d["zl"] = np.array(returnzl(d["R"], d["Z"], d["Btot"][d["Xpoint"]], np.absolute(d["Bpol"])))
         
-
-    """------OUTPUT"""    
-    
-    # Output by geometry type
-    if Type != "box":
-        return data[Type]
-    else:
-        print("Slab geometry not supported yet")
-
         
     """------DIAGNOSTIC PLOT""" 
     
@@ -230,6 +230,14 @@ def unpackConfigurationMK(File,
             ax[i].set_xlabel(xparam); ax[i].set_ylabel(yparam)
         
         fig.show()
+        
+    """------OUTPUT"""    
+    
+    # Output by geometry type
+    if Type != "box":
+        return data[Type]
+    else:
+        print("Slab geometry not supported yet")
         
         
     
