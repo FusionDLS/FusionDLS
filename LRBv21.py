@@ -241,6 +241,7 @@ def LRBv21(constants,radios,d,SparRange,
     si.S = d["S"]
     si.Spol = d["Spol"]
     si.Btot = d["Btot"]
+    si.Bpol = d["Bpol"]
     si.B = interpolate.interp1d(si.S, si.Btot, kind = "cubic") 
     si.SparRange = SparRange
     # si.indexRange = [np.argmin(abs(d["S"] - x)) for x in SparRange] # Indices of topology arrays to solve code at
