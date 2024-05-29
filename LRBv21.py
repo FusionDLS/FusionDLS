@@ -12,6 +12,9 @@ import pandas as pd
 import sys
 
 from Iterate import LengFunc, iterate
+from refineGrid import refineGrid
+from DLScommonTools import pad_profile
+
 
 
 class SimulationState():
@@ -63,22 +66,32 @@ class SimulationState():
         self.upper_bound = 0
         
         # Initialise log: one per front position index
-        self.log = {}
-        for i in si.indexRange:
-            self.log[i] = defaultdict(list)
+        self.singleLog = {}
+        
+        logParams = ["error0", "error1", "cvar", "qpllu1", "Tu", "lower_bound", "upper_bound"]
+        for x in logParams:
+            self.singleLog[x] = []
+            
+        self.log = {}   # Log for all front positions
     
     ## Update primary log
     def update_log(self):
+
         for param in ["error0", "error1", "cvar", "qpllu1", "Tu", "lower_bound", "upper_bound"]:
-            self.log[self.point][param].append(self.get(param))
             
-        l = self.log[self.point]
+            self.singleLog[param].append(self.get(param))
+            
+        self.log[self.SparFront] = self.singleLog   # Put in global log
+            
+        
+            
+        l = self.singleLog
         
         
         if self.si.verbosity >= 2:
             
             if len(l["error0"]) == 1:   # Print header on first iteration
-                print(f"\n\n Solving at index {self.point}")
+                print(f"\n\n Solving at parallel location {self.SparFront}")
                 print("--------------------------------")
                     
             print("error0: {:.3E}, Tu: {:.2f}, error1: {:.3E}, cvar: {:.3E}, lower_bound: {:.3E}, upper_bound: {:.3E}".format(
@@ -86,7 +99,7 @@ class SimulationState():
             
     # Update many variables
     def update(self, **kwargs):
-            self.__dict__.update(kwargs)
+        self.__dict__.update(kwargs)
 
     # Will return this if called as string
     def __repr__(self):
@@ -181,9 +194,17 @@ class SimulationInputs():
 
 def LRBv21(constants,radios,d,SparRange, 
                              control_variable = "impurity_frac",
-                             verbosity = 0, Ctol = 1e-3, Ttol = 1e-2, 
+                             verbosity = 0, 
+                             Ctol = 1e-3, 
+                             Ttol = 1e-2, 
                              URF = 1,
-                             timeout = 20):
+                             timeout = 20,
+                             dynamicGrid = False,
+                             dynamicGridRefinementRatio = 5,
+                             dynamicGridRefinementWidth = 1,
+                             dynamicGridDiagnosticPlot = False,
+                             zero_qpllt = False
+                             ):
     """ function that returns the impurity fraction required for a given temperature at the target. Can request a low temperature at a given position to mimick a detachment front at that position.
     constants: dict of options
     radios: dict of options
@@ -193,7 +214,9 @@ def LRBv21(constants,radios,d,SparRange,
     Ttol: error tolerance target for the outer loop (i.e. rerrunning until Tu convergence)
     URF: under-relaxation factor for temperature. If URF is 0.2, Tu_new = Tu_old*0.8 + Tu_calculated*0.2. Always set to 1.
     Timeout: controls timeout for all three loops within the code. Each has different message on timeout. Default 20
-    
+    dynamicGrid: enables iterative grid refinement around the front (recommended)
+    dynamicGridRefinementRatio: ratio of finest to coarsest cell width in dynamic grid
+    dynamicGridRefinementWidth: size of dynamic grid refinement region in metres parallel
     """
     # Start timer
     t0 = timer()
@@ -211,15 +234,18 @@ def LRBv21(constants,radios,d,SparRange,
     si.radios = radios
     si.control_variable = control_variable
     
+
+    
     # Extract topology data
     si.Xpoint = d["Xpoint"]
     si.S = d["S"]
     si.Spol = d["Spol"]
     si.Btot = d["Btot"]
-    si.B = interpolate.interp1d(si.S, si.Btot, kind = "cubic")
+    si.Bpol = d["Bpol"]
+    si.B = interpolate.interp1d(si.S, si.Btot, kind = "cubic") 
     si.SparRange = SparRange
-    si.indexRange = [np.argmin(abs(d["S"] - x)) for x in SparRange] # Indices of topology arrays to solve code at
-    si.indexRange = np.unique(si.indexRange)   # Drop duplicates
+    # si.indexRange = [np.argmin(abs(d["S"] - x)) for x in SparRange] # Indices of topology arrays to solve code at
+    # si.indexRange = np.unique(si.indexRange)   # Drop duplicates
     
     # Initialise simulation state object
     st = SimulationState(si)
@@ -242,11 +268,30 @@ def LRBv21(constants,radios,d,SparRange,
     
     
     """------SOLVE------"""
-
-    for point in si.indexRange: # For each detachment front location:
-        st.point = point
+    for idx, SparFront in enumerate(si.SparRange): # For each detachment front location:
+        
+        st.SparFront = SparFront   # Current prescribed parallel front location
+        
+        if dynamicGrid is True:
+            newProfile = refineGrid(d, SparFront, 
+                                    fine_ratio = dynamicGridRefinementRatio, 
+                                    width = dynamicGridRefinementWidth,
+                                    diagnostic_plot = dynamicGridDiagnosticPlot)
+            si.Xpoint = newProfile["Xpoint"]
+            si.S = newProfile["S"]
+            si.Spol = newProfile["Spol"]
+            si.Btot = newProfile["Btot"]
+            si.Bpol = newProfile["Bpol"]
+            si.B = interpolate.interp1d(si.S, si.Btot, kind = "cubic")   # TODO: is this necessary?  We have Btot already
             
-        print("{}...".format(point), end="")    
+            # Find index of front location on new grid
+            SparFrontOld = si.SparRange[idx]
+            point = st.point = np.argmin(abs(si.S - SparFrontOld))
+        
+        else:
+            point = st.point = np.argmin(abs(d["S"] - SparFront))  
+            
+        print(f"{SparFront:.2f}...", end="")    
             
         """------INITIAL GUESSES------"""
         
@@ -268,6 +313,7 @@ def LRBv21(constants,radios,d,SparRange,
         # Inital guess for upstream temperature based on guess of qpll ds integral
         Tu0 = ((7/2)*qavLguess*(st.s[-1]-st.s[0])/si.kappa0)**(2/7)
         st.Tu = Tu0
+        st.Pu0 = Tu0 * si.nu0 * si.echarge   # Initial upstream pressure in Pa, calculated so it can be kept constant if required
                                     
         # Cooling curve integral
         Lint = cumtrapz(si.Lz[1]*np.sqrt(si.Lz[0]),si.Lz[0],initial = 0)
@@ -289,16 +335,25 @@ def LRBv21(constants,radios,d,SparRange,
             # nu0 and cz0 guesses are from Lengyel which depends on an estimate of Tu using qpllu0
             # This means we cannot make a more clever guess for qpllu0 based on cz0 or nu0
             qpllu0_guess = si.qpllu0
-            qradial_guess = qpllu0_guess / np.trapz(si.Btot[si.Xpoint:] / si.Btot[si.Xpoint], x = si.S[si.Xpoint:])
+            # qradial_guess = qpllu0_guess / np.trapz(si.Btot[si.Xpoint:] / si.Btot[si.Xpoint], x = si.S[si.Xpoint:])
+            qradial_guess = (qpllu0_guess / si.Btot[si.Xpoint]) / np.trapz(1/si.Btot[si.Xpoint:], x = si.S[si.Xpoint:])
             st.cvar = 1/qradial_guess 
             
         # Initial guess of qpllt, the virtual target temperature (typically 0). 
-        st.qpllt = si.gamma_sheath/2*si.nu0*st.Tu*si.echarge*np.sqrt(2*si.Tt*si.echarge/si.mi)
+        if zero_qpllt is True:
+            st.qpllt = si.qpllu0 * 1e-2
+        else:
+            st.qpllt = si.gamma_sheath/2*si.nu0*st.Tu*si.echarge*np.sqrt(2*si.Tt*si.echarge/si.mi)
         
         
         """------INITIALISATION------"""
         st.error1 = 1 # Inner loop error (error in qpllu based on provided cz/ne)
         st.error0 = 1 # Outer loop residual in upstream temperature
+        # Upstream conditions
+        st.nu = si.nu0
+        st.cz = si.cz0
+        st.qradial = (si.qpllu0 / si.Btot[si.Xpoint]) / np.trapz(1/si.Btot[si.Xpoint:], x = si.S[si.Xpoint:])
+        
         st.update_log()
         
         # Tu convergence loop
@@ -306,6 +361,7 @@ def LRBv21(constants,radios,d,SparRange,
             
             # Initialise
             st = iterate(si, st)
+
 
             """------INITIAL SOLUTION BOUNDING------"""
 
@@ -319,7 +375,8 @@ def LRBv21(constants,radios,d,SparRange,
 
                 st = iterate(si, st)
 
-                if np.sign(st.log[point]["error1"][k1+1]) != np.sign(st.log[point]["error1"][k1+2]): # It's initialised with a 1 already, hence k1+1 and k1+2
+
+                if np.sign(st.log[st.SparFront]["error1"][k1+1]) != np.sign(st.log[st.SparFront]["error1"][k1+2]): # It's initialised with a 1 already, hence k1+1 and k1+2
                     break
                     
                 if k1 == si.timeout - 1: raise Exception("Initial bounding failed")
@@ -329,8 +386,8 @@ def LRBv21(constants,radios,d,SparRange,
                 
             # We have bounded the problem -  the last two iterations
             # are on either side of the solution
-            st.lower_bound = min(st.log[point]["cvar"][-1], st.log[point]["cvar"][-2])
-            st.upper_bound = max(st.log[point]["cvar"][-1], st.log[point]["cvar"][-2])
+            st.lower_bound = min(st.log[st.SparFront]["cvar"][-1], st.log[st.SparFront]["cvar"][-2])
+            st.upper_bound = max(st.log[st.SparFront]["cvar"][-1], st.log[st.SparFront]["cvar"][-2])
 
 
             """------INNER LOOP------"""
@@ -339,6 +396,7 @@ def LRBv21(constants,radios,d,SparRange,
 
                 # New cvar guess is halfway between the upper and lower bound.
                 st.cvar = st.lower_bound + (st.upper_bound-st.lower_bound)/2
+                
                 st = iterate(si, st)
 
                 # Narrow bounds based on the results.
@@ -348,10 +406,15 @@ def LRBv21(constants,radios,d,SparRange,
                     st.upper_bound = st.cvar
 
                 # Break on success
-                if abs(st.error1) < si.Ctol:
+                if k0 < 2:
+                    tolerance = 1e-2   # Looser tolerance for the first two T iterations
+                else:
+                    tolerance = si.Ctol
+                    
+                if abs(st.error1) < tolerance:
                     break
 
-                if k2 == si.timeout - 1: print("WARNING: Failed to converge control variable loop")
+                if k2 == si.timeout - 1 and verbosity > 0: print("\nWARNING: Failed to converge control variable loop")
                     
             """------OUTER LOOP------"""
             # Upstream temperature error
@@ -364,9 +427,14 @@ def LRBv21(constants,radios,d,SparRange,
                 
             # Break on outer (temperature) loop success
             if abs(st.error0) < si.Ttol:
+                if verbosity > 2: print(f"\n Converged temperature loop in {k0} iterations")
                 break
-
-            if k0 == si.timeout - 1: raise Exception("Failed to converge temperature loop")
+            if k0 == si.timeout: 
+                output["logs"] = st.log
+                print("Failed to converge temperature loop, exiting and returning logs")
+                return output
+            
+            
 
             
         """------COLLECT PROFILE DATA------"""
@@ -378,18 +446,27 @@ def LRBv21(constants,radios,d,SparRange,
             
         
         Qrad = []
-        for Tf in st.T:
+        for i, Tf in enumerate(st.T):
             if si.control_variable == "impurity_frac":
-                Qrad.append(((si.nu0**2*st.Tu**2)/Tf**2)*st.cvar*si.Lfunc(Tf))
+                Qrad.append(((si.nu0**2*st.Tu**2)/Tf**2)*st.cvar*si.Lfunc(Tf)) 
             elif si.control_variable == "density":
-                Qrad.append(((st.cvar**2*st.Tu**2)/Tf**2)*si.cz0*si.Lfunc(Tf))
+                Qrad.append(((st.cvar**2*st.Tu**2)/Tf**2)*si.cz0*si.Lfunc(Tf)) 
             elif si.control_variable == "power":
-                Qrad.append(((si.nu0**2*st.Tu**2)/Tf**2)*si.cz0*si.Lfunc(Tf))
+                Qrad.append(((si.nu0**2*st.Tu**2)/Tf**2)*si.cz0*si.Lfunc(Tf)) 
             
-        output["Rprofiles"].append(Qrad)
-        output["Qprofiles"].append(st.q)
-        output["Tprofiles"].append(st.T)
-        output["logs"].append(st.log)
+        
+        # Pad some profiles with zeros to ensure same length as S
+        output["Sprofiles"].append(si.S)
+        output["Tprofiles"].append(pad_profile(si.S, st.T))
+        output["Rprofiles"].append(pad_profile(si.S, Qrad))   # Radiation in W/m3
+        output["Qprofiles"].append(pad_profile(si.S, st.q))   # Heat flux in W/m2
+        output["Spolprofiles"].append(si.Spol)
+        output["Btotprofiles"].append(np.array(si.Btot))
+        output["Bpolprofiles"].append(np.array(si.Bpol))
+        output["Xpoints"].append(si.Xpoint)
+        output["Wradials"].append(st.qradial)
+        
+    output["logs"] = st.log   # Append log with all front positions
         
     """------COLLECT RESULTS------"""
     if len(SparRange) > 1:
@@ -433,20 +510,24 @@ def LRBv21(constants,radios,d,SparRange,
                     cvar_list_trim[:i] = np.nan
                     
         # Pack things into the output dictionary.
-        output["splot"] = splot
-        output["indexRange"] = si.indexRange    
+        
+        output["splot"] = splot  
         output["cvar"] = cvar_list
         output["crel"] = crel_list
         output["cvar_trim"] = cvar_list_trim
         output["crel_trim"] = crel_list_trim
-        output["threshold"] = cvar_list[0]                                # Ct
+        output["threshold"] = cvar_list[0]    
+                                      # Ct
         output["window"] = cvar_list[-1] - cvar_list[0]                   # Cx - Ct
         output["window_frac"] = output["window"] / output["threshold"]    # (Cx - Ct) / Ct
         output["window_ratio"] = cvar_list[-1] / cvar_list[0]             # Cx / Ct
-
-        output["constants"] = constants
-        output["radios"] = si.radios
-        output["state"] = st
+        
+    elif len(SparRange) == 1:
+        output["crel"] = 1
+        output["threshold"] = st.cvar
+    output["constants"] = constants
+    output["radios"] = si.radios
+    output["state"] = st
     
     # Convert back to regular dict
     output = dict(output)

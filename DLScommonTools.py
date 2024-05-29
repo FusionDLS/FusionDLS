@@ -8,17 +8,13 @@ from unpackConfigurationsMK import *
 from matplotlib.collections import LineCollection
 import os
 import pickle as pkl
-from LRBv21 import LRBv21
 import matplotlib as mpl
 import copy
 # import colorcet as cc
 from scipy import interpolate
 from matplotlib.ticker import FormatStrFormatter, StrMethodFormatter, MultipleLocator, FormatStrFormatter, AutoMinorLocator
 
-# from unpackConfigurations import unpackConfiguration
-# from LengyelReinkeFormulation import *
-# import ThermalFrontFormulation as TF
-# from LRBv2 import LRBv2
+
 
 def scale_BxBt(Btot, Xpoint, scale_factor = 0, BxBt = 0):
 # Scale a Btot profile to have an arbitrary flux expansion

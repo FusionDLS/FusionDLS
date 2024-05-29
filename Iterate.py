@@ -1,10 +1,10 @@
 import numpy as np
-from scipy.integrate import odeint
+from scipy.integrate import odeint, solve_ivp
 from unpackConfigurationsMK import *
 
 
-
-def LengFunc(y, s, si, st):
+def LengFunc(s, y, si, st):
+# def LengFunc(y, s, si, st):
     """
     Lengyel function. 
     This is passed to ODEINT in integrate() and used to solve for q and T along the field line.
@@ -30,8 +30,9 @@ def LengFunc(y, s, si, st):
     kappa0, qpllu0, alpha, radios, S, B, Xpoint, Lfunc = si.kappa0, si.qpllu0, si.alpha, si.radios, si.S, si.B, si.Xpoint, si.Lfunc
 
     qoverB,T = y
-    # set density using constant pressure assumption (missing factor of 2 at target due to lack of Bohm condition)
-    ne = nu*Tu/T
+
+
+
     
     fieldValue = 0
     if s > S[-1]:
@@ -49,18 +50,16 @@ def LengFunc(y, s, si, st):
         if s >S[Xpoint]:
             # The second term here converts the x point qpar to a radial heat source acting between midplane and the xpoint
             try:
-                dqoverBds = ((nu**2*Tu**2)/T**2)*cz*Lfunc(T) - qradial * fieldValue / B(S[Xpoint]) # account for flux expansion to Xpoint
+                dqoverBds = ((nu**2*Tu**2)/T**2)*cz*Lfunc(T)/fieldValue - qradial/fieldValue #/fieldValue * fieldValue / B(S[Xpoint]) # account for flux expansion to Xpoint
             except:
                 print("Failed. s: {:.2f}".format(s))
-            else:
-                dqoverBds = ((nu**2*Tu**2)/T**2)*cz*Lfunc(T) - qradial  
         else:
-            dqoverBds = ((nu**2*Tu**2)/T**2)*cz*Lfunc(T) 
+            dqoverBds = ((nu**2*Tu**2)/T**2)*cz*Lfunc(T)/fieldValue
     else:
-        dqoverBds = ((nu**2*Tu**2)/T**2)*cz*Lfunc(T) 
+        dqoverBds = ((nu**2*Tu**2)/T**2)*cz*Lfunc(T)/fieldValue
     
     # working on neutral/ionisation model
-    dqoverBds = dqoverBds/fieldValue
+    # dqoverBds = dqoverBds/fieldValue
     
     # Flux limiter
     dtds = 0
@@ -108,28 +107,62 @@ def iterate(si, st):
         st.cz = si.cz0
         st.nu = st.cvar
 
-    si.Btot = [si.B(x) for x in si.S]
-    st.qradial = si.qpllu0/ np.trapz(si.Btot[si.Xpoint:] / si.Btot[si.Xpoint], x = si.S[si.Xpoint:])
+    # si.Btot = [si.B(x) for x in si.S]   ## FIXME This shouldn't be here, we already have a Btot
+    st.qradial = (si.qpllu0 / si.Btot[si.Xpoint]) / np.trapz(1/si.Btot[si.Xpoint:], x = si.S[si.Xpoint:])
+    
         
     if si.control_variable == "power":
         st.cz = si.cz0
         st.nu = si.nu0
-        st.qradial = 1/st.cvar # This is needed so that too high a cvar gives positive error            
+        # st.qradial = 1/st.cvar # This is needed so that too high a cvar gives positive error     
+        st.qradial = (1/st.cvar / si.Btot[si.Xpoint]) / np.trapz(1/si.Btot[si.Xpoint:], x = si.S[si.Xpoint:])       
 
     if si.verbosity>2:
         print(f"qpllu0: {si.qpllu0:.3E} | nu: {st.nu:.3E} | Tu: {st.Tu:.1f} | cz: {st.cz:.3E} | cvar: {st.cvar:.2E}", end = "")
-
-    result = odeint(LengFunc, 
+    
+    # result = odeint(LengFunc, 
+    #                 y0 = [st.qpllt/si.B(st.s[0]),si.Tt],
+    #                 t = st.s,
+    #                 args = (si, st)
+    #                 )
+    
+    result = solve_ivp(LengFunc, 
+                    t_span = (st.s[0], st.s[-1]),
+                    t_eval = st.s,
                     y0 = [st.qpllt/si.B(st.s[0]),si.Tt],
-                    t = st.s,
+                    rtol = 1e-5, 
+                    atol = 1e-10,
+                    
                     args = (si, st)
                     )
+    # print(result["message"])
+    
     out = dict()
     
     # Update state with results
-    st.q = result[:,0]*si.B(st.s)     # q profile
-    st.T = result[:,1]                # Temp profile
+    # ODEINT
+    # st.q = result[:,0]*si.B(st.s)     # q profile
+    # st.T = result[:,1]                # Temp profile
+    # solve_ivp
+    # plt.plot(result.y[0])
+    # plt.show()
+    
+    qoverBresult = result.y[0]
+    Tresult = result.y[1]
+    
+    ## Sometimes when solve_ivp returns negative q upstream, it will trim
+    # the output instead of giving nans. This pads it back to correct length
+    if len(qoverBresult) < len(st.s):
+        if si.verbosity > 3: print("Warning: solver output contains NaNs")
+        
+        qoverBresult = np.insert(qoverBresult, -1, np.zeros((len(st.s) - len(qoverBresult))))
+        Tresult = np.insert(Tresult, -1, np.zeros((len(st.s) - len(qoverBresult))))
+    
+    st.q = qoverBresult*si.B(st.s)     # q profile
+    st.T = Tresult                # Temp profile
+    
     st.Tucalc = st.T[-1]              # Upstream temperature. becomes st.Tu in outer loop
+    
 
     # Set qpllu1 to lowest q value in array. 
     # Prevents unphysical results when ODEINT bugs causing negative q in middle but still positive q at end, fooling solver to go in wrong direction

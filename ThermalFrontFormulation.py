@@ -8,6 +8,21 @@ from AnalyticCoolingCurves import LfuncN
 from unpackConfigurations import unpackConfiguration
 
 def CfInt(spar, B_field, sx, L,sh = 0,kappa1=2500):
+    """
+    spar: array, m
+        Array of S parallel
+    B_field: array, T
+        Array of total B field
+    sx: float, m
+        Position of detachment front in the parallel
+    L: float, m
+        Connection length in  the parallel
+    sh: float, m
+        Parallel front position 
+    kappa1: float, W/m^2/K^7/2
+        Electron thermal conductivity
+    
+    """
     """function which returns the control parameter required for a detachment front at parallel position sh"""
     B_field = interpolate.interp1d(spar,B_field,kind='cubic',fill_value="extrapolate")
     #calculate Tu/qpll**(2/7) by integrating over heat flux density
