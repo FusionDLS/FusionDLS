@@ -3,6 +3,7 @@ import numpy as np
 from scipy import interpolate
 import matplotlib.pyplot as plt
 from collections import defaultdict
+from Profile import Profile
 
 def unpackConfigurationMK(File, 
                           Type, 
@@ -232,10 +233,16 @@ def unpackConfigurationMK(File,
         fig.show()
         
     """------OUTPUT"""    
+
+    # Pack into a Profile class
+    profiles = {}
+    for i, side in enumerate(["iu", "il", "ou", "ol"]):
+        d = data[side]
+        profiles[side] = Profile(d["R"], d["Z"], d["Xpoint"], d["Btot"], d["Bpol"], d["S"], d["Spol"], name = side)
     
     # Output by geometry type
     if Type != "box":
-        return data[Type]
+        return profiles[Type]
     else:
         print("Slab geometry not supported yet")
         
