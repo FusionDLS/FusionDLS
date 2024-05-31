@@ -41,20 +41,6 @@ def CfInt(spar, B_field, sx, L,sh = 0,kappa1=2500):
     Cf = Cf*C0
     return Cf
 
-def Tu(z, B_field, zx, L,Beta = 1, zh = 0):
-    B_field = interpolate.interp1d(z,B_field,kind='cubic')
-    intTop = quad(integrand,zh,L,args = (zx, L, B_field), epsabs = 0.0000000000000000001)[0]
-    answer = (intTop)**(2/7)
-    return answer
-
-def averageB(s, B_field, zx, L,Beta = 1, zh = 0):
-    Bfield1 = interpolate.interp1d(s,np.add(np.multiply(B_field,0),1),kind='cubic')
-    B_field = interpolate.interp1d(s,np.sqrt(B_field),kind='cubic')
-    int0= quad(integrand,zh,L,args = (zx, L, B_field), epsabs = 0.0000000000000000001)[0]
-    int1 = quad(integrand,zh,L,args = (zx, L, Bfield1), epsabs = 0.0000000000000000001)[0]
-    answer = int0/int1
-    return answer
-
 
 def integrand(s,sx, L, B_field):
         return (B_field(s)/B_field(sx))
