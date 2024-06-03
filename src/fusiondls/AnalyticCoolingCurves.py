@@ -1,8 +1,5 @@
 import numpy as np
 from scipy import interpolate
-from numpy import vectorize
-import pandas as pd
-import matplotlib.pyplot as plt
 
 
 # Nitrogen based cooling curve used in Lipschultz 2016

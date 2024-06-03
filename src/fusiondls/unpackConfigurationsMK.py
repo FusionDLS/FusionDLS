@@ -1,8 +1,9 @@
-from netCDF4 import Dataset
-import numpy as np
-from scipy import interpolate
-import matplotlib.pyplot as plt
 from collections import defaultdict
+
+import matplotlib.pyplot as plt
+import numpy as np
+from netCDF4 import Dataset
+from scipy import interpolate
 
 from .Profile import Profile
 

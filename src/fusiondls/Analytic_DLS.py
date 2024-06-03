@@ -1,11 +1,8 @@
-import scipy as sp
-from scipy.optimize import fsolve
 import numpy as np
-import matplotlib.pyplot as plt
-from scipy.integrate import quad, trapz
 from scipy import interpolate
+from scipy.integrate import quad, trapz
+
 from .AnalyticCoolingCurves import LfuncN
-from .unpackConfigurations import unpackConfiguration
 
 
 def CfInt(spar, B_field, sx, L, sh=0, kappa1=2500):

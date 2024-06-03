@@ -1,5 +1,6 @@
 import numpy as np
-from scipy.integrate import odeint, solve_ivp
+from scipy.integrate import solve_ivp
+
 from .unpackConfigurationsMK import *
 
 

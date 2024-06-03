@@ -1,7 +1,6 @@
-from netCDF4 import Dataset
 import numpy as np
+from netCDF4 import Dataset
 from scipy import interpolate
-import matplotlib.pyplot as plt
 
 # unpack kink fields
 

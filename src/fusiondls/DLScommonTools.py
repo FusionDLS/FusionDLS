@@ -1,25 +1,12 @@
-from netCDF4 import Dataset
-import pandas as pd
+import pickle as pkl
+
 import numpy as np
 from scipy import interpolate
-import matplotlib.pyplot as plt
+
 from .AnalyticCoolingCurves import *
 from .unpackConfigurationsMK import *
-from matplotlib.collections import LineCollection
-import os
-import pickle as pkl
-import matplotlib as mpl
-import copy
 
 # import colorcet as cc
-from scipy import interpolate
-from matplotlib.ticker import (
-    FormatStrFormatter,
-    StrMethodFormatter,
-    MultipleLocator,
-    FormatStrFormatter,
-    AutoMinorLocator,
-)
 
 
 def scale_BxBt(Btot, Xpoint, scale_factor=0, BxBt=0):
