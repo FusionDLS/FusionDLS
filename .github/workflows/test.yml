@@ -1,14 +1,6 @@
 name: tests
 
-on:
-  push:
-    paths:
-      - '**.py'
-      - 'pyproject.toml'
-  pull_request:
-    paths:
-      - '**.py'
-      - 'pyproject.toml'
+on: [push, pull_request]
 
 jobs:
   pytest:
