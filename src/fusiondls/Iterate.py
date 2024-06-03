@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.integrate import odeint, solve_ivp
-from unpackConfigurationsMK import *
+from .unpackConfigurationsMK import *
 
 
 def LengFunc(s, y, si, st):

@@ -3,8 +3,8 @@ import pandas as pd
 import numpy as np
 from scipy import interpolate
 import matplotlib.pyplot as plt
-from AnalyticCoolingCurves import *
-from unpackConfigurationsMK import *
+from .AnalyticCoolingCurves import *
+from .unpackConfigurationsMK import *
 from matplotlib.collections import LineCollection
 import os
 import pickle as pkl

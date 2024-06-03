@@ -3,7 +3,8 @@ import numpy as np
 from scipy import interpolate
 import matplotlib.pyplot as plt
 from collections import defaultdict
-from Profile import Profile
+
+from .Profile import Profile
 
 def unpackConfigurationMK(File, 
                           Type, 

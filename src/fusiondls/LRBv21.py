@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.integrate import quad,trapz, cumtrapz, odeint, solve_ivp
 from scipy import interpolate
-from unpackConfigurationsMK import *
+from .unpackConfigurationsMK import *
 from matplotlib.collections import LineCollection
 import multiprocessing as mp
 from collections import defaultdict
@@ -11,9 +11,9 @@ from timeit import default_timer as timer
 import pandas as pd
 import sys
 
-from Iterate import LengFunc, iterate
-from refineGrid import refineGrid
-from DLScommonTools import pad_profile
+from .Iterate import LengFunc, iterate
+from .refineGrid import refineGrid
+from .DLScommonTools import pad_profile
 
 
 

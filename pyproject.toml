@@ -1,0 +1,106 @@
+[build-system]
+requires = [
+    "setuptools >= 65",
+    "setuptools_scm[toml] >= 6.2",
+    "setuptools_scm_git_archive",
+    "wheel >= 0.29.0",
+]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "FusionDLS"
+description = "1D model for evaluating heat flux in tokamak SOL"
+readme = "README.md"
+authors = [
+    {name = "Cyd Cowley"},
+    {name = "Mike Kryjak"},
+]
+license = {file = "LICENSE"}
+dynamic = ["version"]
+keywords = ["analysis", "plasma", "research"]
+classifiers = [
+    "Programming Language :: Python",
+    "Development Status :: 3 - Alpha",
+    "Natural Language :: English",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: GNU Lesser General Public License v3 or later (LGPLv3+)",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Scientific/Engineering :: Physics",
+]
+
+requires-python = ">=3.9"
+dependencies = [
+    "numpy >= 1.20.3",
+    "matplotlib >= 3.3.4",
+    "scipy ~= 1.10.1",
+    "netCDF4 >= 1.5.6",
+    "freeqdsk >= 0.3",
+    "pandas"
+]
+
+[project.optional-dependencies]
+docs = [
+    "sphinx >= 5.3",
+    "sphinx_autodoc_typehints >= 1.19",
+    "sphinx-book-theme >= 0.4.0rc1",
+    "myst_parser >= 0.14.0",
+]
+tests = [
+    "pytest >= 3.3.0",
+    "pytest-cov",
+]
+linting = [
+  "black",
+  "isort",
+  "flake8",
+]
+
+[project.urls]
+Source = "https://github.com/cydcowley/DLS-model"
+Tracker = "https://github.com/cydcowley/DLS-model/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools_scm]
+write_to = "src/fusiondls/_version.py"
+
+[tool.coverage.paths]
+source = [
+  "src/",
+]
+
+[tool.black]
+exclude = "_version.py"
+
+[tool.isort]
+profile = "black"
+
+[tool.ruff.lint]
+extend-select = [
+  "B",           # flake8-bugbear
+  "I",           # isort
+  "ARG",         # flake8-unused-arguments
+  "C4",          # flake8-comprehensions
+  "EM",          # flake8-errmsg
+  "ICN",         # flake8-import-conventions
+  "G",           # flake8-logging-format
+  "PGH",         # pygrep-hooks
+  "PIE",         # flake8-pie
+  "PL",          # pylint
+  "PT",          # flake8-pytest-style
+  "PTH",         # flake8-use-pathlib
+  "RET",         # flake8-return
+  "RUF",         # Ruff-specific
+  "SIM",         # flake8-simplify
+  "UP",          # pyupgrade
+  "YTT",         # flake8-2020
+  "EXE",         # flake8-executable
+  "NPY",         # NumPy specific rules
+  "PD",          # pandas-vet
+]
+ignore = [
+  "PLR2004",     # magic-comparison
+]

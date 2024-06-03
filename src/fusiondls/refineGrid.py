@@ -1,7 +1,7 @@
 import numpy as np
 import scipy as sp
 import matplotlib.pyplot as plt
-from DLScommonTools import pad_profile
+from .DLScommonTools import pad_profile
 
 def refineGrid(p, 
                Sfront, 
