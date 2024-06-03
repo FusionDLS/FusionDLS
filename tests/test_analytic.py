@@ -1,9 +1,8 @@
-from fusiondls.Analytic_DLS import CfInt
-from fusiondls.DLScommonTools import LfuncN, file_read
-from fusiondls.LRBv21 import LRBv21
+import pathlib
 
 import numpy as np
-import pathlib
+from fusiondls import LfuncN, LRBv21, file_read
+from fusiondls.Analytic_DLS import CfInt
 
 
 def test_analytic():
