@@ -696,6 +696,7 @@ def cord_spline(x, y, return_spline=False):
 
     if return_spline:
         return spl
+
     return R, Z
 
 
