@@ -98,6 +98,7 @@ extend-select = [
   "EXE",         # flake8-executable
   "NPY",         # NumPy specific rules
   "PD",          # pandas-vet
+  "FURB",        # refurb
 ]
 ignore = [
   "PLR2004",     # magic-comparison
