@@ -179,7 +179,6 @@ def unpackConfigurationMK(
 
     """------OTHER CALCULATIONS"""
 
-
     for side in ["ol", "il", "ou", "iu"]:
         d = data[side]
 

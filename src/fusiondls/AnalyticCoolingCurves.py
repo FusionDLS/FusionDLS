@@ -591,7 +591,6 @@ def LfuncKallenbachNe(T: float) -> float:
 
 
 def LfuncKallenbach(species_choice: str) -> Callable[[float], float]:
-
     radiation = {}
 
     # Temperature array

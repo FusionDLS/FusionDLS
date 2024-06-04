@@ -177,7 +177,6 @@ class Profile:
             S_upstream_new = S_upstream + S_leg_new[-1] - S_leg[-1]
             return np.concatenate((S_leg_new, S_upstream_new))
 
-
         self["S"] = scale_leg(self["S"], scale_factor)
         self["Spol"] = scale_leg(self["Spol"], scale_factor)
 
@@ -222,9 +221,7 @@ class Profile:
         )
 
         # New leg interpolated onto same points as old leg
-        self["R_leg_spline"], self["Z_leg_spline"] = spl(
-            dist
-        )
+        self["R_leg_spline"], self["Z_leg_spline"] = spl(dist)
 
         ## Calculate total RZ by adding upstream
         self["R"] = np.concatenate(
@@ -490,7 +487,6 @@ class Morph:
         prof["xs"], prof["ys"] = cord_spline(prof["x"], prof["y"])  # Interpolate
         return self._populate_profile(prof)
 
-
     def _populate_profile(self, prof):
         """
         Add the rest of the profile to the leg above the X-point
@@ -713,7 +709,6 @@ def get_cord_distance(x, y):
     u_cord = np.sqrt(l).cumsum()  # Cumulative sum of 2-norms
     u_cord /= u_cord[-1]  # normalize to interval [0,1]
     return np.r_[0, u_cord]  # the first point is parameterized at zero
-
 
 
 def shift_points(R, Z, offsets, factor=1):

@@ -84,9 +84,7 @@ def unpackConfiguration(
         Xpoint = 0  # Ryoko
         midplane = 0  # Ryoko
         for i in range(1, len(gradR)):
-            if np.sign(gradR[i - 1]) != np.sign(
-                gradR[i]
-            ):
+            if np.sign(gradR[i - 1]) != np.sign(gradR[i]):
                 Xpoint = i - 1
                 break
         for i in range(Xpoint + 2, len(gradR)):
@@ -123,9 +121,7 @@ def unpackConfiguration(
     TotalField = TotalFieldinterp(path)
     gradR = np.gradient(R)
     for i in range(1, len(gradR)):
-        if np.sign(gradR[i - 1]) != np.sign(
-            gradR[i]
-        ):
+        if np.sign(gradR[i - 1]) != np.sign(gradR[i]):
             Xpoint = i - 1
             break
 
