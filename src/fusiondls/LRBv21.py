@@ -584,6 +584,6 @@ def run_dls(
     output = dict(output)
     t1 = timer()
 
-    print("Complete in {:.1f} seconds".format(t1 - t0))
+    print(f"Complete in {t1 - t0:.1f} seconds")
 
     return output

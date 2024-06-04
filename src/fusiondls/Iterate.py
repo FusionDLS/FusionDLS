@@ -61,7 +61,7 @@ def LengFunc(s, y, si, st):
                     T
                 ) / fieldValue - qradial / fieldValue  # /fieldValue * fieldValue / B(S[Xpoint]) # account for flux expansion to Xpoint
             except:
-                print("Failed. s: {:.2f}".format(s))
+                print(f"Failed. s: {s:.2f}")
         else:
             dqoverBds = ((nu**2 * Tu**2) / T**2) * cz * Lfunc(T) / fieldValue
     else:
@@ -182,9 +182,9 @@ def iterate(si, st):
             print("Warning: solver output contains NaNs")
 
         qoverBresult = np.insert(
-            qoverBresult, -1, np.zeros((len(st.s) - len(qoverBresult)))
+            qoverBresult, -1, np.zeros(len(st.s) - len(qoverBresult))
         )
-        Tresult = np.insert(Tresult, -1, np.zeros((len(st.s) - len(qoverBresult))))
+        Tresult = np.insert(Tresult, -1, np.zeros(len(st.s) - len(qoverBresult)))
 
     st.q = qoverBresult * si.B(st.s)  # q profile
     st.T = Tresult  # Temp profile

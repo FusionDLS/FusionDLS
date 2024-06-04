@@ -139,9 +139,7 @@ def LfuncKallenbachN(T: float) -> float:
             ]
         )(T)
 
-    elif T > 300:
-        Lz = 0
-    elif T < 1:
+    elif T > 300 or T < 1:
         Lz = 0
 
     try:
@@ -212,9 +210,7 @@ def LfuncKallenbachAr(T: float) -> float:
             ]
         )(T)
 
-    elif T > 300:
-        Lz = 0
-    elif T < 1:
+    elif T > 300 or T < 1:
         Lz = 0
 
     try:
@@ -375,9 +371,7 @@ def LfuncKallenbachAr200(T: float) -> float:
             ]
         )(T)
 
-    elif T > 200:
-        Lz = 0
-    elif T < 1:
+    elif T > 200 or T < 1:
         Lz = 0
 
     try:
@@ -448,9 +442,7 @@ def LfuncKallenbachAr100(T: float) -> float:
             ]
         )(T)
 
-    elif T > 100:
-        Lz = 0
-    elif T < 1:
+    elif T > 100 or T < 1:
         Lz = 0
 
     try:
@@ -521,9 +513,7 @@ def LfuncKallenbachAr150(T: float) -> float:
             ]
         )(T)
 
-    elif T > 150:
-        Lz = 0
-    elif T < 1:
+    elif T > 150 or T < 1:
         Lz = 0
 
     try:
@@ -594,9 +584,7 @@ def LfuncKallenbachNe(T: float) -> float:
             ]
         )(T)
 
-    elif T > 300:
-        Lz = 0
-    elif T < 1:
+    elif T > 300 or T < 1:
         Lz = 0
 
     try:
@@ -608,7 +596,6 @@ def LfuncKallenbachNe(T: float) -> float:
     return Lz
 
 
-from scipy import interpolate
 
 
 def LfuncKallenbach(species_choice: str) -> Callable[[float], float]:

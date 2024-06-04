@@ -252,14 +252,13 @@ def make_arrays(
                             arr["threshold"][row, col] = np.nan
                             arr["window"][row, col] = np.nan
                             arr["window_ratio"][row, col] = np.nan
+                    elif arr["window_ratio"][row, col] >= 1:
+                        arr["threshold"][row, col] = scan2d[row][col]["threshold"]
+                        arr["window"][row, col] = scan2d[row][col]["window"]
                     else:
-                        if arr["window_ratio"][row, col] >= 1:
-                            arr["threshold"][row, col] = scan2d[row][col]["threshold"]
-                            arr["window"][row, col] = scan2d[row][col]["window"]
-                        else:
-                            arr["threshold"][row, col] = np.nan
-                            arr["window"][row, col] = np.nan
-                            arr["window_ratio"][row, col] = np.nan
+                        arr["threshold"][row, col] = np.nan
+                        arr["window"][row, col] = np.nan
+                        arr["window_ratio"][row, col] = np.nan
                 else:
                     arr["threshold"][row, col] = scan2d[row][col]["threshold"]
                     arr["window"][row, col] = scan2d[row][col]["window"]
@@ -404,6 +403,6 @@ def pad_profile(S, data):
     intended_length = len(S)
     actual_length = len(data)
 
-    out = np.insert(data, 0, np.zeros((intended_length - actual_length)))
+    out = np.insert(data, 0, np.zeros(intended_length - actual_length))
 
     return out

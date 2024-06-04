@@ -126,14 +126,14 @@ def unpackConfigurationMK(
 
     sol = defaultdict(dict)  # Dict of parameters in each SOL side. sol[param][side]
 
-    for param in full.keys():
+    for param in full:
         for side in ["il", "iu", "ou", "ol"]:
             sol[param][side] = full[param][start[side] : end[side]]
 
     # Invert inner lower and outer upper so that all SOLs
     # are consistent and start at midplane (needs to be done under this convention to work)
     # This can be later reversed to start at target by input flag "convention=target_to_midplane"
-    for param in full.keys():
+    for param in full:
         sol[param]["il"] = sol[param]["il"][::-1]
         sol[param]["ou"] = sol[param]["ou"][::-1]
 
@@ -168,7 +168,7 @@ def unpackConfigurationMK(
         # Regular linearly spaced grid (linear in poloidal space)
         path_grid[side] = np.linspace(0, np.amax(path_actual[side]), resolution)
 
-        for param in full.keys():
+        for param in full:
             interp[side][param] = interpolate.interp1d(
                 path_actual[side], sol[param][side], kind="cubic"
             )
