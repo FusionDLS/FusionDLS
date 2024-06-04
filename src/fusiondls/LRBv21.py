@@ -298,7 +298,7 @@ def run_dls(
     ):  # For each detachment front location:
         st.SparFront = SparFront  # Current prescribed parallel front location
 
-        if dynamicGrid is True:
+        if dynamicGrid:
             newProfile = refineGrid(
                 d,
                 SparFront,
@@ -383,7 +383,7 @@ def run_dls(
             st.cvar = 1 / qradial_guess
 
         # Initial guess of qpllt, the virtual target temperature (typically 0).
-        if zero_qpllt is True:
+        if zero_qpllt:
             st.qpllt = si.qpllu0 * 1e-2
         else:
             st.qpllt = (

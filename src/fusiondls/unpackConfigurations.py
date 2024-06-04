@@ -139,7 +139,7 @@ def unpackConfiguration(
 
     # cut kinked data
 
-    if returnSBool is True:
+    if returnSBool:
         S = returnS(R, Z, TotalField, Bpol)
         return zl, TotalField, Xpoint, R, Z, Rs, Zs, polLengthArray, Bpol, S
     return zl, TotalField, Xpoint, R, Z, Rs, Zs, polLengthArray, Bpol

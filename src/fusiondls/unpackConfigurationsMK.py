@@ -96,7 +96,7 @@ def unpackConfigurationMK(
     target["ou"] = reversals[4] - 1
     target["ol"] = len(gradR)
 
-    if diagnostic_plot is True:
+    if diagnostic_plot:
         fig, ax = plt.subplots(dpi=150)
         ax.set_aspect("equal")
         ax.scatter(full["R"], full["Z"], s=5)
@@ -206,7 +206,7 @@ def unpackConfigurationMK(
     """------DIAGNOSTIC PLOT"""
 
     # Plot the four divertor SOLs and corresponding Xpoints
-    if diagnostic_plot is True:
+    if diagnostic_plot:
         fig, ax = plt.subplots(1, 4, figsize=(18, 4))
 
         xparam = "S"

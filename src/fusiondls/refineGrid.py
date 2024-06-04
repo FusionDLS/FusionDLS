@@ -46,7 +46,7 @@ def refineGrid(
     Snew = np.linspace(S[0], S[-1], resolution - 1)  # Initialise S with uniform spacing
     residual = 1
 
-    if diagnostic_plot is True:
+    if diagnostic_plot:
         fig, axes = plt.subplots(2, 1, figsize=(5, 5), height_ratios=(8, 4))
 
     dSnew2 = np.zeros_like(Snew)
@@ -63,7 +63,7 @@ def refineGrid(
             residual = abs((dSnew2[-1] - dSnew[-1]) / dSnew2[-1])
         dSnew2 = dSnew
 
-        if diagnostic_plot is True:
+        if diagnostic_plot:
             axes[0].plot(Snew, dSnew, label=i)
             axes[1].scatter(
                 Snew,
@@ -86,7 +86,7 @@ def refineGrid(
     Snew = np.insert(Snew, 0, 0)  # len(dS) = len(S) - 1
 
     # Grid width diagnostics plot settings
-    if diagnostic_plot is True:
+    if diagnostic_plot:
         axes[1].set_yticklabels([])
         fig.tight_layout()
         fig.legend(loc="upper center", bbox_to_anchor=(0.5, 0), ncols=5)
@@ -105,7 +105,7 @@ def refineGrid(
         if par not in {"Xpoint", "S"}:
             pnew[par] = sp.interpolate.make_interp_spline(S, p[par], k=2)(Snew)
 
-            if diagnostic_plot is True:
+            if diagnostic_plot:
                 fig, ax = plt.subplots(dpi=100)
                 ax.plot(
                     p["S"],

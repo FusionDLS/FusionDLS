@@ -140,7 +140,7 @@ class Profile:
         Btot_leg_new = Btot_leg * (new_span / old_span)  # Scale to get Bx/Bt ratio
         Btot_leg_new -= Btot_leg_new[-1] - Bx  # Offset to realign Bx
 
-        if verbose is True:
+        if verbose:
             print(
                 "Warning: scaling flux expansion. R,Z coordinates will no longer be physical"
             )
@@ -181,7 +181,7 @@ class Profile:
         self["S"] = scale_leg(self["S"], scale_factor)
         self["Spol"] = scale_leg(self["Spol"], scale_factor)
 
-        if verbose is True:
+        if verbose:
             print(
                 "Warning: Scaling connection length. R,Z coordinates will no longer be valid"
             )
@@ -274,7 +274,7 @@ class Profile:
 
         ## Calculate total field
         # Either keep same Bpitch or same Bpol
-        if constant_pitch is True:
+        if constant_pitch:
             Btot_leg_new = np.sqrt(Btor_leg_new**2 / (1 - Bpitch_leg**2))
             Bpol_leg_new = np.sqrt(Btot_leg_new**2 - Btor_leg_new**2)
 

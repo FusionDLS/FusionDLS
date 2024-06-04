@@ -229,7 +229,7 @@ def make_arrays(
         Dictionary of 2D arrays of results
     """
 
-    if new is True:  # New format for 2D scans
+    if new:  # New format for 2D scans
         arr = {}
 
         arr["window"] = np.zeros((len(list_BxBt_scales), len(list_Lc_scales)))
@@ -241,7 +241,7 @@ def make_arrays(
             for row in range(len(list_Lc_scales)):
                 arr["window_ratio"][row, col] = scan2d[row][col]["window_ratio"]
 
-                if cut is True:
+                if cut:
                     if cvar == "q":
                         if arr["window_ratio"][row, col] <= 1:
                             arr["threshold"][row, col] = scan2d[row][col]["threshold"]
