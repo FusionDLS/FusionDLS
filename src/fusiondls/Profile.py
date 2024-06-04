@@ -221,10 +221,10 @@ class Profile:
             self["R_control"][::-1], self["Z_control"][::-1], return_spline=True
         )
 
-        # spl = cord_spline(self["R_leg_spline"][::-1], self["Z_leg_spline"][::-1], return_spline = True)   # Spline interp for new leg
+        # New leg interpolated onto same points as old leg
         self["R_leg_spline"], self["Z_leg_spline"] = spl(
             dist
-        )  # New leg interpolated onto same points as old leg
+        )
 
         ## Calculate total RZ by adding upstream
         self["R"] = np.concatenate(
@@ -573,7 +573,6 @@ class Morph:
             alpha=1,
         )
 
-        # ax.plot(d_outer["R"], d_outer["Z"], linewidth = 3, marker = "o", markersize = 0, color = "black", alpha = 1)
         ax.set_xlabel("$R\ (m)$", fontsize=15)
         ax.set_ylabel("$Z\ (m)$")
 
@@ -627,7 +626,6 @@ def compare_profile_topologies(base_profile, profiles):
             **profstyle,
             marker=markers[i],
         )
-        # ax.scatter(p["Spol"][p["Xpoint"]]+ Spol_shift, (np.gradient(p["Btot"], p["Spol"]) / p["Btot"])[p["Xpoint"]], **xstyle)
         ax.set_xlabel(r"$S_{\theta} \   [m]$")
         ax.set_ylabel("$B_{tot}$ $[T]$")
 
@@ -749,8 +747,6 @@ def shift_points(R, Z, offsets, factor=1):
         Rs, Zs = spl(position)
         x.append(Rs + offsetx)
         y.append(Zs + offsety)
-        # x = [R[i[0]], R[i[1]], R[i[2]], R[i[3]]]
-        # y = [Z[i[0]]+yoffset[0], Z[i[1]]+yoffset[1], Z[i[2]]+yoffset[2], Z[i[3]]+yoffset[3]]
 
     return np.array(x), np.array(y)
 

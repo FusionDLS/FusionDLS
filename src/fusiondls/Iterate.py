@@ -5,7 +5,6 @@ from .unpackConfigurationsMK import *
 
 
 def LengFunc(s, y, si, st):
-    # def LengFunc(y, s, si, st):
     """
     Lengyel function.
     This is passed to ODEINT in integrate() and used to solve for q and T along the field line.
@@ -126,7 +125,6 @@ def iterate(si, st):
         st.cz = si.cz0
         st.nu = st.cvar
 
-    # si.Btot = [si.B(x) for x in si.S]   ## FIXME This shouldn't be here, we already have a Btot
     st.qradial = (si.qpllu0 / si.Btot[si.Xpoint]) / np.trapezoid(
         1 / si.Btot[si.Xpoint :], x=si.S[si.Xpoint :]
     )
@@ -134,7 +132,7 @@ def iterate(si, st):
     if si.control_variable == "power":
         st.cz = si.cz0
         st.nu = si.nu0
-        # st.qradial = 1/st.cvar # This is needed so that too high a cvar gives positive error
+        # This is needed so that too high a cvar gives positive error
         st.qradial = (1 / st.cvar / si.Btot[si.Xpoint]) / np.trapezoid(
             1 / si.Btot[si.Xpoint :], x=si.S[si.Xpoint :]
         )
@@ -145,12 +143,6 @@ def iterate(si, st):
             end="",
         )
 
-    # result = odeint(LengFunc,
-    #                 y0 = [st.qpllt/si.B(st.s[0]),si.Tt],
-    #                 t = st.s,
-    #                 args = (si, st)
-    #                 )
-
     result = solve_ivp(
         LengFunc,
         t_span=(st.s[0], st.s[-1]),
@@ -160,21 +152,12 @@ def iterate(si, st):
         atol=1e-10,
         args=(si, st),
     )
-    # print(result["message"])
-
 
     # Update state with results
-    # ODEINT
-    # st.q = result[:,0]*si.B(st.s)     # q profile
-    # st.T = result[:,1]                # Temp profile
-    # solve_ivp
-    # plt.plot(result.y[0])
-    # plt.show()
-
     qoverBresult = result.y[0]
     Tresult = result.y[1]
 
-    ## Sometimes when solve_ivp returns negative q upstream, it will trim
+    # Sometimes when solve_ivp returns negative q upstream, it will trim
     # the output instead of giving nans. This pads it back to correct length
     if len(qoverBresult) < len(st.s):
         if si.verbosity > 3:
