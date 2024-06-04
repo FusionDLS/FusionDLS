@@ -120,9 +120,9 @@ class Profile:
         Bx = Btot[self.Xpoint]
         BxBt_base = Bx / Bt_base
 
-        if BxBt == None and scale_factor == None:
+        if BxBt is None and scale_factor is None:
             raise ValueError("Specify either scale factor or flux expansion")
-        elif BxBt == None:
+        if BxBt is None:
             BxBt = BxBt_base * scale_factor
 
         if BxBt == 0:
@@ -138,7 +138,7 @@ class Profile:
         old_span = Bx - Bt_base
         new_span = Bx - Bt_new
         Btot_leg_new = Btot_leg * (new_span / old_span)  # Scale to get Bx/Bt ratio
-        Btot_leg_new = Btot_leg_new - (Btot_leg_new[-1] - Bx)  # Offset to realign Bx
+        Btot_leg_new -= Btot_leg_new[-1] - Bx  # Offset to realign Bx
 
         if verbose is True:
             print(
@@ -156,7 +156,7 @@ class Profile:
         """
         # FIXME looks to have about 5% error when using Lc
 
-        if scale_factor == None and Lc == None:
+        if scale_factor is None and Lc is None:
             raise ValueError("Specify either scale factor or connection length")
 
         breakpoint = self.Xpoint + 1
@@ -166,7 +166,7 @@ class Profile:
             L_leg = S[breakpoint]
             L_total = S[-1]
 
-            if Lc == None:
+            if Lc is None:
                 L_leg_new = L_total * scale_factor - L_upstream
             else:
                 L_leg_new = Lc - L_upstream
@@ -175,9 +175,8 @@ class Profile:
             S_upstream = S[breakpoint:]
             S_leg_new = S_leg * L_leg_new / L_leg
             S_upstream_new = S_upstream + S_leg_new[-1] - S_leg[-1]
-            S_new = np.concatenate((S_leg_new, S_upstream_new))
+            return np.concatenate((S_leg_new, S_upstream_new))
 
-            return S_new
 
         self["S"] = scale_leg(self["S"], scale_factor)
         self["Spol"] = scale_leg(self["Spol"], scale_factor)
@@ -287,7 +286,7 @@ class Profile:
             )
 
             ## Convolve Bpol with a gaussian of a width, position and height
-            if Bpol_shift != None:
+            if Bpol_shift is not None:
                 width = Bpol_shift["width"]
                 pos = Bpol_shift["pos"]
                 height = Bpol_shift["height"]
@@ -318,8 +317,8 @@ class Profile:
     def plot_topology(self):
         fig, axes = plt.subplots(2, 2, figsize=(8, 8))
 
-        basestyle = dict(c="black")
-        xstyle = dict(marker="+", linewidth=2, s=150, c="r", zorder=100)
+        basestyle = {"c": "black"}
+        xstyle = {"marker": "+", "linewidth": 2, "s": 150, "c": "r", "zorder": 100}
 
         ax = axes[0, 0]
         ax.set_title("Fractional $B_{tot}$ gradient")
@@ -367,15 +366,19 @@ class Profile:
 
     def plot_control_points(
         self,
-        linesettings={},
-        markersettings={},
+        linesettings=None,
+        markersettings=None,
         ylim=(None, None),
         xlim=(None, None),
         dpi=100,
         ax=None,
     ):
-        if ax == None:
-            fig, ax = plt.subplots(dpi=dpi)
+        if markersettings is None:
+            markersettings = {}
+        if linesettings is None:
+            linesettings = {}
+        if ax is None:
+            _fig, ax = plt.subplots(dpi=dpi)
             ax.plot(
                 self["R"],
                 self["Z"],
@@ -485,9 +488,8 @@ class Morph:
         prof["x"] = self.start["x"] + factor * (self.end["x"] - self.start["x"])
         prof["y"] = self.start["y"] + factor * (self.end["y"] - self.start["y"])
         prof["xs"], prof["ys"] = cord_spline(prof["x"], prof["y"])  # Interpolate
-        prof = self._populate_profile(prof)
+        return self._populate_profile(prof)
 
-        return prof
 
     def _populate_profile(self, prof):
         """
@@ -549,7 +551,7 @@ class Morph:
         return prof
 
     def plot_profile(self, prof, dpi=100, ylim=(None, None), xlim=(None, None)):
-        fig, ax = plt.subplots(dpi=dpi)
+        _fig, ax = plt.subplots(dpi=dpi)
 
         s = self.start
         p = prof
@@ -580,7 +582,6 @@ class Morph:
         if xlim != (None, None):
             ax.set_xlim(xlim)
 
-        alpha = 0.5
         ax.set_title("RZ Space")
         ax.grid(alpha=0.3, color="k")
         ax.set_aspect("equal")
@@ -596,13 +597,12 @@ def compare_profile_topologies(base_profile, profiles):
     fig, axes = plt.subplots(2, 2, figsize=(8, 8))
     markers = ["o", "v"]
 
-    profstyle = dict(alpha=0.3)
+    profstyle = {"alpha": 0.3}
 
-    basestyle = dict(c="black")
-    xstyle = dict(marker="+", linewidth=2, s=150, c="r", zorder=100)
+    basestyle = {"c": "black"}
+    xstyle = {"marker": "+", "linewidth": 2, "s": 150, "c": "r", "zorder": 100}
 
-    S_xpoint_max = max([p["S"][p["Xpoint"]] for p in profiles])
-    S_pol_xpoint_max = max([p["Spol"][p["Xpoint"]] for p in profiles])
+    S_pol_xpoint_max = max(p["Spol"][p["Xpoint"]] for p in profiles)
 
     Spol_shift_base = S_pol_xpoint_max - d["Spol"][d["Xpoint"]]
 
@@ -702,8 +702,7 @@ def cord_spline(x, y, return_spline=False):
 
     if return_spline:
         return spl
-    else:
-        return R, Z
+    return R, Z
 
 
 def get_cord_distance(x, y):
@@ -715,9 +714,8 @@ def get_cord_distance(x, y):
     l = (dp**2).sum(axis=0)  # squares of lengths of 2-vectors between points
     u_cord = np.sqrt(l).cumsum()  # Cumulative sum of 2-norms
     u_cord /= u_cord[-1]  # normalize to interval [0,1]
-    u_cord = np.r_[0, u_cord]  # the first point is parameterized at zero
+    return np.r_[0, u_cord]  # the first point is parameterized at zero
 
-    return u_cord
 
 
 def shift_points(R, Z, offsets, factor=1):
@@ -740,10 +738,10 @@ def shift_points(R, Z, offsets, factor=1):
     spl = cord_spline(R, Z, return_spline=True)
     x, y = [], []
 
-    for i, point in enumerate(offsets):
+    for point in offsets:
         position = point["pos"]
-        offsetx = point["offsetx"] if "offsetx" in point else 0
-        offsety = point["offsety"] if "offsety" in point else 0
+        offsetx = point.get("offsetx", 0)
+        offsety = point.get("offsety", 0)
 
         offsetx *= factor
         offsety *= factor
@@ -765,7 +763,7 @@ def returnll(R, Z):
     PrevZ = Z[0]
     for i in range(len(R)):
         dl = np.sqrt((PrevR - R[i]) ** 2 + (PrevZ - Z[i]) ** 2)
-        currentl = currentl + dl
+        currentl += dl
         ll.append(currentl)
         PrevR = R[i]
         PrevZ = Z[i]
@@ -781,7 +779,7 @@ def returnS(R, Z, B, Bpol):
     for i in range(len(R)):
         dl = np.sqrt((PrevR - R[i]) ** 2 + (PrevZ - Z[i]) ** 2)
         ds = dl * np.abs(B[i]) / np.abs(Bpol[i])
-        currents = currents + ds
+        currents += ds
         s.append(currents)
         PrevR = R[i]
         PrevZ = Z[i]

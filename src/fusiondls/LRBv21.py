@@ -8,8 +8,8 @@ from scipy.integrate import cumulative_trapezoid
 from .DLScommonTools import pad_profile
 from .Iterate import iterate
 from .refineGrid import refineGrid
-from .unpackConfigurationsMK import *
 from .typing import FloatArray
+from .unpackConfigurationsMK import *
 
 
 class SimulationState:
@@ -184,7 +184,7 @@ class SimulationInputs:
 
     def __init__(self):
         # Physics constants
-        self.kappa0 = 2500  #
+        self.kappa0 = 2500
         self.mi = 3 * 10 ** (-27)
         self.echarge = 1.60 * 10 ** (-19)
 
@@ -417,9 +417,9 @@ def run_dls(
             # Double or halve cvar until the error flips sign
             for k1 in range(si.timeout * 2):
                 if st.error1 > 0:
-                    st.cvar = st.cvar / 2
+                    st.cvar /= 2
                 elif st.error1 < 0:
-                    st.cvar = st.cvar * 2
+                    st.cvar *= 2
 
                 st = iterate(si, st)
 
@@ -555,8 +555,8 @@ def run_dls(
             output["spol_onset"] = spol_onset
 
             grad = np.gradient(crel_list)
-            for i, val in enumerate(grad):
-                if i > 0 and np.sign(grad[i]) != np.sign(grad[i - 1]):
+            for i, _val in enumerate(grad):
+                if i > 0 and np.sign(_val) != np.sign(grad[i - 1]):
                     crel_list_trim[:i] = np.nan
                     cvar_list_trim[:i] = np.nan
 

@@ -5,8 +5,8 @@ import numpy as np
 from scipy import interpolate
 
 from .AnalyticCoolingCurves import *
+from .typing import FloatArray, PathLike, Scalar
 from .unpackConfigurationsMK import *
-from .typing import PathLike, FloatArray, Scalar
 
 # import colorcet as cc
 
@@ -60,7 +60,7 @@ def scale_BxBt(
 
     # Translate to keep the same Bx as before
     transl_factor = Btot_new[Xpoint] - Bx_base
-    Btot_new = Btot_new - transl_factor
+    Btot_new -= transl_factor
 
     # Replace upstream of the Xpoint with the old data
     # So that we are only scaling downstream of Xpoint
@@ -106,7 +106,6 @@ def scale_Lc(
         )
 
     Lc_base = S_base[Xpoint]
-    Lpol_base = Spol_base[Xpoint]
 
     # Having Lc non-zero
     if Lc is not None:
@@ -171,7 +170,6 @@ def scale_Lm(
         )
 
     Lm_base = S_base[-1]
-    Lpol_base = Spol_base[-1]
 
     if Lm is not None:
         scale_factor = Lm / Lm_base
@@ -231,19 +229,19 @@ def make_arrays(
         Dictionary of 2D arrays of results
     """
 
-    if new == True:  # New format for 2D scans
-        arr = dict()
+    if new is True:  # New format for 2D scans
+        arr = {}
 
         arr["window"] = np.zeros((len(list_BxBt_scales), len(list_Lc_scales)))
         arr["threshold"] = np.zeros((len(list_BxBt_scales), len(list_Lc_scales)))
         arr["window_ratio"] = np.zeros((len(list_BxBt_scales), len(list_Lc_scales)))
         arr["threshold_scale"] = np.zeros((len(list_BxBt_scales), len(list_Lc_scales)))
 
-        for col, BxBt in enumerate(list_BxBt_scales):
-            for row, Lc in enumerate(list_Lc_scales):
+        for col in range(len(list_BxBt_scales)):
+            for row in range(len(list_Lc_scales)):
                 arr["window_ratio"][row, col] = scan2d[row][col]["window_ratio"]
 
-                if cut == True:
+                if cut is True:
                     if cvar == "q":
                         if arr["window_ratio"][row, col] <= 1:
                             arr["threshold"][row, col] = scan2d[row][col]["threshold"]
@@ -284,9 +282,9 @@ def make_arrays(
         arr_window = []
         arr_threshold = []
         arr_window_ratio = []
-        arr = dict()
+        arr = {}
 
-        for i, BxBt_scale in enumerate(list_BxBt_scales):
+        for i in range(len(list_BxBt_scales)):
             arr_window.append(scan2d[i]["window"])
             arr_threshold.append(scan2d[i]["threshold"])
             arr_window_ratio.append(scan2d[i]["window_ratio"])
@@ -335,17 +333,12 @@ def make_window_band(
     # o = copy.deepcopy(o)
     # d = copy.deepcopy(d)
 
-    band = dict()
-    if q == False:
-        crel = np.array(o["crel"])
-    else:
-        crel = 1 / np.array(o["crel"])
+    band = {}
+    crel = np.array(o["crel"]) if q is False else 1 / np.array(o["crel"])
     splot = np.array(o["Splot"])
     spolplot = np.array(o["SpolPlot"])
     Btot = d["Btot"]
     Btot_grad = np.gradient(Btot)
-
-    c_grid = np.linspace(crel[0], crel[-1], 1000)
 
     spar_from_crel = interpolate.UnivariateSpline(crel, splot, k=5)
     spol_from_crel = interpolate.UnivariateSpline(crel, spolplot, k=5)
@@ -388,9 +381,8 @@ def file_read(filename: PathLike) -> dict[str, FloatArray]:
     """Reads a pickle file and returns it"""
     with open(filename, "rb") as filename:
         # Open file in read binary mode, dump file to result.
-        data = pkl.load(filename)
+        return pkl.load(filename)
 
-    return data
 
 
 def pad_profile(S, data):
@@ -403,6 +395,5 @@ def pad_profile(S, data):
     intended_length = len(S)
     actual_length = len(data)
 
-    out = np.insert(data, 0, np.zeros(intended_length - actual_length))
+    return np.insert(data, 0, np.zeros(intended_length - actual_length))
 
-    return out

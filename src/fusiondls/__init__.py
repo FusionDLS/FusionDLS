@@ -10,4 +10,4 @@ except PackageNotFoundError:
 from .DLScommonTools import LfuncN, file_read, file_write, make_arrays
 from .LRBv21 import run_dls
 
-__all__ = ["file_read", "LfuncN", "run_dls", "file_write", "make_arrays"]
+__all__ = ["LfuncN", "file_read", "file_write", "make_arrays", "run_dls"]

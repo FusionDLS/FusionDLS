@@ -1,6 +1,7 @@
+from collections.abc import Callable
+
 import numpy as np
 from scipy import interpolate
-from collections.abc import Callable
 
 from .typing import PathLike
 
@@ -16,8 +17,8 @@ def LfuncN(T: float) -> float:
     answer = 0
     if T >= 1 and T <= 80:
         answer = 5.9e-34 * (T - 1) ** (0.5)
-        answer = answer * (80 - T)
-        answer = answer / (1 + (3.1e-3) * (T - 1) ** 2)
+        answer *= 80 - T
+        answer /= 1 + 0.0031 * (T - 1) ** 2
     else:
         answer = 0
     return answer
@@ -596,11 +597,9 @@ def LfuncKallenbachNe(T: float) -> float:
     return Lz
 
 
-
-
 def LfuncKallenbach(species_choice: str) -> Callable[[float], float]:
 
-    radiation = dict()
+    radiation = {}
 
     # Temperature array
     T = np.array(
@@ -1442,9 +1441,7 @@ def LfuncKallenbach(species_choice: str) -> Callable[[float], float]:
     T[Tmax_idx] = Tmax  # Make sure this point is exactly Tmax
     radiation[species_choice][Tmax_idx + 1 :] = 0
 
-    Lfunc = interpolate.CubicSpline(T, radiation[species_choice])
-
-    return Lfunc
+    return interpolate.CubicSpline(T, radiation[species_choice])
 
 
 def LfunLengFunccGauss(T: float, width: float = 2) -> float:
@@ -1473,7 +1470,6 @@ def ratesAmjul(filename: PathLike, T: float, n: float) -> float:
         Density (FIXME)
     """
     rawdata = np.loadtxt(filename)
-    unpackedData = []
     counter = 0
     rates = 0
     for i in range(3):
@@ -1482,10 +1478,10 @@ def ratesAmjul(filename: PathLike, T: float, n: float) -> float:
                 int(i * len(rawdata) / 3) : int((i + 1) * len(rawdata) / 3)
             ][:, j]
             nei = np.log(n * 1e-14) ** (counter)
-            counter = counter + 1
+            counter += 1
             for ti in range(9):
                 tei = np.log(T) ** (ti)
-                rates = rates + tei * nei * section[ti]
+                rates += tei * nei * section[ti]
 
     rates = np.exp(rates)
 
@@ -1505,7 +1501,6 @@ def ratesAmjulCX(filename: PathLike, T: float, E: float) -> float:
         Energy (FIXME)
     """
     rawdata = np.loadtxt(filename)
-    unpackedData = []
     counter = 0
     rates = 0
     for i in range(3):
@@ -1514,10 +1509,10 @@ def ratesAmjulCX(filename: PathLike, T: float, E: float) -> float:
                 int(i * len(rawdata) / 3) : int((i + 1) * len(rawdata) / 3)
             ][:, j]
             nei = np.log(E) ** (counter)
-            counter = counter + 1
+            counter += 1
             for ti in range(9):
                 tei = np.log(T) ** (ti)
-                rates = rates + tei * nei * section[ti]
+                rates += tei * nei * section[ti]
 
     rates = np.exp(rates)
 

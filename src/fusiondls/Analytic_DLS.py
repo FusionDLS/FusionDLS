@@ -33,12 +33,7 @@ def CfInt(spar, B_field, sx, L, sh=0, kappa1=2500):
         0
     ]
     if sx < L:
-        Tu = (
-            Tu
-            + quad(
-                _integrand2, sx, L, args=(sx, L, B_field), epsabs=0.0000000000000000001
-            )[0]
-        )
+        Tu += quad(_integrand2, sx, L, args=(sx, L, B_field), epsabs=1e-19)[0]
     Tu = (Tu * 7 / (2 * kappa1)) ** (-2 / 7)
     # account for flux expansion effects on heat flux density
     Cf = Tu * B_field(sh) / B_field(sx)
@@ -48,8 +43,7 @@ def CfInt(spar, B_field, sx, L, sh=0, kappa1=2500):
     for t in T:
         Q.append(LfuncN(t))
     C0 = (2 * kappa1 * trapezoid(Q * T ** (1 / 2), T)) ** (-1 / 2)
-    Cf = Cf * C0
-    return Cf
+    return Cf * C0
 
 
 def _integrand(s, sx, L, B_field):

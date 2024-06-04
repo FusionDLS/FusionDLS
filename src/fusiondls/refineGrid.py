@@ -37,7 +37,7 @@ def refineGrid(
 
     S = p["S"]
 
-    if resolution == None:
+    if resolution is None:
         resolution = len(S)
 
     ## Grid generation is an iterative process because dSnew must know where to put the gaussian
@@ -102,7 +102,7 @@ def refineGrid(
     pnew = {}
     pnew["S"] = Snew
     for par in ["S", "Spol", "R", "Z", "Btot", "Bpol"]:
-        if par != "Xpoint" and par != "S":
+        if par not in {"Xpoint", "S"}:
             pnew[par] = sp.interpolate.make_interp_spline(S, p[par], k=2)(Snew)
 
             if diagnostic_plot is True:

@@ -28,7 +28,7 @@ def LengFunc(s, y, si, st):
     """
 
     nu, Tu, cz, qradial = st.nu, st.Tu, st.cz, st.qradial
-    kappa0, qpllu0, alpha, radios, S, B, Xpoint, Lfunc = (
+    kappa0, _qpllu0, alpha, radios, S, B, Xpoint, Lfunc = (
         si.kappa0,
         si.qpllu0,
         si.alpha,
@@ -162,7 +162,6 @@ def iterate(si, st):
     )
     # print(result["message"])
 
-    out = dict()
 
     # Update state with results
     # ODEINT

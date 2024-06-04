@@ -7,8 +7,7 @@ from scipy import interpolate
 
 def find_nearest(array, value):
     array = np.asarray(array)
-    idx = (np.abs(array - value)).argmin()
-    return idx
+    return (np.abs(array - value)).argmin()
 
 
 def unpackConfiguration(
@@ -16,7 +15,7 @@ def unpackConfiguration(
 ):
     rootgrp = Dataset(File, "r", format="NETCDF4")
     sep = rootgrp["jsep"][0]
-    sep = sep + sepadd
+    sep += sepadd
     bb = rootgrp["bb"]
     Bpol = bb[0][sep] * polModulator
     TotalField = np.sqrt(bb[3][sep] ** 2 + bb[0][sep] ** 2)
@@ -141,7 +140,6 @@ def unpackConfiguration(
     zl = np.array(returnzl(R, Z, Bx, np.absolute(Bpol)))
     if Type == "Box":
         Xpoint = find_nearest(zl, zl[-1] * zxoverL)
-    zx = zl[Xpoint]
 
     # if Type == "Box":
     #     for i in range(0,len(TotalField)):
@@ -154,9 +152,6 @@ def unpackConfiguration(
     #     Xpoint = Xpoint-1
 
     polLengthArray = np.array(returnll(R, Z))
-
-    freal = interpolate.interp1d(zl, polLengthArray, kind="cubic")
-
     Bx = np.abs(TotalField[Xpoint])
 
     # Bpol = Bpol*0 - 0.032/R
@@ -164,11 +159,10 @@ def unpackConfiguration(
     # cut kinked data
 
     # zXpoint = np.amax(Z)
-    if returnSBool == True:
+    if returnSBool is True:
         S = returnS(R, Z, TotalField, Bpol)
         return zl, TotalField, Xpoint, R, Z, Rs, Zs, polLengthArray, Bpol, S
-    else:
-        return zl, TotalField, Xpoint, R, Z, Rs, Zs, polLengthArray, Bpol
+    return zl, TotalField, Xpoint, R, Z, Rs, Zs, polLengthArray, Bpol
 
 
 def returnll(R, Z):
@@ -179,7 +173,7 @@ def returnll(R, Z):
     PrevZ = Z[0]
     for i in range(len(R)):
         dl = np.sqrt((PrevR - R[i]) ** 2 + (PrevZ - Z[i]) ** 2)
-        currentl = currentl + dl
+        currentl += dl
         ll.append(currentl)
         PrevR = R[i]
         PrevZ = Z[i]
@@ -195,7 +189,7 @@ def returnS(R, Z, B, Bpol):
     for i in range(len(R)):
         dl = np.sqrt((PrevR - R[i]) ** 2 + (PrevZ - Z[i]) ** 2)
         ds = dl * np.abs(B[i]) / np.abs(Bpol[i])
-        currents = currents + ds
+        currents += ds
         s.append(currents)
         PrevR = R[i]
         PrevZ = Z[i]
@@ -211,7 +205,7 @@ def returnzl(R, Z, BX, Bpol):
     for i in range(len(R)):
         dl = np.sqrt((PrevR - R[i]) ** 2 + (PrevZ - Z[i]) ** 2)
         dz = dl * BX / (Bpol[i])
-        CurrentZ = CurrentZ + dz
+        CurrentZ += dz
         zl.append(CurrentZ)
         PrevR = R[i]
         PrevZ = Z[i]
