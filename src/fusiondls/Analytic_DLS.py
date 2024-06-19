@@ -1,6 +1,6 @@
 import numpy as np
-from scipy.interpolate import interp1d
 from scipy.integrate import quad, trapezoid
+from scipy.interpolate import interp1d
 
 from .AnalyticCoolingCurves import LfuncN
 
