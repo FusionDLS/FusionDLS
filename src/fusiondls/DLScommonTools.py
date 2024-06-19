@@ -4,9 +4,7 @@ from typing import Optional
 import numpy as np
 from scipy import interpolate
 
-from .AnalyticCoolingCurves import *
 from .typing import FloatArray, PathLike, Scalar
-from .unpackConfigurationsMK import *
 
 
 def scale_BxBt(
