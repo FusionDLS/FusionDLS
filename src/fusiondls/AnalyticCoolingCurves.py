@@ -82,10 +82,8 @@ def LfuncKallenbachN(T: float) -> float:
     T:
         Temperature [eV]
     """
-    if T < 1 or T > 300:
-        return 0
 
-    if T >= 1 and T < 5:
+    if 1 <= T < 5:
         Lz = np.poly1d(
             [
                 -5.21687120e-36,
@@ -102,7 +100,7 @@ def LfuncKallenbachN(T: float) -> float:
             ]
         )(T)
 
-    elif T > 5 and T < 40:
+    elif 5 <= T < 40:
         Lz = np.poly1d(
             [
                 3.26756633e-44,
@@ -119,7 +117,7 @@ def LfuncKallenbachN(T: float) -> float:
             ]
         )(T)
 
-    elif T > 40 and T < 300:
+    elif 40 <= T < 300:
         Lz = np.poly1d(
             [
                 7.54004096e-54,
@@ -135,6 +133,8 @@ def LfuncKallenbachN(T: float) -> float:
                 9.64688241e-32,
             ]
         )(T)
+    else:
+        Lz = 0
 
     return np.abs(Lz)
 
@@ -147,7 +147,8 @@ def LfuncKallenbachAr(T: float) -> float:
     T:
         Temperature [eV]
     """
-    if T >= 1 and T < 5:
+
+    if 1 <= T < 5:
         Lz = np.poly1d(
             [
                 -8.38699251e-36,
@@ -164,7 +165,7 @@ def LfuncKallenbachAr(T: float) -> float:
             ]
         )(T)
 
-    elif T > 5 and T < 40:
+    elif 5 <= T < 40:
         Lz = np.poly1d(
             [
                 -2.24776575e-44,
@@ -181,7 +182,7 @@ def LfuncKallenbachAr(T: float) -> float:
             ]
         )(T)
 
-    elif T > 40 and T < 300:
+    elif 40 <= T < 300:
         Lz = np.poly1d(
             [
                 1.15288779e-52,
@@ -198,7 +199,7 @@ def LfuncKallenbachAr(T: float) -> float:
             ]
         )(T)
 
-    elif T > 300 or T < 1:
+    else:
         Lz = 0
 
     return np.abs(Lz)
@@ -212,7 +213,8 @@ def LfuncKallenbachAr100B(T: float) -> float:
     T:
         Temperature [eV]
     """
-    if T >= 1 and T < 5:
+
+    if 1 <= T < 5:
         Lz = np.poly1d(
             [
                 -8.38699251e-36,
@@ -229,7 +231,7 @@ def LfuncKallenbachAr100B(T: float) -> float:
             ]
         )(T)
 
-    elif T > 5 and T < 40:
+    elif 5 <= T < 40:
         Lz = np.poly1d(
             [
                 -2.24776575e-44,
@@ -246,7 +248,7 @@ def LfuncKallenbachAr100B(T: float) -> float:
             ]
         )(T)
 
-    elif T > 40 and T < 300:
+    elif 40 <= T < 100:
         Lz = np.poly1d(
             [
                 1.15288779e-52,
@@ -264,7 +266,7 @@ def LfuncKallenbachAr100B(T: float) -> float:
         )(T)
 
     # After 100 it's constant radiation (but not 0)
-    if T > 100:
+    elif 100 <= T < 300:
         Lz = np.poly1d(
             [
                 1.15288779e-52,
@@ -280,9 +282,9 @@ def LfuncKallenbachAr100B(T: float) -> float:
                 1.65113630e-30,
             ]
         )(100)
-    if T > 300:
+    elif T >= 300:
         Lz = 300
-    if T < 1:
+    else:
         Lz = 0
 
     return np.abs(Lz)
@@ -296,7 +298,8 @@ def LfuncKallenbachAr200(T: float) -> float:
     T:
         Temperature [eV]
     """
-    if T >= 1 and T < 5:
+
+    if 1 <= T < 5:
         Lz = np.poly1d(
             [
                 -8.38699251e-36,
@@ -313,7 +316,7 @@ def LfuncKallenbachAr200(T: float) -> float:
             ]
         )(T)
 
-    elif T > 5 and T < 40:
+    elif 5 <= T < 40:
         Lz = np.poly1d(
             [
                 -2.24776575e-44,
@@ -330,7 +333,7 @@ def LfuncKallenbachAr200(T: float) -> float:
             ]
         )(T)
 
-    elif T > 40 and T < 200:
+    elif 40 <= T < 200:
         Lz = np.poly1d(
             [
                 1.15288779e-52,
@@ -347,7 +350,7 @@ def LfuncKallenbachAr200(T: float) -> float:
             ]
         )(T)
 
-    elif T > 200 or T < 1:
+    else:
         Lz = 0
 
     return np.abs(Lz)
@@ -361,7 +364,8 @@ def LfuncKallenbachAr100(T: float) -> float:
     T:
         Temperature [eV]
     """
-    if T >= 1 and T < 5:
+
+    if 1 <= T < 5:
         Lz = np.poly1d(
             [
                 -8.38699251e-36,
@@ -378,7 +382,7 @@ def LfuncKallenbachAr100(T: float) -> float:
             ]
         )(T)
 
-    elif T > 5 and T < 40:
+    elif 5 <= T < 40:
         Lz = np.poly1d(
             [
                 -2.24776575e-44,
@@ -395,7 +399,7 @@ def LfuncKallenbachAr100(T: float) -> float:
             ]
         )(T)
 
-    elif T > 40 and T < 100:
+    elif 40 <= T < 100:
         Lz = np.poly1d(
             [
                 1.15288779e-52,
@@ -412,7 +416,7 @@ def LfuncKallenbachAr100(T: float) -> float:
             ]
         )(T)
 
-    elif T > 100 or T < 1:
+    else:
         Lz = 0
 
     return np.abs(Lz)
@@ -426,7 +430,8 @@ def LfuncKallenbachAr150(T: float) -> float:
     T:
         Temperature [eV]
     """
-    if T >= 1 and T < 5:
+
+    if 1 <= T < 5:
         Lz = np.poly1d(
             [
                 -8.38699251e-36,
@@ -443,7 +448,7 @@ def LfuncKallenbachAr150(T: float) -> float:
             ]
         )(T)
 
-    elif T > 5 and T < 40:
+    elif 5 <= T < 40:
         Lz = np.poly1d(
             [
                 -2.24776575e-44,
@@ -460,7 +465,7 @@ def LfuncKallenbachAr150(T: float) -> float:
             ]
         )(T)
 
-    elif T > 40 and T < 150:
+    elif 40 <= T < 150:
         Lz = np.poly1d(
             [
                 1.15288779e-52,
@@ -477,7 +482,7 @@ def LfuncKallenbachAr150(T: float) -> float:
             ]
         )(T)
 
-    elif T > 150 or T < 1:
+    else:
         Lz = 0
 
     return np.abs(Lz)
@@ -491,7 +496,8 @@ def LfuncKallenbachNe(T: float) -> float:
     T:
         Temperature [eV]
     """
-    if T >= 1 and T < 5:
+
+    if 1 <= T < 5:
         Lz = np.poly1d(
             [
                 -7.31349415e-38,
@@ -508,7 +514,7 @@ def LfuncKallenbachNe(T: float) -> float:
             ]
         )(T)
 
-    elif T > 5 and T < 40:
+    elif 5 <= T < 40:
         Lz = np.poly1d(
             [
                 2.29496770e-45,
@@ -525,7 +531,7 @@ def LfuncKallenbachNe(T: float) -> float:
             ]
         )(T)
 
-    elif T > 40 and T < 300:
+    elif 40 <= T < 300:
         Lz = np.poly1d(
             [
                 2.25354957e-53,
@@ -542,7 +548,7 @@ def LfuncKallenbachNe(T: float) -> float:
             ]
         )(T)
 
-    elif T > 300 or T < 1:
+    else:
         Lz = 0
 
     return np.abs(Lz)
