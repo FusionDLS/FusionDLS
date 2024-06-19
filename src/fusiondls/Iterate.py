@@ -55,12 +55,10 @@ def LengFunc(s, y, si, st):
     if radios["upstreamGrid"]:
         if s > S[Xpoint]:
             # The second term here converts the x point qpar to a radial heat source acting between midplane and the xpoint
-            try:
-                dqoverBds = ((nu**2 * Tu**2) / T**2) * cz * Lfunc(
-                    T
-                ) / fieldValue - qradial / fieldValue  # /fieldValue * fieldValue / B(S[Xpoint]) # account for flux expansion to Xpoint
-            except:
-                print(f"Failed. s: {s:.2f}")
+            # account for flux expansion to Xpoint
+            dqoverBds = (
+                ((nu**2 * Tu**2) / T**2) * cz * Lfunc(T) / fieldValue
+            ) - qradial / fieldValue
         else:
             dqoverBds = ((nu**2 * Tu**2) / T**2) * cz * Lfunc(T) / fieldValue
     else:
