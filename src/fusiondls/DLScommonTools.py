@@ -8,8 +8,6 @@ from .AnalyticCoolingCurves import *
 from .typing import FloatArray, PathLike, Scalar
 from .unpackConfigurationsMK import *
 
-# import colorcet as cc
-
 
 def scale_BxBt(
     Btot: FloatArray,
@@ -330,8 +328,6 @@ def make_window_band(
         True if control variable is heat flux
 
     """
-    # o = copy.deepcopy(o)
-    # d = copy.deepcopy(d)
 
     band = {}
     crel = np.array(o["crel"]) if q is False else 1 / np.array(o["crel"])
