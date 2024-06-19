@@ -14,14 +14,10 @@ def LfuncN(T: float) -> float:
     T:
         Temperature [eV]
     """
-    answer = 0
-    if T >= 1 and T <= 80:
-        answer = 5.9e-34 * (T - 1) ** (0.5)
-        answer *= 80 - T
-        answer /= 1 + 0.0031 * (T - 1) ** 2
-    else:
-        answer = 0
-    return answer
+    if 1 <= T <= 80:
+        return (5.9e-34 * np.sqrt(T - 1)) * (80 - T) / (1 + (3.1e-3) * (T - 1) ** 2)
+
+    return 0
 
 
 def LfuncNe(T: float) -> float:
@@ -32,9 +28,8 @@ def LfuncNe(T: float) -> float:
     T:
         Temperature [eV]
     """
-    answer = 0
-    if T >= 3 and T <= 100:
-        answer = (
+    if 3 <= T <= 100:
+        return (
             -2.0385e-40 * T**5
             + 5.4824e-38 * T**4
             - 5.1190e-36 * T**3
@@ -42,13 +37,13 @@ def LfuncNe(T: float) -> float:
             - 3.4151e-34 * T
             - 3.2798e-34
         )
-    elif T >= 2 and T < 3:
-        answer = (8.0 - 1.0) * 1.0e-35 / (3.0 - 2.0) * (T - 2.0) + 1.0e-35
-    elif T >= 1 and T < 2:
-        answer = 1.0e-35 / (2.0 - 1.0) * (T - 1.0)
-    else:
-        answer = 0
-    return answer
+    if 2 <= T < 3:
+        return (8.0 - 1.0) * 1.0e-35 / (3.0 - 2.0) * (T - 2.0) + 1.0e-35
+
+    if 1 <= T < 2:
+        return 1.0e-35 / (2.0 - 1.0) * (T - 1.0)
+
+    return 0
 
 
 def LfuncAr(T: float) -> float:
@@ -59,9 +54,8 @@ def LfuncAr(T: float) -> float:
     T:
         Temperature [eV]
     """
-    answer = 0
-    if T >= 1.5 and T <= 100:
-        answer = (
+    if 1.5 <= T <= 100:
+        return (
             -4.9692e-48 * T**10
             + 2.8025e-45 * T**9
             - 6.7148e-43 * T**8
@@ -74,11 +68,10 @@ def LfuncAr(T: float) -> float:
             + 4.9864e-34 * T
             - 9.9412e-34
         )
-    elif T >= 1.0 and T < 1.5:
-        answer = 2.5e-35 / (1.5 - 1.0) * (T - 1.0)
-    else:
-        answer = 0
-    return answer
+    if 1.0 <= T < 1.5:
+        return 2.5e-35 / (1.5 - 1.0) * (T - 1.0)
+
+    return 0
 
 
 def LfuncKallenbachN(T: float) -> float:
@@ -89,6 +82,9 @@ def LfuncKallenbachN(T: float) -> float:
     T:
         Temperature [eV]
     """
+    if T < 1 or T > 300:
+        return 0
+
     if T >= 1 and T < 5:
         Lz = np.poly1d(
             [
@@ -139,9 +135,6 @@ def LfuncKallenbachN(T: float) -> float:
                 9.64688241e-32,
             ]
         )(T)
-
-    elif T > 300 or T < 1:
-        Lz = 0
 
     return np.abs(Lz)
 
@@ -1471,6 +1464,4 @@ def ratesAmjulCX(filename: PathLike, T: float, E: float) -> float:
                 tei = np.log(T) ** (ti)
                 rates += tei * nei * section[ti]
 
-    rates = np.exp(rates)
-
-    return rates * 1e-6
+    return np.exp(rates) * 1e-6
