@@ -104,3 +104,11 @@ ignore = [
   "PLR2004",     # magic-comparison
   "B9",          # flake8-bugbear opinionated warnings
 ]
+
+[[tool.mypy.overrides]]
+module = "scipy.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "netCDF4"
+ignore_missing_imports = true
