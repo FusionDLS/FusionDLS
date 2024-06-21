@@ -457,12 +457,10 @@ def run_dls(
                 elif st.error1 > 0:
                     st.upper_bound = st.cvar
 
-                # Break on success
-                if k0 < 2:
-                    tolerance = 1e-2  # Looser tolerance for the first two T iterations
-                else:
-                    tolerance = si.Ctol
+                # Looser tolerance for the first two T iterations
+                tolerance = 1e-2 if k0 < 2 else si.Ctol
 
+                # Break on success
                 if abs(st.error1) < tolerance:
                     break
 
