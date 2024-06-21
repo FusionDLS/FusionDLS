@@ -49,6 +49,7 @@ def refineGrid(
     if diagnostic_plot is True:
         fig, axes = plt.subplots(2, 1, figsize=(5, 5), height_ratios=(8, 4))
 
+    dSnew2 = np.zeros_like(Snew)
     for i in range(timeout):
         dSnew = 1 / (
             (width * np.sqrt(2 * np.pi))
