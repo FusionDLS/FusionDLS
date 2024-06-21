@@ -9,7 +9,6 @@ from .DLScommonTools import pad_profile
 from .Iterate import iterate
 from .refineGrid import refineGrid
 from .typing import FloatArray
-from .unpackConfigurationsMK import *
 
 
 class SimulationState:

@@ -1,8 +1,6 @@
 import numpy as np
 from scipy.integrate import solve_ivp
 
-from .unpackConfigurationsMK import *
-
 
 def LengFunc(s, y, si, st):
     """
