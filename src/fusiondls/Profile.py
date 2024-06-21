@@ -706,8 +706,8 @@ def get_cord_distance(x, y):
     """
     p = np.stack((x, y))
     dp = p[:, 1:] - p[:, :-1]  # 2-vector distances between points
-    l = (dp**2).sum(axis=0)  # squares of lengths of 2-vectors between points
-    u_cord = np.sqrt(l).cumsum()  # Cumulative sum of 2-norms
+    l_norm = (dp**2).sum(axis=0)  # squares of lengths of 2-vectors between points
+    u_cord = np.sqrt(l_norm).cumsum()  # Cumulative sum of 2-norms
     u_cord /= u_cord[-1]  # normalize to interval [0,1]
     return np.r_[0, u_cord]  # the first point is parameterized at zero
 

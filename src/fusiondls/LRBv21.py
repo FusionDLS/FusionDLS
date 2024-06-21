@@ -92,22 +92,20 @@ class SimulationState:
 
         self.log[self.SparFront] = self.singleLog  # Put in global log
 
-        l = self.singleLog
-
         if self.si.verbosity >= 2:
-            if len(l["error0"]) == 1:  # Print header on first iteration
+            log = self.singleLog
+
+            if len(log["error0"]) == 1:  # Print header on first iteration
                 print(f"\n\n Solving at parallel location {self.SparFront}")
                 print("--------------------------------")
 
             print(
-                "error0: {:.3E}, Tu: {:.2f}, error1: {:.3E}, cvar: {:.3E}, lower_bound: {:.3E}, upper_bound: {:.3E}".format(
-                    l["error0"][-1],
-                    l["Tu"][-1],
-                    l["error1"][-1],
-                    l["cvar"][-1],
-                    l["lower_bound"][-1],
-                    l["upper_bound"][-1],
-                )
+                f"error0: {log['error0'][-1]:.3E}"
+                f"Tu: {log['Tu'][-1]:.3E}"
+                f"error1: {log['error1'][-1]:.3E}"
+                f"cvar: {log['cvar'][-1]:.3E}"
+                f"lower_bound: {log['lower_bound'][-1]:.3E}"
+                f"upper_bound: {log['upper_bound'][-1]:.3E}"
             )
 
     # Update many variables
