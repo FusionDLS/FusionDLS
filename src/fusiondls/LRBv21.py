@@ -496,7 +496,7 @@ def run_dls(
             output["cvar"].append(st.cvar)
 
         Qrad = []
-        for i, Tf in enumerate(st.T):
+        for Tf in st.T:
             if si.control_variable == "impurity_frac":
                 Qrad.append(((si.nu0**2 * st.Tu**2) / Tf**2) * st.cvar * si.Lfunc(Tf))
             elif si.control_variable == "density":

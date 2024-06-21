@@ -246,7 +246,7 @@ def unpackConfigurationMK(
 
     # Pack into a Profile class
     profiles = {}
-    for i, side in enumerate(["iu", "il", "ou", "ol"]):
+    for side in ["iu", "il", "ou", "ol"]:
         d = data[side]
         profiles[side] = Profile(
             d["R"],
