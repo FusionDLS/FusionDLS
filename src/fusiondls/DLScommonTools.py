@@ -357,16 +357,14 @@ def make_window_band(
 
 def file_write(data: dict[str, FloatArray], filename: PathLike):
     """Writes an object to a pickle file"""
-    with open(filename, "wb") as file:
-        # Open file in write binary mode, dump result to file
-        pkl.dump(data, file)
+    with open(filename, "wb") as f:
+        pkl.dump(data, f)
 
 
 def file_read(filename: PathLike) -> dict[str, FloatArray]:
     """Reads a pickle file and returns it"""
-    with open(filename, "rb") as filename:
-        # Open file in read binary mode, dump file to result.
-        return pkl.load(filename)
+    with open(filename, "rb") as f:
+        return pkl.load(f)
 
 
 def pad_profile(S, data):
