@@ -403,8 +403,8 @@ class Profile:
         )
         ax.scatter(self["R_control"], self["Z_control"], **marker_args)
 
-        ax.set_xlabel("$R\ (m)$")
-        ax.set_ylabel("$Z\ (m)$")
+        ax.set_xlabel(r"$R\ (m)$")
+        ax.set_ylabel(r"$Z\ (m)$")
 
         if ylim != (None, None):
             ax.set_ylim(ylim)
@@ -569,8 +569,8 @@ class Morph:
             alpha=1,
         )
 
-        ax.set_xlabel("$R\ (m)$", fontsize=15)
-        ax.set_ylabel("$Z\ (m)$")
+        ax.set_xlabel(r"$R\ (m)$", fontsize=15)
+        ax.set_ylabel(r"$Z\ (m)$")
 
         if ylim != (None, None):
             ax.set_ylim(ylim)
