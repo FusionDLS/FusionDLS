@@ -226,54 +226,46 @@ def make_arrays(
     """
 
     if new:  # New format for 2D scans
-        arr = {}
 
-        arr["window"] = np.zeros((len(list_BxBt_scales), len(list_Lc_scales)))
-        arr["threshold"] = np.zeros((len(list_BxBt_scales), len(list_Lc_scales)))
-        arr["window_ratio"] = np.zeros((len(list_BxBt_scales), len(list_Lc_scales)))
-        arr["threshold_scale"] = np.zeros((len(list_BxBt_scales), len(list_Lc_scales)))
+        def flatten(key: str):
+            return np.array([[col[key] for col in row] for row in scan2d])
 
-        for col in range(len(list_BxBt_scales)):
-            for row in range(len(list_Lc_scales)):
-                arr["window_ratio"][row, col] = scan2d[row][col]["window_ratio"]
+        def cut_func(predicate, array):
+            return np.where(predicate, array, np.nan)
 
-                if cut:
-                    if cvar == "q":
-                        if arr["window_ratio"][row, col] <= 1:
-                            arr["threshold"][row, col] = scan2d[row][col]["threshold"]
-                            arr["window"][row, col] = scan2d[row][col]["window"]
-                        else:
-                            arr["threshold"][row, col] = np.nan
-                            arr["window"][row, col] = np.nan
-                            arr["window_ratio"][row, col] = np.nan
-                    elif arr["window_ratio"][row, col] >= 1:
-                        arr["threshold"][row, col] = scan2d[row][col]["threshold"]
-                        arr["window"][row, col] = scan2d[row][col]["window"]
-                    else:
-                        arr["threshold"][row, col] = np.nan
-                        arr["window"][row, col] = np.nan
-                        arr["window_ratio"][row, col] = np.nan
-                else:
-                    arr["threshold"][row, col] = scan2d[row][col]["threshold"]
-                    arr["window"][row, col] = scan2d[row][col]["window"]
+        window = flatten("window")
+        window_ratio = flatten("window_ratio")
+        threshold = flatten("threshold")
+
+        if cut:
+            if cvar == "q":
+                predicate = window_ratio <= 1
+            elif cvar == "ne":
+                predicate = window_ratio >= 1
+            else:
+                raise ValueError(
+                    f"Expected one of ('q', 'ne') for 'cvar', got '{cvar}'"
+                )
+
+            threshold = cut_func(predicate, threshold)
+            window = cut_func(predicate, window)
+            window_ratio = cut_func(predicate, window_ratio)
 
         index_1_BxBt = np.where(list_BxBt_scales == 1)
         index_1_Lc = np.where(list_Lc_scales == 1)
-        window_norm = arr["window"][index_1_BxBt, index_1_Lc]
-        window_ratio_norm = arr["window_ratio"][index_1_BxBt, index_1_Lc]
-        threshold_norm = arr["threshold"][index_1_BxBt, index_1_Lc]
+        window_norm = window[index_1_BxBt, index_1_Lc]
+        window_ratio_norm = window_ratio[index_1_BxBt, index_1_Lc]
+        threshold_norm = threshold[index_1_BxBt, index_1_Lc]
 
-        arr["window_norm"] = (arr["window"] - window_norm) / abs(window_norm)
-        arr["window_ratio_norm"] = (arr["window_ratio"] - window_ratio_norm) / abs(
-            window_ratio_norm
-        )
-        arr["threshold_norm"] = arr["threshold"] / threshold_norm
-        arr["threshold_norm"] -= 1
-
-        arr["window_base"] = window_norm
-        arr["window_ratio_base"] = window_ratio_norm
-        arr["threshold_base"] = threshold_norm
-
+        arr = {
+            "window_norm": (window - window_norm) / abs(window_norm),
+            "window_ratio_norm": (window_ratio - window_ratio_norm)
+            / abs(window_ratio_norm),
+            "threshold_norm": (threshold / threshold_norm) - 1,
+            "window_base": window_norm,
+            "window_ratio_base": window_ratio_norm,
+            "threshold_base": threshold_norm,
+        }
     else:
         arr_window = []
         arr_threshold = []
@@ -293,10 +285,9 @@ def make_arrays(
         index_1_Lc = np.where(list_Lc_scales == 1)
         window_norm = arr["window"][index_1_BxBt, index_1_Lc]
         threshold_norm = arr["threshold"][index_1_BxBt, index_1_Lc]
-        print("yep")
+
         arr["window_norm"] = (arr["window"] - window_norm) / abs(window_norm) - 1
-        arr["threshold_norm"] = arr["threshold"] / threshold_norm
-        arr["threshold_norm"] -= 1
+        arr["threshold_norm"] = arr["threshold"] / threshold_norm - 1
 
     return arr
 
