@@ -49,7 +49,7 @@ tests = [
 linting = [
   "black",
   "isort",
-  "flake8",
+  "ruff",
 ]
 
 [project.urls]
