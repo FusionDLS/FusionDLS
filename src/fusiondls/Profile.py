@@ -71,7 +71,7 @@ class Profile:
         Return the integral of the fractional Btot gradient
         below the X-point
         """
-        return np.trapz(
+        return np.trapezoid(
             (np.gradient(self.Btot, self.Spol) / self.Btot)[: self.Xpoint],
             self.Spol[: self.Xpoint],
         )
@@ -88,7 +88,7 @@ class Profile:
         Return the integral of the pitch angle Bpol/Btot
         below the X-point
         """
-        return np.trapz(
+        return np.trapezoid(
             (self.Bpol / self.Btot)[: self.Xpoint], self.Spol[: self.Xpoint]
         )
 

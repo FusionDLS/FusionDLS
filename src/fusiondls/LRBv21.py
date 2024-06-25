@@ -365,8 +365,8 @@ def LRBv21(
             # nu0 and cz0 guesses are from Lengyel which depends on an estimate of Tu using qpllu0
             # This means we cannot make a more clever guess for qpllu0 based on cz0 or nu0
             qpllu0_guess = si.qpllu0
-            # qradial_guess = qpllu0_guess / np.trapz(si.Btot[si.Xpoint:] / si.Btot[si.Xpoint], x = si.S[si.Xpoint:])
-            qradial_guess = (qpllu0_guess / si.Btot[si.Xpoint]) / np.trapz(
+            # qradial_guess = qpllu0_guess / np.trapezoid(si.Btot[si.Xpoint:] / si.Btot[si.Xpoint], x = si.S[si.Xpoint:])
+            qradial_guess = (qpllu0_guess / si.Btot[si.Xpoint]) / np.trapezoid(
                 1 / si.Btot[si.Xpoint :], x=si.S[si.Xpoint :]
             )
             st.cvar = 1 / qradial_guess
@@ -390,7 +390,7 @@ def LRBv21(
         # Upstream conditions
         st.nu = si.nu0
         st.cz = si.cz0
-        st.qradial = (si.qpllu0 / si.Btot[si.Xpoint]) / np.trapz(
+        st.qradial = (si.qpllu0 / si.Btot[si.Xpoint]) / np.trapezoid(
             1 / si.Btot[si.Xpoint :], x=si.S[si.Xpoint :]
         )
 
