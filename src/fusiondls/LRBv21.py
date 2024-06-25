@@ -3,7 +3,7 @@ from timeit import default_timer as timer
 
 import numpy as np
 from scipy import interpolate
-from scipy.integrate import cumtrapz
+from scipy.integrate import cumulative_trapezoid
 
 from .DLScommonTools import pad_profile
 from .Iterate import iterate
@@ -341,7 +341,7 @@ def LRBv21(
         )  # Initial upstream pressure in Pa, calculated so it can be kept constant if required
 
         # Cooling curve integral
-        Lint = cumtrapz(si.Lz[1] * np.sqrt(si.Lz[0]), si.Lz[0], initial=0)
+        Lint = cumulative_trapezoid(si.Lz[1] * np.sqrt(si.Lz[0]), si.Lz[0], initial=0)
         integralinterp = interpolate.interp1d(si.Lz[0], Lint)
 
         # Guesses/initialisations for control variables assuming qpll0 everywhere and qpll=0 at target

@@ -1,6 +1,6 @@
 import numpy as np
 from scipy import interpolate
-from scipy.integrate import quad, trapz
+from scipy.integrate import quad, trapezoid
 
 from .AnalyticCoolingCurves import LfuncN
 
@@ -42,7 +42,7 @@ def CfInt(spar, B_field, sx, L, sh=0, kappa1=2500):
     T = np.linspace(0, 100, 1000)
     for t in T:
         Q.append(LfuncN(t))
-    C0 = (2 * kappa1 * trapz(Q * T ** (1 / 2), T)) ** (-1 / 2)
+    C0 = (2 * kappa1 * trapezoid(Q * T ** (1 / 2), T)) ** (-1 / 2)
     Cf = Cf * C0
     return Cf
 
