@@ -10,7 +10,7 @@ authors = [
     {name = "Cyd Cowley"},
     {name = "Mike Kryjak"},
 ]
-license = {file = "LICENSE"}
+license = {text = "LGPL-3.0-or-later"}
 dynamic = ["version"]
 keywords = ["analysis", "plasma", "research"]
 classifiers = [
