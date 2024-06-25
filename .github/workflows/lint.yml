@@ -24,3 +24,12 @@ jobs:
       # Update output format to enable automatic inline annotations.
       - name: Run Ruff
         run: ruff check --preview --output-format=github .
+
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: psf/black@stable
+        with:
+          options: "--check --verbose"
+          src: "./src ./tests"
