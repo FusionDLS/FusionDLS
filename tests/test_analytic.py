@@ -6,7 +6,9 @@ from fusiondls.Analytic_DLS import CfInt
 
 
 def test_analytic():
-    filename = pathlib.Path(__file__).parent.parent / "eqb_store_lores.pkl"
+    filename = (
+        pathlib.Path(__file__).parent.parent / "docs/examples/eqb_store_lores.pkl"
+    )
     eqb = file_read(filename)
     d = eqb["V10"]["ou"]
 

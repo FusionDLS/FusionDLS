@@ -223,3 +223,6 @@ cython_debug/
 
 # Setuptools_scm generated version file
 src/**/_version.py
+
+# Generated API docs
+docs/generated
