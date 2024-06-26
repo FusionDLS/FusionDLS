@@ -68,7 +68,7 @@ source = [
 ]
 
 [tool.black]
-exclude = "_version.py"
+extend_exclude = "_version.py"
 
 [tool.isort]
 profile = "black"
