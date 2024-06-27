@@ -10,9 +10,12 @@ from .unpackConfigurationsMK import *
 
 
 def scale_BxBt(Btot, Xpoint, scale_factor=0, BxBt=0):
-    # Scale a Btot profile to have an arbitrary flux expansion
-    # Specify either a scale factor or requried flux expansion
-    # TODO: MAKE SURE BPOL IS SCALED TOO
+    """Scale a Btot profile to have an arbitrary flux expansion
+
+    Specify either a scale factor or requried flux expansion
+
+    TODO: MAKE SURE BPOL IS SCALED TOO
+    """
 
     Bt_base = Btot[0]
     Bx_base = Btot[Xpoint]
@@ -41,9 +44,11 @@ def scale_BxBt(Btot, Xpoint, scale_factor=0, BxBt=0):
 
 
 def scale_Lc(S_base, Spol_base, Xpoint, scale_factor=0, Lc=0):
-    # Scale Spar and Spol profiles for arbitrary connection length
-    # Specify either a scale factor or requried connection length
-    # IMPLEMENT SPOL SCALING
+    """Scale Spar and Spol profiles for arbitrary connection length
+
+    Specify either a scale factor or requried connection length
+
+    TODO: IMPLEMENT SPOL SCALING"""
 
     Lc_base = S_base[Xpoint]
     Lpol_base = Spol_base[Xpoint]
@@ -75,9 +80,11 @@ def scale_Lc(S_base, Spol_base, Xpoint, scale_factor=0, Lc=0):
 
 
 def scale_Lm(S_base, Spol_base, Xpoint, scale_factor=0, Lm=0):
-    # Scale Spar and Spol profiles above Xpoint for any midplane length
-    # Specify either a scale factor or requried connection length
-    # IMPLEMENT SPOL SCALING
+    """Scale Spar and Spol profiles above Xpoint for any midplane length
+
+    Specify either a scale factor or requried connection length
+
+    TODO: IMPLEMENT SPOL SCALING"""
 
     Lm_base = S_base[-1]
     Lpol_base = Spol_base[-1]
@@ -111,7 +118,7 @@ def scale_Lm(S_base, Spol_base, Xpoint, scale_factor=0, Lm=0):
 def make_arrays(
     scan2d, list_BxBt_scales, list_Lc_scales, new=True, cvar="ne", cut=True
 ):
-    # Calculate 2D arrays of detachment window and threshold improvement
+    """Calculate 2D arrays of detachment window and threshold improvement"""
 
     if new == True:  # New format for 2D scans
         arr = dict()
@@ -239,14 +246,14 @@ def make_window_band(d, o, spol_middle, size=0.05, q=False):
 
 
 def file_write(data, filename):
-    # Writes an object to a pickle file.
+    """Writes an object to a pickle file"""
     with open(filename, "wb") as file:
         # Open file in write binary mode, dump result to file
         pkl.dump(data, file)
 
 
 def file_read(filename):
-    # Reads a pickle file and returns it.
+    """Reads a pickle file and returns it"""
     with open(filename, "rb") as filename:
         # Open file in read binary mode, dump file to result.
         data = pkl.load(filename)

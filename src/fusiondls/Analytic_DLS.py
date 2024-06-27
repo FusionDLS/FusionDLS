@@ -6,7 +6,10 @@ from .AnalyticCoolingCurves import LfuncN
 
 
 def CfInt(spar, B_field, sx, L, sh=0, kappa1=2500):
-    """
+    """Calculate the control parameter required for a detachment front at parallel position ``sh``
+
+    Parameters
+    ----------
     spar: array, m
         Array of S parallel
     B_field: array, T
@@ -21,7 +24,7 @@ def CfInt(spar, B_field, sx, L, sh=0, kappa1=2500):
         Electron thermal conductivity
 
     """
-    """function which returns the control parameter required for a detachment front at parallel position sh"""
+
     B_field = interpolate.interp1d(
         spar, B_field, kind="cubic", fill_value="extrapolate"
     )
