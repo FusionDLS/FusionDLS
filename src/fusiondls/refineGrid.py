@@ -19,7 +19,7 @@ def refineGrid(
     with a peak determined by fine_ratio and a given width.
 
     Inputs
-    -----
+    ------
     p: dict
         Dictionary containing the profile data (S, Spol, Btot, Bpol, Xpoint, R, Z)
     fine_ratio: float, default 2
@@ -30,7 +30,7 @@ def refineGrid(
         resolution of resulting grid. If None, use same resolution as original grid.
 
     Returns
-    -----
+    ------
     pnew: dict
         New dictionary containing the same profile data as p
     """

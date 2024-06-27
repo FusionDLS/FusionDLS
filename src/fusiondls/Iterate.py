@@ -98,14 +98,14 @@ def iterate(si, st):
     (when upstreamGrid=True) or to qpllu0 (when upstreamGrid=False).
 
     Inputs
-    -------
+    ------
     st : SimulationState
         Simulation state object containing all evolved parameters
     si : SimulationInput
         Simulation input object containing all constant parameters
 
     State modifications
-    -------
+    -------------------
     st.q : np.array
         Profile of heat flux along field line
     st.T : np.array
