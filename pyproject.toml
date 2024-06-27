@@ -101,4 +101,5 @@ extend-select = [
 ]
 ignore = [
   "PLR2004",     # magic-comparison
+  "B9",          # flake8-bugbear opinionated warnings
 ]
