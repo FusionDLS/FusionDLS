@@ -75,6 +75,7 @@ profile = "black"
 
 [tool.ruff]
 extend-include = ["*.ipynb"]
+target-version = "py39"
 
 [tool.ruff.lint]
 extend-select = [
@@ -82,7 +83,6 @@ extend-select = [
   "I",           # isort
   "ARG",         # flake8-unused-arguments
   "C4",          # flake8-comprehensions
-  "EM",          # flake8-errmsg
   "ICN",         # flake8-import-conventions
   "G",           # flake8-logging-format
   "PGH",         # pygrep-hooks
