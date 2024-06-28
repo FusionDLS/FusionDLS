@@ -205,7 +205,7 @@ class SimulationInputs:
         return str(self.__dict__)
 
 
-def LRBv21(
+def run_dls(
     constants,
     radios,
     d,
