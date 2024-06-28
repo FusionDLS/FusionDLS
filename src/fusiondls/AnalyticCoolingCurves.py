@@ -1,9 +1,18 @@
 import numpy as np
 from scipy import interpolate
+from collections.abc import Callable
+
+from .typing import PathLike
 
 
-def LfuncN(T):
-    """Nitrogen based cooling curve used in Lipschultz 2016"""
+def LfuncN(T: float) -> float:
+    """Nitrogen based cooling curve used in Lipschultz 2016
+
+    Parameters
+    ----------
+    T:
+        Temperature [eV]
+    """
     answer = 0
     if T >= 1 and T <= 80:
         answer = 5.9e-34 * (T - 1) ** (0.5)
@@ -14,8 +23,14 @@ def LfuncN(T):
     return answer
 
 
-def LfuncNe(T):
-    """Ne based cooling curve produced by Matlab polynominal curve fitting "polyval" (Ryoko 2020 Nov)"""
+def LfuncNe(T: float) -> float:
+    """Ne based cooling curve produced by Matlab polynominal curve fitting "polyval" (Ryoko 2020 Nov)
+
+    Parameters
+    ----------
+    T:
+        Temperature [eV]
+    """
     answer = 0
     if T >= 3 and T <= 100:
         answer = (
@@ -35,8 +50,14 @@ def LfuncNe(T):
     return answer
 
 
-def LfuncAr(T):
-    """Ar based cooling curve produced by Matlab polynominal curve fitting "polyval" (Ryoko 2020 Nov)"""
+def LfuncAr(T: float) -> float:
+    """Ar based cooling curve produced by Matlab polynominal curve fitting "polyval" (Ryoko 2020 Nov)
+
+    Parameters
+    ----------
+    T:
+        Temperature [eV]
+    """
     answer = 0
     if T >= 1.5 and T <= 100:
         answer = (
@@ -59,8 +80,14 @@ def LfuncAr(T):
     return answer
 
 
-def LfuncKallenbachN(T):
-    """Nitrogen, Tau = 1ms, Kallenbach 2018, xlsx from David Moulton, units W/m3"""
+def LfuncKallenbachN(T: float) -> float:
+    """Nitrogen, Tau = 1ms, Kallenbach 2018, xlsx from David Moulton, units W/m3
+
+    Parameters
+    ----------
+    T:
+        Temperature [eV]
+    """
     if T >= 1 and T < 5:
         Lz = np.poly1d(
             [
@@ -126,8 +153,14 @@ def LfuncKallenbachN(T):
     return Lz
 
 
-def LfuncKallenbachAr(T):
-    """Argon, Tau = 1ms, Kallenbach 2018, xlsx from David Moulton, units W/m3"""
+def LfuncKallenbachAr(T: float) -> float:
+    """Argon, Tau = 1ms, Kallenbach 2018, xlsx from David Moulton, units W/m3
+
+    Parameters
+    ----------
+    T:
+        Temperature [eV]
+    """
     if T >= 1 and T < 5:
         Lz = np.poly1d(
             [
@@ -193,8 +226,14 @@ def LfuncKallenbachAr(T):
     return Lz
 
 
-def LfuncKallenbachAr100B(T):
-    """Argon, Tau = 1ms, Kallenbach 2018, xlsx from David Moulton, units W/m3"""
+def LfuncKallenbachAr100B(T: float) -> float:
+    """Argon, Tau = 1ms, Kallenbach 2018, xlsx from David Moulton, units W/m3
+
+    Parameters
+    ----------
+    T:
+        Temperature [eV]
+    """
     if T >= 1 and T < 5:
         Lz = np.poly1d(
             [
@@ -277,8 +316,14 @@ def LfuncKallenbachAr100B(T):
     return Lz
 
 
-def LfuncKallenbachAr200(T):
-    """Argon, Tau = 1ms, Kallenbach 2018, xlsx from David Moulton, units W/m3"""
+def LfuncKallenbachAr200(T: float) -> float:
+    """Argon, Tau = 1ms, Kallenbach 2018, xlsx from David Moulton, units W/m3
+
+    Parameters
+    ----------
+    T:
+        Temperature [eV]
+    """
     if T >= 1 and T < 5:
         Lz = np.poly1d(
             [
@@ -344,8 +389,14 @@ def LfuncKallenbachAr200(T):
     return Lz
 
 
-def LfuncKallenbachAr100(T):
-    """Argon, Tau = 1ms, Kallenbach 2018, xlsx from David Moulton, units W/m3"""
+def LfuncKallenbachAr100(T: float) -> float:
+    """Argon, Tau = 1ms, Kallenbach 2018, xlsx from David Moulton, units W/m3
+
+    Parameters
+    ----------
+    T:
+        Temperature [eV]
+    """
     if T >= 1 and T < 5:
         Lz = np.poly1d(
             [
@@ -411,8 +462,14 @@ def LfuncKallenbachAr100(T):
     return Lz
 
 
-def LfuncKallenbachAr150(T):
-    """Argon, Tau = 1ms, Kallenbach 2018, xlsx from David Moulton, units W/m3"""
+def LfuncKallenbachAr150(T: float) -> float:
+    """Argon, Tau = 1ms, Kallenbach 2018, xlsx from David Moulton, units W/m3
+
+    Parameters
+    ----------
+    T:
+        Temperature [eV]
+    """
     if T >= 1 and T < 5:
         Lz = np.poly1d(
             [
@@ -478,8 +535,14 @@ def LfuncKallenbachAr150(T):
     return Lz
 
 
-def LfuncKallenbachNe(T):
-    """Neon, Tau = 1ms, Kallenbach 2018, xlsx from David Moulton, units W/m3"""
+def LfuncKallenbachNe(T: float) -> float:
+    """Neon, Tau = 1ms, Kallenbach 2018, xlsx from David Moulton, units W/m3
+
+    Parameters
+    ----------
+    T:
+        Temperature [eV]
+    """
     if T >= 1 and T < 5:
         Lz = np.poly1d(
             [
@@ -548,7 +611,8 @@ def LfuncKallenbachNe(T):
 from scipy import interpolate
 
 
-def LfuncKallenbach(species_choice):
+def LfuncKallenbach(species_choice: str) -> Callable[[float], float]:
+
     radiation = dict()
 
     # Temperature array
@@ -1396,14 +1460,32 @@ def LfuncKallenbach(species_choice):
     return Lfunc
 
 
-def LfunLengFunccGauss(T, width=2):
-    """Custom gaussian impurity cooling curve if desired"""
+def LfunLengFunccGauss(T: float, width: float = 2) -> float:
+    """Custom gaussian impurity cooling curve if desired
+
+    Parameters
+    ----------
+    T:
+        Temperature [eV]
+    width:
+        Gaussian width [eV^2]
+    """
     return 1e-31 * np.exp(-((T - 5) ** 2) / (width))
 
 
-def ratesAmjul(file, T, n):
-    """Reader for AMJUL files"""
-    rawdata = np.loadtxt(file)
+def ratesAmjul(filename: PathLike, T: float, n: float) -> float:
+    """Reader for AMJUL files
+
+    Parameters
+    ----------
+    filename:
+        Path to AMJUL file
+    T:
+        Temperature [eV]
+    n:
+        Density (FIXME)
+    """
+    rawdata = np.loadtxt(filename)
     unpackedData = []
     counter = 0
     rates = 0
@@ -1423,9 +1505,19 @@ def ratesAmjul(file, T, n):
     return rates * 1e-6
 
 
-def ratesAmjulCX(file, T, E):
-    """Reader for AMJUL CX files"""
-    rawdata = np.loadtxt(file)
+def ratesAmjulCX(filename: PathLike, T: float, E: float) -> float:
+    """Reader for AMJUL CX files
+
+    Parameters
+    ----------
+    filename:
+        Path to AMJUL file
+    T:
+        Temperature [eV]
+    E:
+        Energy (FIXME)
+    """
+    rawdata = np.loadtxt(filename)
     unpackedData = []
     counter = 0
     rates = 0

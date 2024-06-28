@@ -1,29 +1,37 @@
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 
+from .typing import FloatArray
+
 
 colors = ["teal", "darkorange", "firebrick", "limegreen", "magenta", "cyan", "navy"]
 
 
 def plot_B_field_profile(
-    inner_S, inner_B, inner_Xpoint: int, outer_S, outer_B, outer_Xpoint: int
+    inner_S: FloatArray,
+    inner_B: FloatArray,
+    inner_Xpoint: int,
+    outer_S: FloatArray,
+    outer_B: FloatArray,
+    outer_Xpoint: int,
 ) -> plt.Axes:
-    r"""Plot $B_{tot}$ as a function of $S_{\parallel}$ for the inner and outer divertors
+    r"""Plot :math:`B_\mathrm{total}` as a function of
+    :math:`S_{\parallel}` for the inner and outer divertors
 
-    Note that $S_{\parallel}$ should go from target to midplane
+    Note that :math:`S_{\parallel}` should go from target to midplane
 
     Parameters
     ----------
-    inner_S : array
-        $S_{\parallel}$ for inner divertor
-    inner_B : array
-        $B_{tot}$ for inner divertor
+    inner_S :
+        :math:`S_{\parallel}` for inner divertor
+    inner_B :
+        :math:`B_\mathrm{total}` for inner divertor
     inner_Xpoint : int
         Index of X-point in ``inner_S``
-    outer_S : array
-        $S_{\parallel}$ for outer divertor
-    outer_B : array
-        $B_{tot}$ for outer divertor
+    outer_S :
+        :math:`S_{\parallel}` for outer divertor
+    outer_B :
+        :math:`B_\mathrm{total}` for outer divertor
     outer_Xpoint : int
         Index of X-point in ``outer_S``
 

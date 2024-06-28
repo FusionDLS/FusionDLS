@@ -9,6 +9,7 @@ from .DLScommonTools import pad_profile
 from .Iterate import iterate
 from .refineGrid import refineGrid
 from .unpackConfigurationsMK import *
+from .typing import FloatArray
 
 
 class SimulationState:
@@ -197,22 +198,22 @@ class SimulationInputs:
 
 
 def run_dls(
-    constants,
-    radios,
-    d,
-    SparRange,
-    control_variable="impurity_frac",
-    verbosity=0,
-    Ctol=1e-3,
-    Ttol=1e-2,
-    URF=1,
-    timeout=20,
-    dynamicGrid=False,
-    dynamicGridRefinementRatio=5,
-    dynamicGridRefinementWidth=1,
-    dynamicGridDiagnosticPlot=False,
-    zero_qpllt=False,
-):
+    constants: dict,
+    radios: dict,
+    d: dict,
+    SparRange: FloatArray,
+    control_variable: str = "impurity_frac",
+    verbosity: int = 0,
+    Ctol: float = 1e-3,
+    Ttol: float = 1e-2,
+    URF: float = 1,
+    timeout: int = 20,
+    dynamicGrid: bool = False,
+    dynamicGridRefinementRatio: float = 5,
+    dynamicGridRefinementWidth: float = 1,
+    dynamicGridDiagnosticPlot: bool = False,
+    zero_qpllt: bool = False,
+) -> dict[str, FloatArray]:
     """Run the DLS-extended model
 
     Returns the impurity fraction required for a given temperature at

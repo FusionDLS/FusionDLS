@@ -1,30 +1,56 @@
 import pickle as pkl
+from typing import Optional
 
 import numpy as np
 from scipy import interpolate
 
 from .AnalyticCoolingCurves import *
 from .unpackConfigurationsMK import *
+from .typing import PathLike, FloatArray, Scalar
 
 # import colorcet as cc
 
 
-def scale_BxBt(Btot, Xpoint, scale_factor=0, BxBt=0):
-    """Scale a Btot profile to have an arbitrary flux expansion
+def scale_BxBt(
+    Btot: FloatArray,
+    Xpoint: int,
+    scale_factor: Optional[Scalar] = None,
+    BxBt: Optional[Scalar] = None,
+) -> FloatArray:
+    r"""Scale a :math:`B_\mathrm{total}` profile to have an arbitrary
+    flux expansion (ratio of :math:`B_\mathrm{X-point}` to
+    :math:`B_\mathrm{target}`)
 
-    Specify either a scale factor or requried flux expansion
+    Specify either a scale factor (``scale_factor``) or required flux
+    expansion (``BxBt``).
 
     TODO: MAKE SURE BPOL IS SCALED TOO
+
+    Parameters
+    ----------
+    Btot:
+        :math:`B_\mathrm{total}` array
+    Xpoint:
+        Index of X-point location in ``Btot`` array
+    scale_factor:
+        Multiplicative factor applied to initial ``Btot``
+    BxBt:
+        Desired flux expansion
     """
+
+    if scale_factor is None and BxBt is None:
+        raise ValueError("Missing required argument: one of `scale_factor` or `BxBt`")
+    if scale_factor is not None and BxBt is not None:
+        raise ValueError(
+            "Exactly one of `scale_factor` or `BxBt` must be supplied (both given)"
+        )
 
     Bt_base = Btot[0]
     Bx_base = Btot[Xpoint]
     BxBt_base = Bx_base / Bt_base
 
-    if BxBt == 0 and scale_factor > 0:
+    if scale_factor is not None:
         BxBt = BxBt_base * scale_factor
-    elif BxBt == 0 and scale_factor == 0:
-        print("Error - specify either scale factor or flux expansion")
 
     # Keep Bx the same, scale Bt.
     # Calc new Bt based on desired BtBx
@@ -43,22 +69,51 @@ def scale_BxBt(Btot, Xpoint, scale_factor=0, BxBt=0):
     return Btot_new
 
 
-def scale_Lc(S_base, Spol_base, Xpoint, scale_factor=0, Lc=0):
-    """Scale Spar and Spol profiles for arbitrary connection length
+def scale_Lc(
+    S_base: FloatArray,
+    Spol_base: FloatArray,
+    Xpoint: int,
+    scale_factor: Optional[Scalar] = None,
+    Lc: Optional[Scalar] = None,
+) -> tuple[FloatArray, FloatArray]:
+    r"""Scale :math:`S_\parallel` and :math:`S_{pol}` profiles for
+    arbitrary connection length, :math:`L_c`
 
-    Specify either a scale factor or requried connection length
+    Specify either a scale factor (``scale_factor``) or required
+    connection length (``Lc``)
 
-    TODO: IMPLEMENT SPOL SCALING"""
+    TODO: IMPLEMENT SPOL SCALING
+
+    Parameters
+    ----------
+    S_base:
+        :math:`S_\parallel` array
+    Spol_base:
+        :math:`S_{pol}` array
+    Xpoint:
+        Index of X-point location in ``S_base`` and ``Spol_base`` arrays
+    scale_factor:
+        Multiplicative factor applied to initial ``S_base`` and ``Spol_base``
+    Lc:
+        Desired connection length
+    """
+
+    if scale_factor is None and Lc is None:
+        raise ValueError("Missing required argument: one of `scale_factor` or `Lc`")
+    if scale_factor is not None and Lc is not None:
+        raise ValueError(
+            "Exactly one of `scale_factor` or `Lc` must be supplied (both given)"
+        )
 
     Lc_base = S_base[Xpoint]
     Lpol_base = Spol_base[Xpoint]
 
     # Having Lc non-zero
-    if Lc > 0 and scale_factor == 0:
+    if Lc is not None:
         scale_factor = Lc / Lc_base
-        # scale_factorPol =
-    elif Lc == 0 and scale_factor == 0:
-        print("Error - specify either scale factor or connection length")
+
+    # This is only required to keep mypy happy
+    assert scale_factor is not None
 
     # Scale up to get correct length
     S_new = S_base * scale_factor
@@ -79,22 +134,50 @@ def scale_Lc(S_base, Spol_base, Xpoint, scale_factor=0, Lc=0):
     return S_new, Spol_new
 
 
-def scale_Lm(S_base, Spol_base, Xpoint, scale_factor=0, Lm=0):
-    """Scale Spar and Spol profiles above Xpoint for any midplane length
+def scale_Lm(
+    S_base: FloatArray,
+    Spol_base: FloatArray,
+    Xpoint: int,
+    scale_factor: Optional[Scalar] = None,
+    Lm: Optional[Scalar] = None,
+) -> tuple[FloatArray, FloatArray]:
+    r"""Scale :math:`S_\parallel` and :math:`S_{pol}` profiles above X-point
+    for arbitrary midplane length, :math:`L_m`
 
-    Specify either a scale factor or requried connection length
+    Specify either a scale factor (``scale_factor``) or required
+    midplane length (``Lm``)
 
-    TODO: IMPLEMENT SPOL SCALING"""
+    TODO: IMPLEMENT SPOL SCALING
+
+    Parameters
+    ----------
+    S_base:
+        :math:`S_\parallel` array
+    Spol_base:
+        :math:`S_{pol}` array
+    Xpoint:
+        Index of X-point location in ``S_base`` and ``Spol_base`` arrays
+    scale_factor:
+        Multiplicative factor applied to initial ``S_base`` and ``Spol_base``
+    Lm:
+        Desired midplane length
+    """
+
+    if scale_factor is None and Lm is None:
+        raise ValueError("Missing required argument: one of `scale_factor` or `Lm`")
+    if scale_factor is not None and Lm is not None:
+        raise ValueError(
+            "Exactly one of `scale_factor` or `Lm` must be supplied (both given)"
+        )
 
     Lm_base = S_base[-1]
     Lpol_base = Spol_base[-1]
 
-    # Having Lc non-zero
-    if Lm > 0 and scale_factor == 0:
+    if Lm is not None:
         scale_factor = Lm / Lm_base
-        # scale_factorPol =
-    elif Lm == 0 and scale_factor == 0:
-        print("Error - specify either scale factor or connection length")
+
+    # This is only required to keep mypy happy
+    assert scale_factor is not None
 
     # Scale up to get correct length
     S_new = S_base * scale_factor
@@ -116,9 +199,37 @@ def scale_Lm(S_base, Spol_base, Xpoint, scale_factor=0, Lm=0):
 
 
 def make_arrays(
-    scan2d, list_BxBt_scales, list_Lc_scales, new=True, cvar="ne", cut=True
-):
-    """Calculate 2D arrays of detachment window and threshold improvement"""
+    scan2d: list[list[dict]],
+    list_BxBt_scales: list[float],
+    list_Lc_scales: list[float],
+    new: bool = True,
+    cvar: str = "ne",
+    cut: bool = True,
+) -> dict[str, FloatArray]:
+    """Calculate 2D arrays of detachment window and threshold improvement
+
+    Converts between nested lists of dicts and dict of arrays.
+
+    Parameters
+    ----------
+    scan2d:
+        Nested lists of ``BxBt``, ``Lc`` results
+    list_BxBt_scales:
+        Array of flux expansion values
+    list_Lc_scales:
+        Array of connection length values
+    new:
+        Use new format of ``scan2d``
+    cvar:
+        Name of control variable
+    cut:
+        FIXME
+
+    Returns
+    -------
+    dict:
+        Dictionary of 2D arrays of results
+    """
 
     if new == True:  # New format for 2D scans
         arr = dict()
@@ -197,9 +308,31 @@ def make_arrays(
     return arr
 
 
-def make_window_band(d, o, spol_middle, size=0.05, q=False):
+def make_window_band(
+    d: dict[str, FloatArray],
+    o: dict[str, FloatArray],
+    spol_middle: float,
+    size: float = 0.05,
+    q: bool = False,
+) -> dict[str, FloatArray]:
     """Make detachment window band with a middle at the provided SPol coordinate
-    The default window size is 5%"""
+
+    The default window size is 5%
+
+    Parameters
+    ----------
+    d:
+        Profiles dictionary
+    o:
+        Results dictionary
+    spol_middle:
+        Middle of window band in :math:`S_{pol}`
+    size:
+        Window band size
+    q:
+        True if control variable is heat flux
+
+    """
     # o = copy.deepcopy(o)
     # d = copy.deepcopy(d)
 
@@ -245,14 +378,14 @@ def make_window_band(d, o, spol_middle, size=0.05, q=False):
     return band
 
 
-def file_write(data, filename):
+def file_write(data: dict[str, FloatArray], filename: PathLike):
     """Writes an object to a pickle file"""
     with open(filename, "wb") as file:
         # Open file in write binary mode, dump result to file
         pkl.dump(data, file)
 
 
-def file_read(filename):
+def file_read(filename: PathLike) -> dict[str, FloatArray]:
     """Reads a pickle file and returns it"""
     with open(filename, "rb") as filename:
         # Open file in read binary mode, dump file to result.
