@@ -17,8 +17,8 @@ class SimulationState:
     needed to run the simulation. The state is passed around different functions, which
     allows more of the algorithm to be abstracted away from the main function.
 
-    Parameter list
-    ---------
+    Parameters
+    ----------
     si : SimulationInputs
         Simulation inputs object containing all constant parameters
     log : dict
@@ -127,11 +127,8 @@ class SimulationInputs:
     This class functions the same as SimulationState, but is used to store the inputs instead.
     The separation is to make it easier to see which variables should be unchangeable.
 
-    Parameter list
-    ---------
-
-    Physical parameters
-    ~~~~~~~~~
+    Parameters
+    ----------
     kappa0 : float
         Electron conductivity
     mi : float
@@ -154,9 +151,6 @@ class SimulationInputs:
         Cooling curve data: [0] contains temperatures in [eV] and [1] the corresponding cooling values in [W/m^3]
     alpha : float
         Heat flux limiter (WIP do not use)
-
-    Settings
-    ~~~~~~~~~
     control_variable : str, default impurity_frac
         density, impurity_frac or power
     verbosity : int, default 0
@@ -171,9 +165,6 @@ class SimulationInputs:
         Maximum number of iterations for each loop before warning or error
     radios : dict
         Contains flags for ionisation (WIP do not use), upstreamGrid (allows full flux tube) and fluxlim (WIP do not use)
-
-    Geometry
-    ~~~~~~~~~
     SparRange : list
         List of S parallel locations to solve for
     indexRange : list
@@ -222,18 +213,37 @@ def run_dls(
     dynamicGridDiagnosticPlot=False,
     zero_qpllt=False,
 ):
-    """function that returns the impurity fraction required for a given temperature at the target. Can request a low temperature at a given position to mimick a detachment front at that position.
-    constants: dict of options
-    radios: dict of options
-    indexRange: array of S indices of the parallel front locations to solve for
-    control_variable: either impurity_frac, density or power
-    Ctol: error tolerance target for the inner loop (i.e. density/impurity/heat flux)
-    Ttol: error tolerance target for the outer loop (i.e. rerrunning until Tu convergence)
-    URF: under-relaxation factor for temperature. If URF is 0.2, Tu_new = Tu_old*0.8 + Tu_calculated*0.2. Always set to 1.
-    Timeout: controls timeout for all three loops within the code. Each has different message on timeout. Default 20
-    dynamicGrid: enables iterative grid refinement around the front (recommended)
-    dynamicGridRefinementRatio: ratio of finest to coarsest cell width in dynamic grid
-    dynamicGridRefinementWidth: size of dynamic grid refinement region in metres parallel
+    """Run the DLS-extended model
+
+    Returns the impurity fraction required for a given temperature at
+    the target. Can request a low temperature at a given position to
+    mimic a detachment front at that position.
+
+    Parameters
+    ----------
+    constants:
+        dict of options
+    radios:
+        dict of options
+    indexRange:
+        array of S indices of the parallel front locations to solve for
+    control_variable:
+        either impurity_frac, density or power
+    Ctol:
+        error tolerance target for the inner loop (i.e. density/impurity/heat flux)
+    Ttol:
+        error tolerance target for the outer loop (i.e. rerrunning until Tu convergence)
+    URF:
+        under-relaxation factor for temperature. If URF is 0.2, Tu_new = Tu_old*0.8 + Tu_calculated*0.2. Always set to 1.
+    Timeout:
+        controls timeout for all three loops within the code. Each has different message on timeout. Default 20
+    dynamicGrid:
+        enables iterative grid refinement around the front (recommended)
+    dynamicGridRefinementRatio:
+        ratio of finest to coarsest cell width in dynamic grid
+    dynamicGridRefinementWidth:
+        size of dynamic grid refinement region in metres parallel
+
     """
     # Start timer
     t0 = timer()
@@ -487,17 +497,11 @@ def run_dls(
         Qrad = []
         for i, Tf in enumerate(st.T):
             if si.control_variable == "impurity_frac":
-                Qrad.append(
-                    ((si.nu0**2 * st.Tu**2) / Tf**2) * st.cvar * si.Lfunc(Tf)
-                )
+                Qrad.append(((si.nu0**2 * st.Tu**2) / Tf**2) * st.cvar * si.Lfunc(Tf))
             elif si.control_variable == "density":
-                Qrad.append(
-                    ((st.cvar**2 * st.Tu**2) / Tf**2) * si.cz0 * si.Lfunc(Tf)
-                )
+                Qrad.append(((st.cvar**2 * st.Tu**2) / Tf**2) * si.cz0 * si.Lfunc(Tf))
             elif si.control_variable == "power":
-                Qrad.append(
-                    ((si.nu0**2 * st.Tu**2) / Tf**2) * si.cz0 * si.Lfunc(Tf)
-                )
+                Qrad.append(((si.nu0**2 * st.Tu**2) / Tf**2) * si.cz0 * si.Lfunc(Tf))
 
         # Pad some profiles with zeros to ensure same length as S
         output["Sprofiles"].append(si.S)
