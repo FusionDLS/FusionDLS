@@ -50,20 +50,14 @@ def LengFunc(s, y, si, st):
     # i.e. radial heat entering SOL evenly spread between midplane and xpoint needs to be sufficient to get the
     # correct qpll at the xpoint.
 
-    if radios["upstreamGrid"]:
-        if s > S[Xpoint]:
-            # The second term here converts the x point qpar to a radial heat source acting between midplane and the xpoint
-            # account for flux expansion to Xpoint
-            dqoverBds = (
-                ((nu**2 * Tu**2) / T**2) * cz * Lfunc(T) / fieldValue
-            ) - qradial / fieldValue
-        else:
-            dqoverBds = ((nu**2 * Tu**2) / T**2) * cz * Lfunc(T) / fieldValue
-    else:
-        dqoverBds = ((nu**2 * Tu**2) / T**2) * cz * Lfunc(T) / fieldValue
-
     # working on neutral/ionisation model
     # dqoverBds = dqoverBds/fieldValue
+    dqoverBds = ((nu**2 * Tu**2) / T**2) * cz * Lfunc(T) / fieldValue
+
+    if radios["upstreamGrid"] and s > S[Xpoint]:
+        # The second term here converts the x point qpar to a radial heat source acting between midplane and the xpoint
+        # account for flux expansion to Xpoint
+        dqoverBds -= qradial / fieldValue
 
     # Flux limiter
     dtds = 0
