@@ -1,4 +1,6 @@
 from collections import defaultdict
+from collections.abc import Callable
+from dataclasses import dataclass, field
 from timeit import default_timer as timer
 
 import numpy as np
@@ -10,6 +12,9 @@ from .DLScommonTools import pad_profile
 from .Iterate import iterate
 from .refineGrid import refineGrid
 from .typing import FloatArray
+
+
+deuterium_mass = physical_constants["deuteron mass"][0]
 
 
 class SimulationState:
@@ -121,73 +126,70 @@ class SimulationState:
         return self.__dict__[param]
 
 
+@dataclass
 class SimulationInputs:
     """
     This class functions the same as SimulationState, but is used to store the inputs instead.
     The separation is to make it easier to see which variables should be unchangeable.
-
-    Parameters
-    ----------
-    kappa0 : float
-        Electron conductivity
-    mi : float
-        Ion mass [kg]
-    gamma_sheath : float
-        Heat transfer coefficient of the virtual target [-]
-    qpllu0 : float
-        Upstream heat flux setting, overriden if control_variable is power [Wm^-2]
-    nu0 : float
-        Upstream density setting, overriden if control_variable is density [m^-3]
-    cz0 : float
-        Impurity fraction setting, overriden if control_variable is impurity_frac [-]
-    Tt : float
-        Desired virtual target temperature [eV]
-    Lfunc : list
-        Cooling curve function, can be LfuncKallenbachx where x is Ne, Ar or N.
-    Lz : list
-        Cooling curve data: [0] contains temperatures in [eV] and [1] the corresponding cooling values in [W/m^3]
-    control_variable : str, default impurity_frac
-        density, impurity_frac or power
-    verbosity : int, default 0
-        Level of verbosity. Higher is more verbose
-    Ctol : float, default 1e-3
-        Control variable (inner) loop convergence tolerance
-    Ttol : float, default 1e-2
-        Temperature (outer) loop convergence tolerance
-    URF : float
-        Under-relaxation factor to smooth out temperature convergence (usually doesn't help with anything, keep at 1)
-    timeout : float
-        Maximum number of iterations for each loop before warning or error
-    radios : dict
-        Contains flags for ionisation (WIP do not use), upstreamGrid (allows full flux tube)
-    SparRange : list
-        List of S parallel locations to solve for
-    indexRange : list
-        List of S parallel indices to solve for
-    Xpoint : int
-        Index of X-point in parallel space
-    S : array
-        Parallel distance [m]
-    Spol : array
-        Poloidal distance [m]
-    B : interp1d function
-        Interpolator function returning a Btot for a given S
-    Btot : array
-        Total B field [T]
     """
 
-    def __init__(self):
-        # Physics constants
-        self.kappa0 = 2500
-        self.mi = physical_constants["deuteron mass"][0]
+    nu: float
+    nu0: float
+    cz0: float
+    gamma_sheath: float
+    """Heat transfer coefficient of the virtual target [-]"""
+    qpllu0: float
+    """Upstream heat flux setting, overriden if control_variable is power [Wm^-2]"""
+    nu0: float
+    """Upstream density setting, overriden if control_variable is density [m^-3]"""
+    cz0: float
+    """Impurity fraction setting, overriden if control_variable is impurity_frac [-]"""
+    Tt: float
+    """Desired virtual target temperature [eV]"""
+    Lfunc: Callable[[float], float]
+    """Cooling curve function, can be LfuncKallenbachx where x is Ne, Ar or N."""
+    Lz: list
+    """Cooling curve data: [0] contains temperatures in [eV] and [1] the corresponding cooling values in [W/m^3]"""
+    radios: dict
+    """Contains flags for ionisation (WIP do not use), upstreamGrid (allows full flux tube)"""
+    SparRange: list
+    """List of S parallel locations to solve for"""
+    Xpoint: int
+    """Index of X-point in parallel space"""
+    S: FloatArray
+    """Parallel distance [m]"""
+    Spol: FloatArray
+    """Poloidal distance [m]"""
+    B: Callable[[float], float]
+    """Interpolator function returning a Btot for a given S"""
+    Btot: FloatArray
+    """Total B field [T]"""
+    Bpol: FloatArray
+    kappa0: float = 2500
+    """Electron conductivity"""
+    mi: float = deuterium_mass
+    """Ion mass [kg]"""
+    control_variable: str = "impurity_frac"
+    """density, impurity_frac or power"""
+    verbosity: int = 0
+    """Level of verbosity. Higher is more verbose"""
+    Ctol: float = 1e-3
+    """Control variable (inner) loop convergence tolerance"""
+    Ttol: float = 1e-2
+    """Temperature (outer) loop convergence tolerance"""
+    URF: float = 1.0
+    """Under-relaxation factor to smooth out temperature convergence (usually doesn't help with anything, keep at 1)"""
+    timeout: int = 20
+    """Maximum number of iterations for each loop before warning or error"""
+    Lz: FloatArray = field(init=False)
+    """Array of temperatures and corresponding cooling"""
 
-    # Update many variables
-    def update(self, **kwargs):
-        self.__dict__.update(kwargs)
-
-    # Will return this if called as string
-    def __repr__(self):
-        return str(self.__dict__)
+    def __post_init__(self):
+        # Initialise cooling curve
+        Tcool = np.linspace(0.3, 500, 1000)
+        Tcool = np.append(0, Tcool)
+        Lalpha = np.array([self.Lfunc(dT) for dT in Tcool])
+        self.Lz = [Tcool, Lalpha]
 
 
 def run_dls(
@@ -219,8 +221,6 @@ def run_dls(
         dict of options
     radios:
         dict of options
-    indexRange:
-        array of S indices of the parallel front locations to solve for
     control_variable:
         either impurity_frac, density or power
     Ctol:
@@ -243,28 +243,23 @@ def run_dls(
     t0 = timer()
 
     # Initialise simulation inputs object
-    si = SimulationInputs()
-
-    # Add inputs to SimulationInputs
-    si.update(**constants)
-    si.verbosity = verbosity
-    si.Ctol = Ctol
-    si.Ttol = Ttol
-    si.URF = URF
-    si.timeout = timeout
-    si.radios = radios
-    si.control_variable = control_variable
-
-    # Extract topology data
-    si.Xpoint = d["Xpoint"]
-    si.S = d["S"]
-    si.Spol = d["Spol"]
-    si.Btot = d["Btot"]
-    si.Bpol = d["Bpol"]
-    si.B = interpolate.interp1d(si.S, si.Btot, kind="cubic")
-    si.SparRange = SparRange
-    # si.indexRange = [np.argmin(abs(d["S"] - x)) for x in SparRange] # Indices of topology arrays to solve code at
-    # si.indexRange = np.unique(si.indexRange)   # Drop duplicates
+    si = SimulationInputs(
+        verbosity=verbosity,
+        Ctol=Ctol,
+        Ttol=Ttol,
+        URF=URF,
+        timeout=timeout,
+        radios=radios,
+        control_variable=control_variable,
+        Xpoint=d["Xpoint"],
+        S=d["S"],
+        Spol=d["Spol"],
+        Btot=d["Btot"],
+        Bpol=d["Bpol"],
+        B=interpolate.interp1d(d["S"], d["Btot"], kind="cubic"),
+        SparRange=SparRange,
+        **constants,
+    )
 
     # Initialise simulation state object
     st = SimulationState(si)
@@ -272,24 +267,13 @@ def run_dls(
     # Initialise output dictionary
     output = defaultdict(list)
 
-    # Initialise cooling curve
-    # TODO: move into SimulationInputs once interface is refactored
-    Tcool = np.linspace(0.3, 500, 1000)
-    Lalpha = []
-    for dT in Tcool:
-        Lalpha.append(si.Lfunc(dT))
-    Lalpha = np.array(Lalpha)
-    Tcool = np.append(0, Tcool)
-    Lalpha = np.append(0, Lalpha)
-    si.Lz = [Tcool, Lalpha]  # Array of temperatures and corresponding cooling
-
     print("Solving...", end="")
 
     """------SOLVE------"""
-    for idx, SparFront in enumerate(
-        si.SparRange
-    ):  # For each detachment front location:
-        st.SparFront = SparFront  # Current prescribed parallel front location
+    # For each detachment front location:
+    for idx, SparFront in enumerate(si.SparRange):
+        # Current prescribed parallel front location
+        st.SparFront = SparFront
 
         if dynamicGrid:
             newProfile = refineGrid(
