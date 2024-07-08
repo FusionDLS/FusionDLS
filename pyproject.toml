@@ -103,6 +103,7 @@ extend-select = [
 ignore = [
   "PLR2004",     # magic-comparison
   "B9",          # flake8-bugbear opinionated warnings
+  "PLC0414",     # useless-import-alias
   "PLR0913",     # too-many-arguments
   "PLR0917",     # too-many-positional
   "PLR0914",     # too-many-locals
