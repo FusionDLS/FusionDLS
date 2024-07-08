@@ -3,6 +3,7 @@ from timeit import default_timer as timer
 
 import numpy as np
 from scipy import interpolate
+from scipy.constants import elementary_charge, physical_constants
 from scipy.integrate import cumulative_trapezoid, trapezoid
 
 from .DLScommonTools import pad_profile
@@ -131,8 +132,6 @@ class SimulationInputs:
         Electron conductivity
     mi : float
         Ion mass [kg]
-    echarge : float
-        Electron charge [eV/J]
     gamma_sheath : float
         Heat transfer coefficient of the virtual target [-]
     qpllu0 : float
@@ -180,8 +179,7 @@ class SimulationInputs:
     def __init__(self):
         # Physics constants
         self.kappa0 = 2500
-        self.mi = 3 * 10 ** (-27)
-        self.echarge = 1.60 * 10 ** (-19)
+        self.mi = physical_constants["deuteron mass"][0]
 
     # Update many variables
     def update(self, **kwargs):
@@ -342,9 +340,8 @@ def run_dls(
         # Inital guess for upstream temperature based on guess of qpll ds integral
         Tu0 = ((7 / 2) * qavLguess * (st.s[-1] - st.s[0]) / si.kappa0) ** (2 / 7)
         st.Tu = Tu0
-        st.Pu0 = (
-            Tu0 * si.nu0 * si.echarge
-        )  # Initial upstream pressure in Pa, calculated so it can be kept constant if required
+        # Initial upstream pressure in Pa, calculated so it can be kept constant if required
+        st.Pu0 = Tu0 * si.nu0 * elementary_charge
 
         # Cooling curve integral
         Lint = cumulative_trapezoid(si.Lz[1] * np.sqrt(si.Lz[0]), si.Lz[0], initial=0)
@@ -386,8 +383,8 @@ def run_dls(
                 / 2
                 * si.nu0
                 * st.Tu
-                * si.echarge
-                * np.sqrt(2 * si.Tt * si.echarge / si.mi)
+                * elementary_charge
+                * np.sqrt(2 * si.Tt * elementary_charge / si.mi)
             )
 
         """------INITIALISATION------"""
@@ -491,11 +488,17 @@ def run_dls(
         Qrad = []
         for Tf in st.T:
             if si.control_variable == "impurity_frac":
-                Qrad.append(((si.nu0**2 * st.Tu**2) / Tf**2) * st.cvar * si.Lfunc(Tf))
+                Qrad.append(
+                    ((si.nu0**2 * st.Tu**2) / Tf**2) * st.cvar * si.Lfunc(Tf)
+                )
             elif si.control_variable == "density":
-                Qrad.append(((st.cvar**2 * st.Tu**2) / Tf**2) * si.cz0 * si.Lfunc(Tf))
+                Qrad.append(
+                    ((st.cvar**2 * st.Tu**2) / Tf**2) * si.cz0 * si.Lfunc(Tf)
+                )
             elif si.control_variable == "power":
-                Qrad.append(((si.nu0**2 * st.Tu**2) / Tf**2) * si.cz0 * si.Lfunc(Tf))
+                Qrad.append(
+                    ((si.nu0**2 * st.Tu**2) / Tf**2) * si.cz0 * si.Lfunc(Tf)
+                )
 
         # Pad some profiles with zeros to ensure same length as S
         output["Sprofiles"].append(si.S)
