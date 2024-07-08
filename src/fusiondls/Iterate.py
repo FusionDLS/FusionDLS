@@ -73,6 +73,8 @@ def LengFunc(s, y, si, st):
     # Flux limiter
     dtds = 0
     if radios["fluxlim"]:
+        # set density using constant pressure assumption (missing factor of 2 at target due to lack of Bohm condition)
+        ne = nu * Tu / T
         dtds = (
             qoverB
             * fieldValue
