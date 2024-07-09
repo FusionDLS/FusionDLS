@@ -17,87 +17,68 @@ from .typing import FloatArray
 deuterium_mass = physical_constants["deuteron mass"][0]
 
 
+@dataclass
 class SimulationState:
     """
     This class represents the simulation state and contains all the variables and data
     needed to run the simulation. The state is passed around different functions, which
     allows more of the algorithm to be abstracted away from the main function.
 
-    Parameters
-    ----------
-    si : SimulationInputs
-        Simulation inputs object containing all constant parameters
-    log : dict
-        Log of guesses of Tu and cvar, errors and bounds. Dictionary keys are front positions in index space
-    point : int
-        Location of front position in index space
-    s : array
-        Working set of parallel coordinates (between front location and X-point)
-    cvar : float
-        Control variable (density, impurity fraction or 1/power)
-    lower_bound : float
-        Lower estimate of the cvar solution
-    upper_bound : float
-        Upper estimate of the cvar solution
-    Tu : float
-        Upstream temperature
-    Tucalc : float
-        New calculation of upstream temperature
-    error1 : float
-        Control variable (inner) loop error based on upstream heat flux approaching qpllu0 or 0 depending on settings
-    error0 : float
-        Temperature (outer) loop error based on upstream temperature converging to steady state
-    qpllu1 : float
-        Calculated upstream heat flux
-    qradial : float
-        qpllu1 converted into a source term representing radial heat flux between upstream and X-point
-    qpllt : float
-        Virtual target heat flux (typically 0)
     """
 
-    def __init__(self, si):
-        self.si = si  # Add input object to state
+    nu: float = field(init=False)
+    cz: float = field(init=False)
+    T: FloatArray = field(init=False)
+    q: float = field(init=False)
+    Pu0: float = field(init=False)
+    verbosity: int
+    s: FloatArray = field(init=False)
+    """Working set of parallel coordinates (between front location and X-point)"""
+    SparFront: FloatArray = field(init=False)
+    cvar: float = field(init=False)
+    """Control variable (density, impurity fraction or 1/power)"""
+    Tu: float = field(init=False)
+    """Upstream temperature"""
+    Tucalc: float = field(init=False)
+    """New calculation of upstream temperature"""
+    lower_bound: float = 0.0
+    """Lower estimate of the cvar solution"""
+    upper_bound: float = 0.0
+    """Upper estimate of the cvar solution"""
+    error1: float = 1.0
+    """Control variable (inner) loop error based on upstream heat flux approaching qpllu0 or 0 depending on settings"""
+    error0: float = 1.0
+    """Temperature (outer) loop error based on upstream temperature converging to steady state"""
+    qpllu1: float = 0.0
+    """Calculated upstream heat flux"""
+    qradial: float = 0.0
+    """qpllu1 converted into a source term representing radial heat flux between upstream and X-point"""
+    qpllt: float = 0.0
+    """Virtual target heat flux (typically 0)"""
+    point: int = 0
+    """Location of front position in index space"""
+    log: dict = field(default_factory=dict)
+    """Log of guesses of Tu and cvar, errors and bounds. Dictionary keys are front positions in index space"""
 
-        # Initialise variables
-        self.error1 = 1
-        self.error0 = 1
-        self.qpllu1 = 0
-        self.lower_bound = 0
-        self.upper_bound = 0
+    def __post_init__(self):
+        self.singleLog = {
+            "error0": [],
+            "error1": [],
+            "cvar": [],
+            "qpllu1": [],
+            "Tu": [],
+            "lower_bound": [],
+            "upper_bound": [],
+        }
 
-        # Initialise log: one per front position index
-        self.singleLog = {}
-
-        logParams = [
-            "error0",
-            "error1",
-            "cvar",
-            "qpllu1",
-            "Tu",
-            "lower_bound",
-            "upper_bound",
-        ]
-        for x in logParams:
-            self.singleLog[x] = []
-
-        self.log = {}  # Log for all front positions
-
-    ## Update primary log
-    def update_log(self):
-        for param in [
-            "error0",
-            "error1",
-            "cvar",
-            "qpllu1",
-            "Tu",
-            "lower_bound",
-            "upper_bound",
-        ]:
+    def update_log(self) -> None:
+        """Update primary log"""
+        for param in self.singleLog:
             self.singleLog[param].append(self.get(param))
 
         self.log[self.SparFront] = self.singleLog  # Put in global log
 
-        if self.si.verbosity >= 2:
+        if self.verbosity >= 2:
             log = self.singleLog
 
             if len(log["error0"]) == 1:  # Print header on first iteration
@@ -113,14 +94,6 @@ class SimulationState:
                 f"upper_bound: {log['upper_bound'][-1]:.3E}"
             )
 
-    # Update many variables
-    def update(self, **kwargs):
-        self.__dict__.update(kwargs)
-
-    # Will return this if called as string
-    def __repr__(self):
-        return str(self.__dict__)
-
     # Return parameter from state
     def get(self, param):
         return self.__dict__[param]
@@ -134,8 +107,6 @@ class SimulationInputs:
     """
 
     nu: float
-    nu0: float
-    cz0: float
     gamma_sheath: float
     """Heat transfer coefficient of the virtual target [-]"""
     qpllu0: float
@@ -148,11 +119,9 @@ class SimulationInputs:
     """Desired virtual target temperature [eV]"""
     Lfunc: Callable[[float], float]
     """Cooling curve function, can be LfuncKallenbachx where x is Ne, Ar or N."""
-    Lz: list
-    """Cooling curve data: [0] contains temperatures in [eV] and [1] the corresponding cooling values in [W/m^3]"""
     radios: dict
     """Contains flags for ionisation (WIP do not use), upstreamGrid (allows full flux tube)"""
-    SparRange: list
+    SparRange: FloatArray
     """List of S parallel locations to solve for"""
     Xpoint: int
     """Index of X-point in parallel space"""
@@ -182,7 +151,7 @@ class SimulationInputs:
     timeout: int = 20
     """Maximum number of iterations for each loop before warning or error"""
     Lz: FloatArray = field(init=False)
-    """Array of temperatures and corresponding cooling"""
+    """Cooling curve data: [0] contains temperatures in [eV] and [1] the corresponding cooling values in [W/m^3]"""
 
     def __post_init__(self):
         # Initialise cooling curve
@@ -262,7 +231,7 @@ def run_dls(
     )
 
     # Initialise simulation state object
-    st = SimulationState(si)
+    st = SimulationState(verbosity=verbosity)
 
     # Initialise output dictionary
     output = defaultdict(list)
@@ -288,9 +257,8 @@ def run_dls(
             si.Spol = newProfile["Spol"]
             si.Btot = newProfile["Btot"]
             si.Bpol = newProfile["Bpol"]
-            si.B = interpolate.interp1d(
-                si.S, si.Btot, kind="cubic"
-            )  # TODO: is this necessary?  We have Btot already
+            # TODO: is this necessary?  We have Btot already
+            si.B = interpolate.interp1d(si.S, si.Btot, kind="cubic")
 
             # Find index of front location on new grid
             SparFrontOld = si.SparRange[idx]
@@ -309,7 +277,7 @@ def run_dls(
         output["SpolPlot"].append(si.Spol[point])
 
         # Inital guess for the value of qpll integrated across connection length
-        qavLguess = 0
+        qavLguess = 0.0
         if si.radios["upstreamGrid"]:
             if st.s[0] < si.S[si.Xpoint]:
                 qavLguess = (
@@ -322,10 +290,9 @@ def run_dls(
             qavLguess = si.qpllu0
 
         # Inital guess for upstream temperature based on guess of qpll ds integral
-        Tu0 = ((7 / 2) * qavLguess * (st.s[-1] - st.s[0]) / si.kappa0) ** (2 / 7)
-        st.Tu = Tu0
+        st.Tu = ((7 / 2) * qavLguess * (st.s[-1] - st.s[0]) / si.kappa0) ** (2 / 7)
         # Initial upstream pressure in Pa, calculated so it can be kept constant if required
-        st.Pu0 = Tu0 * si.nu0 * elementary_charge
+        st.Pu0 = st.Tu * si.nu0 * elementary_charge
 
         # Cooling curve integral
         Lint = cumulative_trapezoid(si.Lz[1] * np.sqrt(si.Lz[0]), si.Lz[0], initial=0)
@@ -472,17 +439,11 @@ def run_dls(
         Qrad = []
         for Tf in st.T:
             if si.control_variable == "impurity_frac":
-                Qrad.append(
-                    ((si.nu0**2 * st.Tu**2) / Tf**2) * st.cvar * si.Lfunc(Tf)
-                )
+                Qrad.append(((si.nu0**2 * st.Tu**2) / Tf**2) * st.cvar * si.Lfunc(Tf))
             elif si.control_variable == "density":
-                Qrad.append(
-                    ((st.cvar**2 * st.Tu**2) / Tf**2) * si.cz0 * si.Lfunc(Tf)
-                )
+                Qrad.append(((st.cvar**2 * st.Tu**2) / Tf**2) * si.cz0 * si.Lfunc(Tf))
             elif si.control_variable == "power":
-                Qrad.append(
-                    ((si.nu0**2 * st.Tu**2) / Tf**2) * si.cz0 * si.Lfunc(Tf)
-                )
+                Qrad.append(((si.nu0**2 * st.Tu**2) / Tf**2) * si.cz0 * si.Lfunc(Tf))
 
         # Pad some profiles with zeros to ensure same length as S
         output["Sprofiles"].append(si.S)
