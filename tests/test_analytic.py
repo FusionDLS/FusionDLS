@@ -13,7 +13,6 @@ def test_analytic():
     eqb = file_read(filename)
     d = eqb["V10"]["ou"]
 
-    radios = {"ionisation": False, "upstreamGrid": True}
     constants = {
         "gamma_sheath": 7,
         "Tt": 1,
@@ -26,7 +25,7 @@ def test_analytic():
 
     s_parallel = np.linspace(0, d["S"][d["Xpoint"] - 1], 30)
 
-    result = run_dls(constants, radios, d, s_parallel, control_variable="density")
+    result = run_dls(constants, d, s_parallel, control_variable="density")
     density_norm = result["cvar"] / result["cvar"][0]
 
     analytic = [

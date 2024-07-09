@@ -35,7 +35,7 @@ def LengFunc(s, y, si, st):
     # dqoverBds = dqoverBds/fieldValue
     dqoverBds = ((st.nu**2 * st.Tu**2) / T**2) * st.cz * si.Lfunc(T) / fieldValue
 
-    if si.radios["upstreamGrid"] and s > si.S[si.Xpoint]:
+    if si.upstreamGrid and s > si.S[si.Xpoint]:
         # The second term here converts the x point qpar to a radial heat source acting between midplane and the xpoint
         # account for flux expansion to Xpoint
         dqoverBds -= st.qradial / fieldValue
@@ -138,7 +138,7 @@ def iterate(si, st):
 
     # If upstream grid, qpllu1 is at the midplane and is solved until it's 0. It then gets radial transport
     # so that the xpoint Q is qpllu0. If uypstramGrid=False, qpllu1 is solved to match qpllu0 at the Xpoint.
-    if si.radios["upstreamGrid"]:
+    if si.upstreamGrid:
         st.error1 = (st.qpllu1 - 0) / si.qpllu0
     else:
         st.error1 = (st.qpllu1 - si.qpllu0) / si.qpllu0
