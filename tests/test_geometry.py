@@ -59,3 +59,22 @@ def test_scale_flux_expansion_set_value(geometry):
     new_expansion = scaled_geometry.Bx / scaled_geometry.Btot[0]
 
     assert np.isclose(new_expansion, expected_expansion)
+
+
+def test_refine(geometry):
+    # Some point halfway through the domain
+    half_S = geometry.S[-1] / 2
+    refined_geometry = geometry.refine(half_S, width=2)
+
+    new_spacing = np.gradient(refined_geometry.S)
+
+    smallest_spacing = np.min(new_spacing)
+    smallest_spacing_index = np.argmin(np.abs(new_spacing - smallest_spacing))
+
+    # Expect that the smallest spacing is close to the location we asked for
+    S_at_smallest_spacing = refined_geometry.S[smallest_spacing_index]
+    assert np.isclose(S_at_smallest_spacing, half_S, atol=1)
+
+    # Expect that the smallest spacing is roughly halfway through the array
+    mid_index = len(geometry.S) // 2
+    assert mid_index - 2 <= smallest_spacing_index <= mid_index + 2

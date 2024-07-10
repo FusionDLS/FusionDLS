@@ -11,7 +11,6 @@ from scipy.integrate import cumulative_trapezoid, trapezoid
 from .DLScommonTools import pad_profile
 from .geometry import MagneticGeometry
 from .Iterate import iterate
-from .refineGrid import refineGrid
 from .typing import FloatArray
 
 deuterium_mass = physical_constants["deuteron mass"][0]
@@ -245,18 +244,17 @@ def run_dls(
         st.SparFront = SparFront
 
         if dynamicGrid:
-            newProfile = refineGrid(
-                geometry,
+            newProfile = geometry.refine(
                 SparFront,
                 fine_ratio=dynamicGridRefinementRatio,
                 width=dynamicGridRefinementWidth,
                 diagnostic_plot=dynamicGridDiagnosticPlot,
             )
-            si.Xpoint = newProfile["Xpoint"]
-            si.S = newProfile["S"]
-            si.Spol = newProfile["Spol"]
-            si.Btot = newProfile["Btot"]
-            si.Bpol = newProfile["Bpol"]
+            si.Xpoint = newProfile.Xpoint
+            si.S = newProfile.S
+            si.Spol = newProfile.Spol
+            si.Btot = newProfile.Btot
+            si.Bpol = newProfile.Bpol
             # TODO: is this necessary?  We have Btot already
             si.B = interpolate.interp1d(si.S, si.Btot, kind="cubic")
 

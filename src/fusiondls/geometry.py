@@ -2,6 +2,9 @@ import pickle
 from dataclasses import asdict, dataclass
 from typing import Optional
 
+import matplotlib.pyplot as plt
+import numpy as np
+import scipy
 from typing_extensions import Self
 
 from .typing import FloatArray, PathLike, Scalar
@@ -283,3 +286,118 @@ class MagneticGeometry:
         new_data["Spol"] = Spol_new
 
         return self.__class__(**new_data)
+
+    def refine(
+        self,
+        Sfront,
+        fine_ratio: float = 1.5,
+        width: float = 4,
+        resolution: Optional[int] = None,
+        diagnostic_plot: bool = False,
+        tolerance: float = 1e-3,
+        maxiter: int = 50,
+    ) -> Self:
+        """
+        Refines the grid around the front location.
+        Refinement is in the form of a Gaussian distribution
+        with a peak determined by fine_ratio and a given width.
+
+        Parameters
+        ----------
+        fine_ratio:
+            Ratio of coarse cell size to fine cell size
+        width:
+            Width of the fine region in meters parallel
+        resolution:
+            resolution of resulting grid. If None, use same resolution as original grid.
+        """
+
+        if resolution is None:
+            resolution = len(self.S)
+
+        ## Grid generation is an iterative process because dSnew must know where to put the gaussian
+        # refinement in S space, so it needs an initial S guess. Then we calculate new S from the dS
+        # and loop again until it stops changing.
+        # Initialise S with uniform spacing
+        Snew = np.linspace(self.S[0], self.S[-1], resolution - 1)
+
+        if diagnostic_plot:
+            fig, axes = plt.subplots(2, 1, figsize=(5, 5), height_ratios=(8, 4))
+
+        dSnew2 = np.ones_like(Snew) * 1e-18
+        for i in range(maxiter):
+            dSnew = 1 / (
+                (width * np.sqrt(2 * np.pi))
+                * np.exp(-0.5 * ((Snew - Sfront) / (width)) ** 2)
+                * (fine_ratio - 1)
+                + 1
+            )
+            dSnew *= self.S[-1] / dSnew.sum()  # Normalise to the original S
+            Snew = np.cumsum(dSnew)
+            residual = abs((dSnew2[-1] - dSnew[-1]) / dSnew2[-1])
+            dSnew2 = dSnew
+
+            if diagnostic_plot:
+                axes[0].plot(Snew, dSnew, label=i)
+                axes[1].scatter(
+                    Snew,
+                    np.ones_like(Snew) * -i,
+                    marker="|",
+                    s=5,
+                    linewidths=0.5,
+                    alpha=0.1,
+                )
+
+            if residual < tolerance:
+                # print(f"Residual is {residual}, breaking")
+                break
+
+        else:
+            raise RuntimeError(
+                f"Iterative grid adaption iteration limit ({maxiter}) reached, "
+                f"try reducing refinement ratio ({fine_ratio}) and running with 'diagnostic_plot=True'"
+            )
+
+        # len(dS) = len(S) - 1
+        Snew = np.insert(Snew, 0, 0)
+
+        # Grid width diagnostics plot settings
+        if diagnostic_plot:
+            axes[1].set_yticklabels([])
+            fig.tight_layout()
+            fig.legend(loc="upper center", bbox_to_anchor=(0.5, 0), ncols=5)
+            axes[0].set_title("Adaptive grid iterations")
+
+            axes[0].set_ylabel("dS [m]")
+            axes[0].set_xlabel("S [m]")
+            axes[1].set_title("S spacing")
+            axes[1].set_xlabel("S [m]")
+            fig.tight_layout()
+
+        ## Interpolate geometry and field onto the new S coordinate
+        pnew = {}
+        pnew["S"] = Snew
+        for par in ["S", "Spol", "R", "Z", "Btot", "Bpol"]:
+            if par not in {"Xpoint", "S"}:
+                pnew[par] = scipy.interpolate.make_interp_spline(
+                    self.S, getattr(self, par), k=2
+                )(Snew)
+
+                if diagnostic_plot:
+                    fig, ax = plt.subplots(dpi=100)
+                    ax.plot(
+                        self.S,
+                        getattr(self, par),
+                        label="Original",
+                        marker="o",
+                        color="darkorange",
+                        alpha=0.3,
+                        ms=10,
+                        markerfacecolor="None",
+                    )
+                    ax.plot(pnew["S"], pnew[par], label="New", marker="o", ms=3)
+                    ax.set_title(par)
+
+        pnew["Xpoint"] = int(np.argmin(np.abs(Snew - self.S[self.Xpoint])))
+
+        return self.__class__(**pnew)
