@@ -132,6 +132,7 @@ class SimulationInputs:
     Btot: FloatArray
     """Total B field [T]"""
     Bpol: FloatArray
+    """Poloidal magnetic field [T]"""
     kappa0: float = 2500
     """Electron conductivity"""
     mi: float = deuterium_mass
@@ -149,12 +150,12 @@ class SimulationInputs:
     timeout: int = 20
     """Maximum number of iterations for each loop before warning or error"""
     Lz: FloatArray = field(init=False)
-    """Cooling curve data: [0] contains temperatures in [eV] and [1] the corresponding cooling values in [W/m^3]"""
+    """Cooling curve data, [0] contains temperatures in [eV] and [1] the corresponding cooling values in [W/m^3]"""
     upstreamGrid: bool = True
     """If true, includes domain above X-point and source of divertor
-    heat flux comes from radial transport upstream, with $T_u$ at the midplane.
+    heat flux comes from radial transport upstream, with :math:`T_u` at the midplane.
 
-    If false, heat flux simply enters at the X-point as $q_i$, and $T_u$ is at the X-point"""
+    If false, heat flux simply enters at the X-point as :math:`q_i`, and :math:`T_u` is at the X-point"""
 
     def __post_init__(self):
         # Initialise cooling curve
