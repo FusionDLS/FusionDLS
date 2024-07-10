@@ -1,8 +1,10 @@
 import pickle as pkl
+from dataclasses import asdict, dataclass
 from typing import Optional
 
 import numpy as np
 from scipy import interpolate
+from typing_extensions import Self
 
 from .typing import FloatArray, PathLike, Scalar
 
@@ -378,3 +380,159 @@ def pad_profile(S, data):
     actual_length = len(data)
 
     return np.insert(data, 0, np.zeros(intended_length - actual_length))
+
+
+@dataclass
+class MagneticGeometry:
+    r"""Magnetic geometry for a diverator leg
+
+    Attributes
+    ----------
+    Bpol:
+        Poloidal magnetic field
+    Btot:
+        Total magnetic field
+    R:
+        Radial coordinate in metres
+    Z:
+        Vertical coordinate in metres
+    S:
+        $S_\parallel$, distance from the target
+    Spol:
+        $S_{poloidal}$
+    zl:
+
+    Xpoint:
+        Index of the X-point in the leg arrays
+    Bx:
+        Value of the magnetic field at the X-point
+    Sx:
+        Value of $S$ at the X-point
+    Spolx:
+        Value of $S_{pol}$ at the X-point
+    zx:
+
+    R_full:
+        2D array of major radius
+    Z_full:
+        2D array of vertical coordinate
+    R_ring:
+        Major radius of full SOL ring
+    Z_ring:
+        Vertical coordinate of full SOL ring
+    """
+
+    Bpol: FloatArray
+    Btot: FloatArray
+    R: FloatArray
+    Z: FloatArray
+    S: FloatArray
+    Spol: FloatArray
+    zl: FloatArray
+    Xpoint: int
+    Bx: float
+    Sx: float
+    Spolx: float
+    zx: float
+    R_full: FloatArray
+    Z_full: FloatArray
+    R_ring: FloatArray
+    Z_ring: FloatArray
+
+    @classmethod
+    def from_pickle(cls, filename: str, design: str, side: str) -> Self:
+        """Read a particular design and side from a pickle balance file."""
+
+        with open(filename, "rb") as f:
+            eqb = pkl.load(f)
+
+        return cls(**eqb[design][side])
+
+    @classmethod
+    def read_design(cls, filename: str, design: str) -> dict[str, Self]:
+        """Read all divertor legs for a single design from a pickle balance file."""
+
+        with open(filename, "rb") as f:
+            eqb = pkl.load(f)
+
+        return {side: cls(**data) for side, data in eqb[design].items()}
+
+    def scale_flux_expansion(
+        self,
+        *,
+        scale_factor: Optional[Scalar] = None,
+        expansion: Optional[Scalar] = None,
+    ) -> Self:
+        r"""Scale a :math:`B_\mathrm{total}` profile to have an arbitrary
+        flux expansion (ratio of :math:`B_\mathrm{X-point}` to
+        :math:`B_\mathrm{target}`), return a new `MagneticGeometry`.
+
+        Specify either a scale factor (``scale_factor``) or required flux
+        expansion (``expansion``).
+
+        Parameters
+        ----------
+        scale_factor:
+            Multiplicative factor applied to initial ``Btot``
+        expansion:
+            Desired flux expansion
+        """
+
+        new_data = asdict(self)
+        new_data["Btot"] = scale_BxBt(self.Btot, self.Xpoint, scale_factor, expansion)
+
+        return MagneticGeometry(**new_data)
+
+    def scale_connection_length(
+        self,
+        *,
+        scale_factor: Optional[Scalar] = None,
+        connection_length: Optional[Scalar] = None,
+    ) -> Self:
+        r"""Scale :math:`S_\parallel` and :math:`S_{pol}` profiles for
+        arbitrary connection length, :math:`L_c`, return a new `MagneticGeometry`.
+
+        Specify either a scale factor or required connection length.
+
+        Parameters
+        ----------
+        scale_factor:
+            Multiplicative factor applied to initial ``S_base`` and ``Spol_base``
+        connection_length:
+            Desired connection length
+
+        """
+
+        new_data = asdict(self)
+        new_data["S"], new_data["Spol"] = scale_Lc(
+            self.S, self.Spol, self.Xpoint, scale_factor, connection_length
+        )
+
+        return MagneticGeometry(**new_data)
+
+    def scale_midplane_length(
+        self,
+        *,
+        scale_factor: Optional[Scalar] = None,
+        midplane_length: Optional[Scalar] = None,
+    ) -> Self:
+        r"""Scale :math:`S_\parallel` and :math:`S_{pol}` profiles for
+        arbitrary midplane length, :math:`L_m`, return a new `MagneticGeometry`.
+
+        Specify either a scale factor or required midplane length.
+
+        Parameters
+        ----------
+        scale_factor:
+            Multiplicative factor applied to initial ``S_base`` and ``Spol_base``
+        midplane_length:
+            Desired midplane length
+
+        """
+
+        new_data = asdict(self)
+        new_data["S"], new_data["Spol"] = scale_Lm(
+            self.S, self.Spol, self.Xpoint, scale_factor, midplane_length
+        )
+
+        return MagneticGeometry(**new_data)

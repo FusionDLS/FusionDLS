@@ -2,7 +2,7 @@ import pathlib
 
 import numpy as np
 
-from fusiondls import LfuncN, file_read, run_dls
+from fusiondls import LfuncN, MagneticGeometry, run_dls
 from fusiondls.Analytic_DLS import CfInt
 
 
@@ -10,8 +10,7 @@ def test_analytic():
     filename = (
         pathlib.Path(__file__).parent.parent / "docs/examples/eqb_store_lores.pkl"
     )
-    eqb = file_read(filename)
-    d = eqb["V10"]["ou"]
+    geometry = MagneticGeometry.from_pickle(filename, "V10", "ou")
 
     constants = {
         "gamma_sheath": 7,
@@ -23,13 +22,14 @@ def test_analytic():
         "Lfunc": LfuncN,
     }
 
-    s_parallel = np.linspace(0, d["S"][d["Xpoint"] - 1], 30)
+    s_parallel = np.linspace(0, geometry.S[geometry.Xpoint - 1], 30)
 
-    result = run_dls(constants, d, s_parallel, control_variable="density")
+    result = run_dls(constants, geometry, s_parallel, control_variable="density")
     density_norm = result["cvar"] / result["cvar"][0]
 
     analytic = [
-        CfInt(d["S"], d["Btot"], d["Sx"], np.max(d["S"]), s) for s in s_parallel
+        CfInt(geometry.S, geometry.Btot, geometry.Sx, np.max(geometry.S), s)
+        for s in s_parallel
     ]
 
     analytical_norm = analytic / analytic[0]

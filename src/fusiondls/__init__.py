@@ -8,7 +8,14 @@ except PackageNotFoundError:
     __version__ = get_version(root="..", relative_to=__file__)
 
 from .AnalyticCoolingCurves import LfuncN
-from .DLScommonTools import file_read, file_write, make_arrays
+from .DLScommonTools import MagneticGeometry, file_read, file_write, make_arrays
 from .LRBv21 import run_dls
 
-__all__ = ["LfuncN", "file_read", "file_write", "make_arrays", "run_dls"]
+__all__ = [
+    "LfuncN",
+    "file_read",
+    "file_write",
+    "make_arrays",
+    "run_dls",
+    "MagneticGeometry",
+]

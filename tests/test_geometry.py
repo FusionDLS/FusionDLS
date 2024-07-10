@@ -1,0 +1,54 @@
+import pathlib
+
+import numpy as np
+import pytest
+
+from fusiondls import MagneticGeometry
+
+
+@pytest.fixture(scope="module")
+def geometry():
+    filename = (
+        pathlib.Path(__file__).parent.parent / "docs/examples/eqb_store_lores.pkl"
+    )
+    return MagneticGeometry.from_pickle(filename, "V10", "ou")
+
+
+def test_from_pickle():
+    filename = (
+        pathlib.Path(__file__).parent.parent / "docs/examples/eqb_store_lores.pkl"
+    )
+    geometry = MagneticGeometry.from_pickle(filename, "V10", "ou")
+
+    assert isinstance(geometry, MagneticGeometry)
+
+
+def test_read_design():
+    filename = (
+        pathlib.Path(__file__).parent.parent / "docs/examples/eqb_store_lores.pkl"
+    )
+    design = MagneticGeometry.read_design(filename, "V10")
+
+    assert sorted(design.keys()) == sorted(("iu", "ou", "il", "ol"))
+    assert isinstance(design["iu"], MagneticGeometry)
+
+
+def test_scale_flux_expansion(geometry):
+    current_expansion = geometry.Bx / geometry.Btot[0]
+
+    scaled_geometry = geometry.scale_flux_expansion(scale_factor=2)
+
+    new_expansion = scaled_geometry.Bx / scaled_geometry.Btot[0]
+    expected_expansion = 2 * current_expansion
+
+    assert np.isclose(new_expansion, expected_expansion)
+
+
+def test_scale_flux_expansion_set_value(geometry):
+    current_expansion = geometry.Bx / geometry.Btot[0]
+    expected_expansion = 2 * current_expansion
+
+    scaled_geometry = geometry.scale_flux_expansion(expansion=expected_expansion)
+    new_expansion = scaled_geometry.Bx / scaled_geometry.Btot[0]
+
+    assert np.isclose(new_expansion, expected_expansion)
