@@ -33,6 +33,13 @@ def test_read_design():
     assert isinstance(design["iu"], MagneticGeometry)
 
 
+def test_xpoint_properties(geometry):
+    assert geometry.Sx == geometry.S[geometry.Xpoint]
+    assert geometry.Spolx == geometry.Spol[geometry.Xpoint]
+    assert geometry.Bx == geometry.Btot[geometry.Xpoint]
+    assert geometry.zx == geometry.zl[geometry.Xpoint]
+
+
 def test_scale_flux_expansion(geometry):
     current_expansion = geometry.Bx / geometry.Btot[0]
 

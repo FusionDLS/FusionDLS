@@ -7,6 +7,14 @@ from typing_extensions import Self
 from .typing import FloatArray, PathLike, Scalar
 
 
+def _drop_properties(data: dict) -> dict:
+    """Helper function to remove dict keys that are now properties in `MagneticGeometry`"""
+
+    for var in ("Sx", "Spolx", "Bx", "zx"):
+        data.pop(var)
+    return data
+
+
 @dataclass
 class MagneticGeometry:
     r"""Magnetic geometry for a diverator leg
@@ -56,16 +64,28 @@ class MagneticGeometry:
     Z: FloatArray
     S: FloatArray
     Spol: FloatArray
-    zl: FloatArray
     Xpoint: int
-    Bx: float
-    Sx: float
-    Spolx: float
-    zx: float
-    R_full: FloatArray
-    Z_full: FloatArray
-    R_ring: FloatArray
-    Z_ring: FloatArray
+    zl: Optional[FloatArray] = None
+    R_full: Optional[FloatArray] = None
+    Z_full: Optional[FloatArray] = None
+    R_ring: Optional[FloatArray] = None
+    Z_ring: Optional[FloatArray] = None
+
+    @property
+    def Sx(self):
+        return self.S[self.Xpoint]
+
+    @property
+    def Spolx(self):
+        return self.Spol[self.Xpoint]
+
+    @property
+    def Bx(self):
+        return self.Btot[self.Xpoint]
+
+    @property
+    def zx(self):
+        return self.zl[self.Xpoint]
 
     @classmethod
     def from_pickle(cls, filename: PathLike, design: str, side: str) -> Self:
@@ -74,7 +94,7 @@ class MagneticGeometry:
         with open(filename, "rb") as f:
             eqb = pickle.load(f)
 
-        return cls(**eqb[design][side])
+        return cls(**_drop_properties(eqb[design][side]))
 
     @classmethod
     def read_design(cls, filename: PathLike, design: str) -> dict[str, Self]:
@@ -83,7 +103,9 @@ class MagneticGeometry:
         with open(filename, "rb") as f:
             eqb = pickle.load(f)
 
-        return {side: cls(**data) for side, data in eqb[design].items()}
+        return {
+            side: cls(**_drop_properties(data)) for side, data in eqb[design].items()
+        }
 
     def scale_flux_expansion(
         self,
