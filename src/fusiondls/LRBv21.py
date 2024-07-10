@@ -8,7 +8,8 @@ from scipy import interpolate
 from scipy.constants import elementary_charge, physical_constants
 from scipy.integrate import cumulative_trapezoid, trapezoid
 
-from .DLScommonTools import MagneticGeometry, pad_profile
+from .DLScommonTools import pad_profile
+from .geometry import MagneticGeometry
 from .Iterate import iterate
 from .refineGrid import refineGrid
 from .typing import FloatArray
