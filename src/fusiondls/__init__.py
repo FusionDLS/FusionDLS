@@ -10,7 +10,7 @@ except PackageNotFoundError:
 from .AnalyticCoolingCurves import LfuncN
 from .DLScommonTools import file_read, file_write, make_arrays
 from .geometry import MagneticGeometry
-from .LRBv21 import run_dls
+from .solver import run_dls
 
 __all__ = [
     "LfuncN",
