@@ -25,7 +25,6 @@ def test_analytic():
     s_parallel = np.linspace(0, geometry.S[geometry.Xpoint - 1], 30)
 
     result = run_dls(constants, geometry, s_parallel, control_variable="density")
-    density_norm = result["cvar"] / result["cvar"][0]
 
     analytic = [
         CfInt(geometry.S, geometry.Btot, geometry.Sx, np.max(geometry.S), s)
@@ -34,7 +33,7 @@ def test_analytic():
 
     analytical_norm = analytic / analytic[0]
 
-    error = density_norm - analytical_norm
+    error = result.cvar_norm - analytical_norm
     l2_error = np.sqrt(np.mean(error**2))
 
     # RMS error should only be a few percent
