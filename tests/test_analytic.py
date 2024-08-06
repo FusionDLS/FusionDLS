@@ -10,7 +10,7 @@ def test_analytic():
     eqb = file_read(filename)
     d = eqb["V10"]["ou"]
 
-    radios = {"ionisation": False, "upstreamGrid": True, "fluxlim": False}
+    radios = {"ionisation": False, "upstreamGrid": True}
     constants = {
         "gamma_sheath": 7,
         "Tt": 1,
@@ -18,8 +18,7 @@ def test_analytic():
         "nu": 1e20,
         "nu0": 1e20,
         "cz0": 0.02,
-        "Lfunc": LfuncN,
-        "alpha": 1000,
+        "Lfunc": LfuncN
     }
 
     s_parallel = np.linspace(0, d["S"][d["Xpoint"] - 1], 30)

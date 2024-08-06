@@ -152,8 +152,6 @@ class SimulationInputs:
         Cooling curve function, can be LfuncKallenbachx where x is Ne, Ar or N.
     Lz : list
         Cooling curve data: [0] contains temperatures in [eV] and [1] the corresponding cooling values in [W/m^3]
-    alpha : float
-        Heat flux limiter (WIP do not use)
 
     Settings
     ~~~~~~~~~
@@ -170,7 +168,7 @@ class SimulationInputs:
     timeout : float
         Maximum number of iterations for each loop before warning or error
     radios : dict
-        Contains flags for ionisation (WIP do not use), upstreamGrid (allows full flux tube) and fluxlim (WIP do not use)
+        Contains flags for ionisation (WIP do not use), upstreamGrid (allows full flux tube)
 
     Geometry
     ~~~~~~~~~
