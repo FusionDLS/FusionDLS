@@ -24,26 +24,8 @@ def LengFunc(s, y, si, st):
         Heat flux gradient dq/ds and temperature gradient dT/ds
     """
 
-    nu, Tu, cz, qradial = st.nu, st.Tu, st.cz, st.qradial
-    kappa0, _qpllu0, radios, S, B, Xpoint, Lfunc = (
-        si.kappa0,
-        si.qpllu0,
-        si.radios,
-        si.S,
-        si.B,
-        si.Xpoint,
-        si.Lfunc,
-    )
-
     qoverB, T = y
-
-    fieldValue = 0
-    if s > S[-1]:
-        fieldValue = B(S[-1])
-    elif s < S[0]:
-        fieldValue = B(S[0])
-    else:
-        fieldValue = B(s)
+    fieldValue = si.B(np.clip(s, si.S[0], si.S[-1]))
 
     # add a constant radial source of heat above the X point, which is qradial = qpll at Xpoint/np.abs(S[-1]-S[Xpoint]
     # i.e. radial heat entering SOL evenly spread between midplane and xpoint needs to be sufficient to get the
@@ -51,14 +33,14 @@ def LengFunc(s, y, si, st):
 
     # working on neutral/ionisation model
     # dqoverBds = dqoverBds/fieldValue
-    dqoverBds = ((nu**2 * Tu**2) / T**2) * cz * Lfunc(T) / fieldValue
+    dqoverBds = ((st.nu**2 * st.Tu**2) / T**2) * st.cz * si.Lfunc(T) / fieldValue
 
-    if radios["upstreamGrid"] and s > S[Xpoint]:
+    if si.radios["upstreamGrid"] and s > si.S[si.Xpoint]:
         # The second term here converts the x point qpar to a radial heat source acting between midplane and the xpoint
         # account for flux expansion to Xpoint
-        dqoverBds -= qradial / fieldValue
+        dqoverBds -= st.qradial / fieldValue
 
-    dtds = qoverB * fieldValue / (kappa0 * T ** (5 / 2))
+    dtds = qoverB * fieldValue / (si.kappa0 * T ** (5 / 2))
 
     return [dqoverBds, dtds]
 
