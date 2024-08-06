@@ -3,6 +3,7 @@ import copy
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy as sp
+from scipy.integrate import trapezoid
 
 
 class Profile:
@@ -71,7 +72,7 @@ class Profile:
         Return the integral of the fractional Btot gradient
         below the X-point
         """
-        return np.trapezoid(
+        return trapezoid(
             (np.gradient(self.Btot, self.Spol) / self.Btot)[: self.Xpoint],
             self.Spol[: self.Xpoint],
         )
@@ -88,7 +89,7 @@ class Profile:
         Return the integral of the pitch angle Bpol/Btot
         below the X-point
         """
-        return np.trapezoid(
+        return trapezoid(
             (self.Bpol / self.Btot)[: self.Xpoint], self.Spol[: self.Xpoint]
         )
 

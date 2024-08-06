@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.integrate import solve_ivp
+from scipy.integrate import solve_ivp, trapezoid
 
 
 def LengFunc(s, y, si, st):
@@ -80,7 +80,7 @@ def iterate(si, st):
         st.cz = si.cz0
         st.nu = st.cvar
 
-    st.qradial = (si.qpllu0 / si.Btot[si.Xpoint]) / np.trapezoid(
+    st.qradial = (si.qpllu0 / si.Btot[si.Xpoint]) / trapezoid(
         1 / si.Btot[si.Xpoint :], x=si.S[si.Xpoint :]
     )
 
@@ -88,7 +88,7 @@ def iterate(si, st):
         st.cz = si.cz0
         st.nu = si.nu0
         # This is needed so that too high a cvar gives positive error
-        st.qradial = (1 / st.cvar / si.Btot[si.Xpoint]) / np.trapezoid(
+        st.qradial = (1 / st.cvar / si.Btot[si.Xpoint]) / trapezoid(
             1 / si.Btot[si.Xpoint :], x=si.S[si.Xpoint :]
         )
 

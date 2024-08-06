@@ -3,7 +3,7 @@ from timeit import default_timer as timer
 
 import numpy as np
 from scipy import interpolate
-from scipy.integrate import cumulative_trapezoid
+from scipy.integrate import cumulative_trapezoid, trapezoid
 
 from .DLScommonTools import pad_profile
 from .Iterate import iterate
@@ -371,8 +371,8 @@ def run_dls(
             # nu0 and cz0 guesses are from Lengyel which depends on an estimate of Tu using qpllu0
             # This means we cannot make a more clever guess for qpllu0 based on cz0 or nu0
             qpllu0_guess = si.qpllu0
-            # qradial_guess = qpllu0_guess / np.trapezoid(si.Btot[si.Xpoint:] / si.Btot[si.Xpoint], x = si.S[si.Xpoint:])
-            qradial_guess = (qpllu0_guess / si.Btot[si.Xpoint]) / np.trapezoid(
+            # qradial_guess = qpllu0_guess / trapezoid(si.Btot[si.Xpoint:] / si.Btot[si.Xpoint], x = si.S[si.Xpoint:])
+            qradial_guess = (qpllu0_guess / si.Btot[si.Xpoint]) / trapezoid(
                 1 / si.Btot[si.Xpoint :], x=si.S[si.Xpoint :]
             )
             st.cvar = 1 / qradial_guess
@@ -396,7 +396,7 @@ def run_dls(
         # Upstream conditions
         st.nu = si.nu0
         st.cz = si.cz0
-        st.qradial = (si.qpllu0 / si.Btot[si.Xpoint]) / np.trapezoid(
+        st.qradial = (si.qpllu0 / si.Btot[si.Xpoint]) / trapezoid(
             1 / si.Btot[si.Xpoint :], x=si.S[si.Xpoint :]
         )
 
