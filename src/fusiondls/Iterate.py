@@ -25,10 +25,9 @@ def LengFunc(s, y, si, st):
     """
 
     nu, Tu, cz, qradial = st.nu, st.Tu, st.cz, st.qradial
-    kappa0, _qpllu0, alpha, radios, S, B, Xpoint, Lfunc = (
+    kappa0, _qpllu0, radios, S, B, Xpoint, Lfunc = (
         si.kappa0,
         si.qpllu0,
-        si.alpha,
         si.radios,
         si.S,
         si.B,
@@ -59,24 +58,8 @@ def LengFunc(s, y, si, st):
         # account for flux expansion to Xpoint
         dqoverBds -= qradial / fieldValue
 
-    # Flux limiter
-    dtds = 0
-    if radios["fluxlim"]:
-        dtds = (
-            qoverB
-            * fieldValue
-            / (
-                kappa0 * T ** (5 / 2)
-                - qoverB
-                * fieldValue
-                * kappa0
-                * T ** (1 / 2)
-                / (alpha * ne * np.sqrt(9e-31))
-            )
-        )
-    else:
-        dtds = qoverB * fieldValue / (kappa0 * T ** (5 / 2))
-    # return gradient of q and T
+    dtds = qoverB * fieldValue / (kappa0 * T ** (5 / 2))
+
     return [dqoverBds, dtds]
 
 
