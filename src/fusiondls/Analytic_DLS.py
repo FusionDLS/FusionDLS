@@ -6,7 +6,10 @@ from .AnalyticCoolingCurves import LfuncN
 
 
 def CfInt(spar, B_field, sx, L, sh=0, kappa1=2500):
-    """
+    """Calculate the control parameter required for a detachment front at parallel position ``sh``
+
+    Parameters
+    ----------
     spar: array, m
         Array of S parallel
     B_field: array, T
@@ -21,17 +24,19 @@ def CfInt(spar, B_field, sx, L, sh=0, kappa1=2500):
         Electron thermal conductivity
 
     """
-    """function which returns the control parameter required for a detachment front at parallel position sh"""
+
     B_field = interpolate.interp1d(
         spar, B_field, kind="cubic", fill_value="extrapolate"
     )
     # calculate Tu/qpll**(2/7) by integrating over heat flux density
-    Tu = quad(integrand, sh, sx, args=(sx, L, B_field), epsabs=0.0000000000000000001)[0]
+    Tu = quad(_integrand, sh, sx, args=(sx, L, B_field), epsabs=0.0000000000000000001)[
+        0
+    ]
     if sx < L:
         Tu = (
             Tu
             + quad(
-                integrand2, sx, L, args=(sx, L, B_field), epsabs=0.0000000000000000001
+                _integrand2, sx, L, args=(sx, L, B_field), epsabs=0.0000000000000000001
             )[0]
         )
     Tu = (Tu * 7 / (2 * kappa1)) ** (-2 / 7)
@@ -47,9 +52,9 @@ def CfInt(spar, B_field, sx, L, sh=0, kappa1=2500):
     return Cf
 
 
-def integrand(s, sx, L, B_field):
+def _integrand(s, sx, L, B_field):
     return B_field(s) / B_field(sx)
 
 
-def integrand2(s, sx, L, B_field):
+def _integrand2(s, sx, L, B_field):
     return (L - s) * (B_field(s) / B_field(sx)) / (L - sx)

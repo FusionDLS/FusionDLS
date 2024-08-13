@@ -1,12 +1,14 @@
 import pathlib
 
 import numpy as np
-from fusiondls import LfuncN, LRBv21, file_read
+from fusiondls import LfuncN, run_dls, file_read
 from fusiondls.Analytic_DLS import CfInt
 
 
 def test_analytic():
-    filename = pathlib.Path(__file__).parent.parent / "eqb_store_lores.pkl"
+    filename = (
+        pathlib.Path(__file__).parent.parent / "docs/examples/eqb_store_lores.pkl"
+    )
     eqb = file_read(filename)
     d = eqb["V10"]["ou"]
 
@@ -23,7 +25,7 @@ def test_analytic():
 
     s_parallel = np.linspace(0, d["S"][d["Xpoint"] - 1], 30)
 
-    result = LRBv21(constants, radios, d, s_parallel, control_variable="density")
+    result = run_dls(constants, radios, d, s_parallel, control_variable="density")
     density_norm = result["cvar"] / result["cvar"][0]
 
     analytic = [

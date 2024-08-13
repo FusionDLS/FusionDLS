@@ -9,6 +9,7 @@ from .DLScommonTools import pad_profile
 from .Iterate import iterate
 from .refineGrid import refineGrid
 from .unpackConfigurationsMK import *
+from .typing import FloatArray
 
 
 class SimulationState:
@@ -17,8 +18,8 @@ class SimulationState:
     needed to run the simulation. The state is passed around different functions, which
     allows more of the algorithm to be abstracted away from the main function.
 
-    Parameter list
-    ---------
+    Parameters
+    ----------
     si : SimulationInputs
         Simulation inputs object containing all constant parameters
     log : dict
@@ -127,11 +128,8 @@ class SimulationInputs:
     This class functions the same as SimulationState, but is used to store the inputs instead.
     The separation is to make it easier to see which variables should be unchangeable.
 
-    Parameter list
-    ---------
-
-    Physical parameters
-    ~~~~~~~~~
+    Parameters
+    ----------
     kappa0 : float
         Electron conductivity
     mi : float
@@ -152,9 +150,12 @@ class SimulationInputs:
         Cooling curve function, can be LfuncKallenbachx where x is Ne, Ar or N.
     Lz : list
         Cooling curve data: [0] contains temperatures in [eV] and [1] the corresponding cooling values in [W/m^3]
+<<<<<<< HEAD
 
     Settings
     ~~~~~~~~~
+=======
+>>>>>>> PlasmaFAIR/docs
     control_variable : str, default impurity_frac
         density, impurity_frac or power
     verbosity : int, default 0
@@ -168,10 +169,13 @@ class SimulationInputs:
     timeout : float
         Maximum number of iterations for each loop before warning or error
     radios : dict
+<<<<<<< HEAD
         Contains flags for ionisation (WIP do not use), upstreamGrid (allows full flux tube)
 
     Geometry
     ~~~~~~~~~
+=======
+>>>>>>> PlasmaFAIR/docs
     SparRange : list
         List of S parallel locations to solve for
     indexRange : list
@@ -203,35 +207,54 @@ class SimulationInputs:
         return str(self.__dict__)
 
 
-def LRBv21(
-    constants,
-    radios,
-    d,
-    SparRange,
-    control_variable="impurity_frac",
-    verbosity=0,
-    Ctol=1e-3,
-    Ttol=1e-2,
-    URF=1,
-    timeout=20,
-    dynamicGrid=False,
-    dynamicGridRefinementRatio=5,
-    dynamicGridRefinementWidth=1,
-    dynamicGridDiagnosticPlot=False,
-    zero_qpllt=False,
-):
-    """function that returns the impurity fraction required for a given temperature at the target. Can request a low temperature at a given position to mimick a detachment front at that position.
-    constants: dict of options
-    radios: dict of options
-    indexRange: array of S indices of the parallel front locations to solve for
-    control_variable: either impurity_frac, density or power
-    Ctol: error tolerance target for the inner loop (i.e. density/impurity/heat flux)
-    Ttol: error tolerance target for the outer loop (i.e. rerrunning until Tu convergence)
-    URF: under-relaxation factor for temperature. If URF is 0.2, Tu_new = Tu_old*0.8 + Tu_calculated*0.2. Always set to 1.
-    Timeout: controls timeout for all three loops within the code. Each has different message on timeout. Default 20
-    dynamicGrid: enables iterative grid refinement around the front (recommended)
-    dynamicGridRefinementRatio: ratio of finest to coarsest cell width in dynamic grid
-    dynamicGridRefinementWidth: size of dynamic grid refinement region in metres parallel
+def run_dls(
+    constants: dict,
+    radios: dict,
+    d: dict,
+    SparRange: FloatArray,
+    control_variable: str = "impurity_frac",
+    verbosity: int = 0,
+    Ctol: float = 1e-3,
+    Ttol: float = 1e-2,
+    URF: float = 1,
+    timeout: int = 20,
+    dynamicGrid: bool = False,
+    dynamicGridRefinementRatio: float = 5,
+    dynamicGridRefinementWidth: float = 1,
+    dynamicGridDiagnosticPlot: bool = False,
+    zero_qpllt: bool = False,
+) -> dict[str, FloatArray]:
+    """Run the DLS-extended model
+
+    Returns the impurity fraction required for a given temperature at
+    the target. Can request a low temperature at a given position to
+    mimic a detachment front at that position.
+
+    Parameters
+    ----------
+    constants:
+        dict of options
+    radios:
+        dict of options
+    indexRange:
+        array of S indices of the parallel front locations to solve for
+    control_variable:
+        either impurity_frac, density or power
+    Ctol:
+        error tolerance target for the inner loop (i.e. density/impurity/heat flux)
+    Ttol:
+        error tolerance target for the outer loop (i.e. rerrunning until Tu convergence)
+    URF:
+        under-relaxation factor for temperature. If URF is 0.2, Tu_new = Tu_old*0.8 + Tu_calculated*0.2. Always set to 1.
+    Timeout:
+        controls timeout for all three loops within the code. Each has different message on timeout. Default 20
+    dynamicGrid:
+        enables iterative grid refinement around the front (recommended)
+    dynamicGridRefinementRatio:
+        ratio of finest to coarsest cell width in dynamic grid
+    dynamicGridRefinementWidth:
+        size of dynamic grid refinement region in metres parallel
+
     """
     # Start timer
     t0 = timer()

@@ -40,7 +40,7 @@ docs = [
     "sphinx >= 5.3",
     "sphinx_autodoc_typehints >= 1.19",
     "sphinx-book-theme >= 0.4.0rc1",
-    "myst_parser >= 0.14.0",
+    "myst_nb",
 ]
 tests = [
     "pytest >= 3.3.0",
@@ -68,10 +68,14 @@ source = [
 ]
 
 [tool.black]
-exclude = "_version.py"
+extend_exclude = "_version.py"
 
 [tool.isort]
 profile = "black"
+
+[tool.ruff]
+extend-include = ["*.ipynb"]
+target-version = "py39"
 
 [tool.ruff.lint]
 extend-select = [
@@ -79,7 +83,6 @@ extend-select = [
   "I",           # isort
   "ARG",         # flake8-unused-arguments
   "C4",          # flake8-comprehensions
-  "EM",          # flake8-errmsg
   "ICN",         # flake8-import-conventions
   "G",           # flake8-logging-format
   "PGH",         # pygrep-hooks
@@ -98,4 +101,5 @@ extend-select = [
 ]
 ignore = [
   "PLR2004",     # magic-comparison
+  "B9",          # flake8-bugbear opinionated warnings
 ]

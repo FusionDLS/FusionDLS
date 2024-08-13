@@ -8,6 +8,6 @@ except PackageNotFoundError:
     __version__ = get_version(root="..", relative_to=__file__)
 
 from .DLScommonTools import LfuncN, file_read, file_write, make_arrays
-from .LRBv21 import LRBv21
+from .LRBv21 import run_dls
 
-__all__ = ["file_read", "LfuncN", "LRBv21", "file_write", "make_arrays"]
+__all__ = ["file_read", "LfuncN", "run_dls", "file_write", "make_arrays"]
