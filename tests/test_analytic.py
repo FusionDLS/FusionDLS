@@ -1,6 +1,7 @@
 import pathlib
 
 import numpy as np
+
 from fusiondls import LfuncN, file_read, run_dls
 from fusiondls.Analytic_DLS import CfInt
 
