@@ -414,6 +414,20 @@ class Profile:
 
         ax.set_xlabel(r"$R\ (m)$")
         ax.set_ylabel(r"$Z\ (m)$")
+        
+        pad = 0.2
+        
+        Rmax = self["R_leg"].max()
+        Rmin = self["R_leg"].min()
+        Zmax = self["Z_leg"].max()
+        Zmin = self["Z_leg"].min()
+        
+        Rspan = Rmax - Rmin
+        Zspan = Zmax - Zmin
+        
+        ax.set_xlim(Rmin - Rspan*pad, Rmax + Rspan*pad)
+        ax.set_ylim(Zmin - Zspan*pad, Zmax + Zspan*pad)
+        
 
         if ylim != (None, None):
             ax.set_ylim(ylim)
