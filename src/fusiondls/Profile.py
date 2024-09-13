@@ -192,6 +192,14 @@ class Profile:
         Then perform cord spline interpolation to get interpolated profile in [xs,ys]
         The degree of the morph can be controlled by the factor
         Saves control points as R_control, Z_control
+        
+        Offsets are a list of dictionaries, each defining a point
+        along the leg to shift vertically or horizontally:
+            [dict(pos = 1, offsety = -0.1, offsetx = 0.2),
+                ...]
+        Where pos is the fractional poloidal position along the field line
+        starting at the target, and offsety and offsetx are vertical and
+        horizontal offsets in [m].
         """
 
         self.R_control, self.Z_control = shift_points(
