@@ -136,7 +136,7 @@ class SimulationInputs:
     mi: float = deuterium_mass
     """Ion mass [kg]"""
     control_variable: str = "impurity_frac"
-    """density, impurity_frac or power"""
+    """One of 'density', 'impurity_frac' or 'power'"""
     verbosity: int = 0
     """Level of verbosity. Higher is more verbose"""
     Ctol: float = 1e-3
@@ -156,6 +156,12 @@ class SimulationInputs:
     If false, heat flux simply enters at the X-point as :math:`q_i`, and :math:`T_u` is at the X-point"""
 
     def __post_init__(self):
+        ALLOWED_VARIABLES = ["density", "impurity_frac", "power"]
+        if self.control_variable not in ALLOWED_VARIABLES:
+            raise ValueError(
+                f"Unexpected value for 'control_variable' (got {self.control_variable}, expected one of {ALLOWED_VARIABLES})"
+            )
+
         # Initialise cooling curve
         Tcool = np.linspace(0.3, 500, 1000)
         Tcool = np.append(0, Tcool)

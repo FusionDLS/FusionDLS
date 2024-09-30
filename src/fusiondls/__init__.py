@@ -10,7 +10,7 @@ except PackageNotFoundError:
 from .AnalyticCoolingCurves import LfuncN
 from .DLScommonTools import file_read, file_write, make_arrays
 from .geometry import MagneticGeometry
-from .solver import run_dls
+from .solver import run_dls, SimulationInputs
 
 __all__ = [
     "LfuncN",
@@ -19,4 +19,5 @@ __all__ = [
     "make_arrays",
     "run_dls",
     "MagneticGeometry",
+    "SimulationInputs",
 ]
