@@ -192,7 +192,7 @@ class Profile:
         Then perform cord spline interpolation to get interpolated profile in [xs,ys]
         The degree of the morph can be controlled by the factor
         Saves control points as R_control, Z_control
-        
+
         Offsets are a list of dictionaries, each defining a point
         along the leg to shift vertically or horizontally:
             [dict(pos = 1, offsety = -0.1, offsetx = 0.2),
@@ -201,7 +201,7 @@ class Profile:
         starting at the target, and offsety and offsetx are vertical and
         horizontal offsets in [m].
         """
-        
+
         self.R_original = self.R.copy()
         self.Z_original = self.Z.copy()
 
@@ -417,25 +417,24 @@ class Profile:
 
         ax.set_xlabel(r"$R\ (m)$")
         ax.set_ylabel(r"$Z\ (m)$")
-        
+
         pad = 0.2
-        
+
         selector = slice(None, self["Xpoint"])
-        
+
         R_leg_original = self["R_original"][selector]
         Z_leg_original = self["Z_original"][selector]
-        
+
         Rmax = R_leg_original.max()
         Rmin = R_leg_original.min()
         Zmax = Z_leg_original.max()
         Zmin = Z_leg_original.min()
-        
+
         Rspan = Rmax - Rmin
         Zspan = Zmax - Zmin
-        
-        ax.set_xlim(Rmin - Rspan*pad, Rmax + Rspan*pad)
-        ax.set_ylim(Zmin - Zspan*pad, Zmax + Zspan*pad)
-        
+
+        ax.set_xlim(Rmin - Rspan * pad, Rmax + Rspan * pad)
+        ax.set_ylim(Zmin - Zspan * pad, Zmax + Zspan * pad)
 
         if ylim != (None, None):
             ax.set_ylim(ylim)
@@ -765,18 +764,18 @@ def shift_points(R, Z, offsets, factor=1):
 
     for point in offsets:
         position = point["pos"]
-        
+
         if "offsetx" in point and "xpos" in point:
             raise ValueError("Offset and position cannot be set simultaneously")
         if "offsety" in point and "ypos" in point:
             raise ValueError("Offset and position cannot be set simultaneously")
-        
+
         # RZ coordinates of existing point
         Rs, Zs = spl(position)
-        
+
         offsetx = point.get("offsetx", 0)
         offsety = point.get("offsety", 0)
-        
+
         # If position specified, overwrite offsets with a calculation
         if "xpos" in point:
             offsetx = point["xpos"] - Rs
