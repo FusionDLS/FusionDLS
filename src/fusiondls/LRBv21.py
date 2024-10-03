@@ -8,7 +8,6 @@ from scipy.integrate import cumulative_trapezoid, trapezoid
 from .DLScommonTools import pad_profile
 from .Iterate import iterate
 from .refineGrid import refineGrid
-from .unpackConfigurationsMK import *
 from .typing import FloatArray
 
 
@@ -92,22 +91,20 @@ class SimulationState:
 
         self.log[self.SparFront] = self.singleLog  # Put in global log
 
-        l = self.singleLog
-
         if self.si.verbosity >= 2:
-            if len(l["error0"]) == 1:  # Print header on first iteration
+            log = self.singleLog
+
+            if len(log["error0"]) == 1:  # Print header on first iteration
                 print(f"\n\n Solving at parallel location {self.SparFront}")
                 print("--------------------------------")
 
             print(
-                "error0: {:.3E}, Tu: {:.2f}, error1: {:.3E}, cvar: {:.3E}, lower_bound: {:.3E}, upper_bound: {:.3E}".format(
-                    l["error0"][-1],
-                    l["Tu"][-1],
-                    l["error1"][-1],
-                    l["cvar"][-1],
-                    l["lower_bound"][-1],
-                    l["upper_bound"][-1],
-                )
+                f"error0: {log['error0'][-1]:.3E}"
+                f"Tu: {log['Tu'][-1]:.3E}"
+                f"error1: {log['error1'][-1]:.3E}"
+                f"cvar: {log['cvar'][-1]:.3E}"
+                f"lower_bound: {log['lower_bound'][-1]:.3E}"
+                f"upper_bound: {log['upper_bound'][-1]:.3E}"
             )
 
     # Update many variables
@@ -150,12 +147,6 @@ class SimulationInputs:
         Cooling curve function, can be LfuncKallenbachx where x is Ne, Ar or N.
     Lz : list
         Cooling curve data: [0] contains temperatures in [eV] and [1] the corresponding cooling values in [W/m^3]
-<<<<<<< HEAD
-
-    Settings
-    ~~~~~~~~~
-=======
->>>>>>> PlasmaFAIR/docs
     control_variable : str, default impurity_frac
         density, impurity_frac or power
     verbosity : int, default 0
@@ -169,13 +160,7 @@ class SimulationInputs:
     timeout : float
         Maximum number of iterations for each loop before warning or error
     radios : dict
-<<<<<<< HEAD
         Contains flags for ionisation (WIP do not use), upstreamGrid (allows full flux tube)
-
-    Geometry
-    ~~~~~~~~~
-=======
->>>>>>> PlasmaFAIR/docs
     SparRange : list
         List of S parallel locations to solve for
     indexRange : list
@@ -194,7 +179,7 @@ class SimulationInputs:
 
     def __init__(self):
         # Physics constants
-        self.kappa0 = 2500  #
+        self.kappa0 = 2500
         self.mi = 3 * 10 ** (-27)
         self.echarge = 1.60 * 10 ** (-19)
 
@@ -308,7 +293,7 @@ def run_dls(
     ):  # For each detachment front location:
         st.SparFront = SparFront  # Current prescribed parallel front location
 
-        if dynamicGrid is True:
+        if dynamicGrid:
             newProfile = refineGrid(
                 d,
                 SparFront,
@@ -393,7 +378,7 @@ def run_dls(
             st.cvar = 1 / qradial_guess
 
         # Initial guess of qpllt, the virtual target temperature (typically 0).
-        if zero_qpllt is True:
+        if zero_qpllt:
             st.qpllt = si.qpllu0 * 1e-2
         else:
             st.qpllt = (
@@ -427,9 +412,9 @@ def run_dls(
             # Double or halve cvar until the error flips sign
             for k1 in range(si.timeout * 2):
                 if st.error1 > 0:
-                    st.cvar = st.cvar / 2
+                    st.cvar /= 2
                 elif st.error1 < 0:
-                    st.cvar = st.cvar * 2
+                    st.cvar *= 2
 
                 st = iterate(si, st)
 
@@ -467,12 +452,10 @@ def run_dls(
                 elif st.error1 > 0:
                     st.upper_bound = st.cvar
 
-                # Break on success
-                if k0 < 2:
-                    tolerance = 1e-2  # Looser tolerance for the first two T iterations
-                else:
-                    tolerance = si.Ctol
+                # Looser tolerance for the first two T iterations
+                tolerance = 1e-2 if k0 < 2 else si.Ctol
 
+                # Break on success
                 if abs(st.error1) < tolerance:
                     break
 
@@ -506,7 +489,7 @@ def run_dls(
             output["cvar"].append(st.cvar)
 
         Qrad = []
-        for i, Tf in enumerate(st.T):
+        for Tf in st.T:
             if si.control_variable == "impurity_frac":
                 Qrad.append(((si.nu0**2 * st.Tu**2) / Tf**2) * st.cvar * si.Lfunc(Tf))
             elif si.control_variable == "density":
@@ -565,8 +548,8 @@ def run_dls(
             output["spol_onset"] = spol_onset
 
             grad = np.gradient(crel_list)
-            for i, val in enumerate(grad):
-                if i > 0 and np.sign(grad[i]) != np.sign(grad[i - 1]):
+            for i, _val in enumerate(grad):
+                if i > 0 and np.sign(_val) != np.sign(grad[i - 1]):
                     crel_list_trim[:i] = np.nan
                     cvar_list_trim[:i] = np.nan
 
@@ -594,6 +577,6 @@ def run_dls(
     output = dict(output)
     t1 = timer()
 
-    print("Complete in {:.1f} seconds".format(t1 - t0))
+    print(f"Complete in {t1 - t0:.1f} seconds")
 
     return output

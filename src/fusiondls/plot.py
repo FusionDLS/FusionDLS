@@ -3,7 +3,6 @@ from matplotlib.lines import Line2D
 
 from .typing import FloatArray
 
-
 colors = ["teal", "darkorange", "firebrick", "limegreen", "magenta", "cyan", "navy"]
 
 
@@ -41,7 +40,7 @@ def plot_B_field_profile(
 
     """
 
-    fig, ax = plt.subplots()
+    _fig, ax = plt.subplots()
     size = 100
 
     def plot_side(s, btot, xpoint, color, label):

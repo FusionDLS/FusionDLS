@@ -1,7 +1,8 @@
 import pathlib
 
 import numpy as np
-from fusiondls import LfuncN, run_dls, file_read
+
+from fusiondls import LfuncN, file_read, run_dls
 from fusiondls.Analytic_DLS import CfInt
 
 
@@ -20,7 +21,7 @@ def test_analytic():
         "nu": 1e20,
         "nu0": 1e20,
         "cz0": 0.02,
-        "Lfunc": LfuncN
+        "Lfunc": LfuncN,
     }
 
     s_parallel = np.linspace(0, d["S"][d["Xpoint"] - 1], 30)

@@ -1,11 +1,8 @@
 import numpy as np
 from scipy.integrate import solve_ivp, trapezoid
 
-from .unpackConfigurationsMK import *
-
 
 def LengFunc(s, y, si, st):
-    # def LengFunc(y, s, si, st):
     """
     Lengyel function.
     This is passed to ODEINT in integrate() and used to solve for q and T along the field line.
@@ -27,48 +24,23 @@ def LengFunc(s, y, si, st):
         Heat flux gradient dq/ds and temperature gradient dT/ds
     """
 
-    nu, Tu, cz, qradial = st.nu, st.Tu, st.cz, st.qradial
-    kappa0, qpllu0, radios, S, B, Xpoint, Lfunc = (
-        si.kappa0,
-        si.qpllu0,
-        si.radios,
-        si.S,
-        si.B,
-        si.Xpoint,
-        si.Lfunc,
-    )
-
     qoverB, T = y
-
-    fieldValue = 0
-    if s > S[-1]:
-        fieldValue = B(S[-1])
-    elif s < S[0]:
-        fieldValue = B(S[0])
-    else:
-        fieldValue = B(s)
+    fieldValue = si.B(np.clip(s, si.S[0], si.S[-1]))
 
     # add a constant radial source of heat above the X point, which is qradial = qpll at Xpoint/np.abs(S[-1]-S[Xpoint]
     # i.e. radial heat entering SOL evenly spread between midplane and xpoint needs to be sufficient to get the
     # correct qpll at the xpoint.
 
-    if radios["upstreamGrid"]:
-        if s > S[Xpoint]:
-            # The second term here converts the x point qpar to a radial heat source acting between midplane and the xpoint
-            try:
-                dqoverBds = ((nu**2 * Tu**2) / T**2) * cz * Lfunc(
-                    T
-                ) / fieldValue - qradial / fieldValue  # /fieldValue * fieldValue / B(S[Xpoint]) # account for flux expansion to Xpoint
-            except:
-                print("Failed. s: {:.2f}".format(s))
-        else:
-            dqoverBds = ((nu**2 * Tu**2) / T**2) * cz * Lfunc(T) / fieldValue
-    else:
-        dqoverBds = ((nu**2 * Tu**2) / T**2) * cz * Lfunc(T) / fieldValue
-
     # working on neutral/ionisation model
     # dqoverBds = dqoverBds/fieldValue
-    dtds = qoverB * fieldValue / (kappa0 * T ** (5 / 2))
+    dqoverBds = ((st.nu**2 * st.Tu**2) / T**2) * st.cz * si.Lfunc(T) / fieldValue
+
+    if si.radios["upstreamGrid"] and s > si.S[si.Xpoint]:
+        # The second term here converts the x point qpar to a radial heat source acting between midplane and the xpoint
+        # account for flux expansion to Xpoint
+        dqoverBds -= st.qradial / fieldValue
+
+    dtds = qoverB * fieldValue / (si.kappa0 * T ** (5 / 2))
 
     return [dqoverBds, dtds]
 
@@ -108,7 +80,6 @@ def iterate(si, st):
         st.cz = si.cz0
         st.nu = st.cvar
 
-    # si.Btot = [si.B(x) for x in si.S]   ## FIXME This shouldn't be here, we already have a Btot
     st.qradial = (si.qpllu0 / si.Btot[si.Xpoint]) / trapezoid(
         1 / si.Btot[si.Xpoint :], x=si.S[si.Xpoint :]
     )
@@ -116,7 +87,7 @@ def iterate(si, st):
     if si.control_variable == "power":
         st.cz = si.cz0
         st.nu = si.nu0
-        # st.qradial = 1/st.cvar # This is needed so that too high a cvar gives positive error
+        # This is needed so that too high a cvar gives positive error
         st.qradial = (1 / st.cvar / si.Btot[si.Xpoint]) / trapezoid(
             1 / si.Btot[si.Xpoint :], x=si.S[si.Xpoint :]
         )
@@ -127,12 +98,6 @@ def iterate(si, st):
             end="",
         )
 
-    # result = odeint(LengFunc,
-    #                 y0 = [st.qpllt/si.B(st.s[0]),si.Tt],
-    #                 t = st.s,
-    #                 args = (si, st)
-    #                 )
-
     result = solve_ivp(
         LengFunc,
         t_span=(st.s[0], st.s[-1]),
@@ -142,31 +107,21 @@ def iterate(si, st):
         atol=1e-10,
         args=(si, st),
     )
-    # print(result["message"])
-
-    out = dict()
 
     # Update state with results
-    # ODEINT
-    # st.q = result[:,0]*si.B(st.s)     # q profile
-    # st.T = result[:,1]                # Temp profile
-    # solve_ivp
-    # plt.plot(result.y[0])
-    # plt.show()
-
     qoverBresult = result.y[0]
     Tresult = result.y[1]
 
-    ## Sometimes when solve_ivp returns negative q upstream, it will trim
+    # Sometimes when solve_ivp returns negative q upstream, it will trim
     # the output instead of giving nans. This pads it back to correct length
     if len(qoverBresult) < len(st.s):
         if si.verbosity > 3:
             print("Warning: solver output contains NaNs")
 
         qoverBresult = np.insert(
-            qoverBresult, -1, np.zeros((len(st.s) - len(qoverBresult)))
+            qoverBresult, -1, np.zeros(len(st.s) - len(qoverBresult))
         )
-        Tresult = np.insert(Tresult, -1, np.zeros((len(st.s) - len(qoverBresult))))
+        Tresult = np.insert(Tresult, -1, np.zeros(len(st.s) - len(qoverBresult)))
 
     st.q = qoverBresult * si.B(st.s)  # q profile
     st.T = Tresult  # Temp profile

@@ -48,10 +48,10 @@ def unpackConfigurationMK(
     """------DATA EXTRACTION"""
     rootgrp = Dataset(File, "r", format="NETCDF4")
     sep = rootgrp["jsep"][0]  # separatrix cell ring
-    sep = sep + sepadd  # select cell ring to work on
+    sep += sepadd  # select cell ring to work on
     bb = rootgrp["bb"]  # B vector array
 
-    full = dict()  # dictionary to store parameters over full SOL ring
+    full = {}  # dictionary to store parameters over full SOL ring
 
     full["Bpol"] = bb[0][sep] * polModulator
 
@@ -68,12 +68,6 @@ def unpackConfigurationMK(
     full["R"] = np.mean([r[0][sep], r[1][sep], r[2][sep], r[3][sep]], axis=0)
     full["Z"] = np.mean([z[0][sep], z[1][sep], z[2][sep], z[3][sep]], axis=0)
 
-    # Entire grid cell centres
-    Zs = np.mean([z[0], z[1], z[2], z[3]], axis=0)
-    Rs = np.mean([r[0], r[1], r[2], r[3]], axis=0)
-
-    len_R = len(full["R"])
-
     """------XPOINT, EDGE, MIDPLANE LOCATIONS"""
     # Find the X-points, edges and midpoints
     # SOLPS draws grid clockwise from inner lower target
@@ -88,8 +82,8 @@ def unpackConfigurationMK(
 
     omp = reversals[-2]  # outer midplane
     imp = reversals[1]  # inner midplane
-    xpoint = dict()
-    target = dict()
+    xpoint = {}
+    target = {}
     sol = defaultdict(dict)
 
     xpoint["il"] = reversals[0]  # inner lower xpoint
@@ -102,7 +96,7 @@ def unpackConfigurationMK(
     target["ou"] = reversals[4] - 1
     target["ol"] = len(gradR)
 
-    if diagnostic_plot is True:
+    if diagnostic_plot:
         fig, ax = plt.subplots(dpi=150)
         ax.set_aspect("equal")
         ax.scatter(full["R"], full["Z"], s=5)
@@ -110,8 +104,8 @@ def unpackConfigurationMK(
             ax.scatter(full["R"][i], full["Z"][i], color="red", marker="*", s=10)
 
     # Define start and end for each segment, going clockwise from bottom left.
-    start = dict()
-    end = dict()
+    start = {}
+    end = {}
     start["il"] = target["il"]
     start["iu"] = imp - 1
     start["ou"] = target["ou"]
@@ -126,21 +120,21 @@ def unpackConfigurationMK(
 
     sol = defaultdict(dict)  # Dict of parameters in each SOL side. sol[param][side]
 
-    for param in full.keys():
+    for param in full:
         for side in ["il", "iu", "ou", "ol"]:
             sol[param][side] = full[param][start[side] : end[side]]
 
     # Invert inner lower and outer upper so that all SOLs
     # are consistent and start at midplane (needs to be done under this convention to work)
     # This can be later reversed to start at target by input flag "convention=target_to_midplane"
-    for param in full.keys():
+    for param in full:
         sol[param]["il"] = sol[param]["il"][::-1]
         sol[param]["ou"] = sol[param]["ou"][::-1]
 
     """------INTERPOLATION"""
 
-    path_actual = dict()  # Spol
-    path_grid = dict()  # grid to interpolate over
+    path_actual = {}  # Spol
+    path_grid = {}  # grid to interpolate over
     interp = defaultdict(dict)  # dict of interpolators
     data = defaultdict(dict)  # final parameters
 
@@ -168,7 +162,7 @@ def unpackConfigurationMK(
         # Regular linearly spaced grid (linear in poloidal space)
         path_grid[side] = np.linspace(0, np.amax(path_actual[side]), resolution)
 
-        for param in full.keys():
+        for param in full:
             interp[side][param] = interpolate.interp1d(
                 path_actual[side], sol[param][side], kind="cubic"
             )
@@ -185,19 +179,12 @@ def unpackConfigurationMK(
 
     """------OTHER CALCULATIONS"""
 
-    zl = dict()  # Z space path
-    Bx = dict()  # Btot at Xpoint
-    polLengthArray = (
-        dict()
-    )  # another poloidal distance path but now of the interpolated SOLs
-    S = dict()  # Real distance path as opposed to poloidal distance
-
     for side in ["ol", "il", "ou", "iu"]:
         d = data[side]
 
         # Reverse data if we want it target to midplane
         if convention == "target_to_midplane":
-            for param in (x for x in d.keys() if x not in ["Xpoint"]):
+            for param in (x for x in d if x != "Xpoint"):
                 d[param] = d[param][::-1]
             d["Xpoint"] = len(d["R"]) - d["Xpoint"] - 1
 
@@ -218,7 +205,7 @@ def unpackConfigurationMK(
     """------DIAGNOSTIC PLOT"""
 
     # Plot the four divertor SOLs and corresponding Xpoints
-    if diagnostic_plot == True:
+    if diagnostic_plot:
         fig, ax = plt.subplots(1, 4, figsize=(18, 4))
 
         xparam = "S"
@@ -259,7 +246,7 @@ def unpackConfigurationMK(
 
     # Pack into a Profile class
     profiles = {}
-    for i, side in enumerate(["iu", "il", "ou", "ol"]):
+    for side in ["iu", "il", "ou", "ol"]:
         d = data[side]
         profiles[side] = Profile(
             d["R"],
@@ -275,8 +262,9 @@ def unpackConfigurationMK(
     # Output by geometry type
     if Type != "box":
         return profiles[Type]
-    else:
-        print("Slab geometry not supported yet")
+
+    print("Slab geometry not supported yet")
+    return None
 
 
 def returnll(R, Z):
@@ -287,7 +275,7 @@ def returnll(R, Z):
     PrevZ = Z[0]
     for i in range(len(R)):
         dl = np.sqrt((PrevR - R[i]) ** 2 + (PrevZ - Z[i]) ** 2)
-        currentl = currentl + dl
+        currentl += dl
         ll.append(currentl)
         PrevR = R[i]
         PrevZ = Z[i]
@@ -303,7 +291,7 @@ def returnS(R, Z, B, Bpol):
     for i in range(len(R)):
         dl = np.sqrt((PrevR - R[i]) ** 2 + (PrevZ - Z[i]) ** 2)
         ds = dl * np.abs(B[i]) / np.abs(Bpol[i])
-        currents = currents + ds
+        currents += ds
         s.append(currents)
         PrevR = R[i]
         PrevZ = Z[i]
@@ -319,7 +307,7 @@ def returnzl(R, Z, BX, Bpol):
     for i in range(len(R)):
         dl = np.sqrt((PrevR - R[i]) ** 2 + (PrevZ - Z[i]) ** 2)
         dz = dl * BX / (Bpol[i])
-        CurrentZ = CurrentZ + dz
+        CurrentZ += dz
         zl.append(CurrentZ)
         PrevR = R[i]
         PrevZ = Z[i]

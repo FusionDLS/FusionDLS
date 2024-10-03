@@ -7,7 +7,8 @@ except PackageNotFoundError:
 
     __version__ = get_version(root="..", relative_to=__file__)
 
-from .DLScommonTools import LfuncN, file_read, file_write, make_arrays
+from .AnalyticCoolingCurves import LfuncN
+from .DLScommonTools import file_read, file_write, make_arrays
 from .LRBv21 import run_dls
 
-__all__ = ["file_read", "LfuncN", "run_dls", "file_write", "make_arrays"]
+__all__ = ["LfuncN", "file_read", "file_write", "make_arrays", "run_dls"]

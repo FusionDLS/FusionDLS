@@ -98,8 +98,24 @@ extend-select = [
   "EXE",         # flake8-executable
   "NPY",         # NumPy specific rules
   "PD",          # pandas-vet
+  "FURB",        # refurb
 ]
 ignore = [
   "PLR2004",     # magic-comparison
   "B9",          # flake8-bugbear opinionated warnings
+  "PLC0414",     # useless-import-alias
+  "PLR0913",     # too-many-arguments
+  "PLR0917",     # too-many-positional
+  "PLR0914",     # too-many-locals
+  "PLR0915",     # too-many-statements
+  "PLR0912",     # too-many-branches
+  "PTH123",      # builtin-open
 ]
+
+[[tool.mypy.overrides]]
+module = "scipy.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "netCDF4"
+ignore_missing_imports = true

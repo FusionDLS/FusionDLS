@@ -4,11 +4,7 @@ from typing import Optional
 import numpy as np
 from scipy import interpolate
 
-from .AnalyticCoolingCurves import *
-from .unpackConfigurationsMK import *
-from .typing import PathLike, FloatArray, Scalar
-
-# import colorcet as cc
+from .typing import FloatArray, PathLike, Scalar
 
 
 def scale_BxBt(
@@ -60,7 +56,7 @@ def scale_BxBt(
 
     # Translate to keep the same Bx as before
     transl_factor = Btot_new[Xpoint] - Bx_base
-    Btot_new = Btot_new - transl_factor
+    Btot_new -= transl_factor
 
     # Replace upstream of the Xpoint with the old data
     # So that we are only scaling downstream of Xpoint
@@ -106,7 +102,6 @@ def scale_Lc(
         )
 
     Lc_base = S_base[Xpoint]
-    Lpol_base = Spol_base[Xpoint]
 
     # Having Lc non-zero
     if Lc is not None:
@@ -171,7 +166,6 @@ def scale_Lm(
         )
 
     Lm_base = S_base[-1]
-    Lpol_base = Spol_base[-1]
 
     if Lm is not None:
         scale_factor = Lm / Lm_base
@@ -231,63 +225,54 @@ def make_arrays(
         Dictionary of 2D arrays of results
     """
 
-    if new == True:  # New format for 2D scans
-        arr = dict()
+    if new:  # New format for 2D scans
 
-        arr["window"] = np.zeros((len(list_BxBt_scales), len(list_Lc_scales)))
-        arr["threshold"] = np.zeros((len(list_BxBt_scales), len(list_Lc_scales)))
-        arr["window_ratio"] = np.zeros((len(list_BxBt_scales), len(list_Lc_scales)))
-        arr["threshold_scale"] = np.zeros((len(list_BxBt_scales), len(list_Lc_scales)))
+        def flatten(key: str):
+            return np.array([[col[key] for col in row] for row in scan2d])
 
-        for col, BxBt in enumerate(list_BxBt_scales):
-            for row, Lc in enumerate(list_Lc_scales):
-                arr["window_ratio"][row, col] = scan2d[row][col]["window_ratio"]
+        def cut_func(predicate, array):
+            return np.where(predicate, array, np.nan)
 
-                if cut == True:
-                    if cvar == "q":
-                        if arr["window_ratio"][row, col] <= 1:
-                            arr["threshold"][row, col] = scan2d[row][col]["threshold"]
-                            arr["window"][row, col] = scan2d[row][col]["window"]
-                        else:
-                            arr["threshold"][row, col] = np.nan
-                            arr["window"][row, col] = np.nan
-                            arr["window_ratio"][row, col] = np.nan
-                    else:
-                        if arr["window_ratio"][row, col] >= 1:
-                            arr["threshold"][row, col] = scan2d[row][col]["threshold"]
-                            arr["window"][row, col] = scan2d[row][col]["window"]
-                        else:
-                            arr["threshold"][row, col] = np.nan
-                            arr["window"][row, col] = np.nan
-                            arr["window_ratio"][row, col] = np.nan
-                else:
-                    arr["threshold"][row, col] = scan2d[row][col]["threshold"]
-                    arr["window"][row, col] = scan2d[row][col]["window"]
+        window = flatten("window")
+        window_ratio = flatten("window_ratio")
+        threshold = flatten("threshold")
+
+        if cut:
+            if cvar == "q":
+                predicate = window_ratio <= 1
+            elif cvar == "ne":
+                predicate = window_ratio >= 1
+            else:
+                raise ValueError(
+                    f"Expected one of ('q', 'ne') for 'cvar', got '{cvar}'"
+                )
+
+            threshold = cut_func(predicate, threshold)
+            window = cut_func(predicate, window)
+            window_ratio = cut_func(predicate, window_ratio)
 
         index_1_BxBt = np.where(list_BxBt_scales == 1)
         index_1_Lc = np.where(list_Lc_scales == 1)
-        window_norm = arr["window"][index_1_BxBt, index_1_Lc]
-        window_ratio_norm = arr["window_ratio"][index_1_BxBt, index_1_Lc]
-        threshold_norm = arr["threshold"][index_1_BxBt, index_1_Lc]
+        window_norm = window[index_1_BxBt, index_1_Lc]
+        window_ratio_norm = window_ratio[index_1_BxBt, index_1_Lc]
+        threshold_norm = threshold[index_1_BxBt, index_1_Lc]
 
-        arr["window_norm"] = (arr["window"] - window_norm) / abs(window_norm)
-        arr["window_ratio_norm"] = (arr["window_ratio"] - window_ratio_norm) / abs(
-            window_ratio_norm
-        )
-        arr["threshold_norm"] = arr["threshold"] / threshold_norm
-        arr["threshold_norm"] -= 1
-
-        arr["window_base"] = window_norm
-        arr["window_ratio_base"] = window_ratio_norm
-        arr["threshold_base"] = threshold_norm
-
+        arr = {
+            "window_norm": (window - window_norm) / abs(window_norm),
+            "window_ratio_norm": (window_ratio - window_ratio_norm)
+            / abs(window_ratio_norm),
+            "threshold_norm": (threshold / threshold_norm) - 1,
+            "window_base": window_norm,
+            "window_ratio_base": window_ratio_norm,
+            "threshold_base": threshold_norm,
+        }
     else:
         arr_window = []
         arr_threshold = []
         arr_window_ratio = []
-        arr = dict()
+        arr = {}
 
-        for i, BxBt_scale in enumerate(list_BxBt_scales):
+        for i in range(len(list_BxBt_scales)):
             arr_window.append(scan2d[i]["window"])
             arr_threshold.append(scan2d[i]["threshold"])
             arr_window_ratio.append(scan2d[i]["window_ratio"])
@@ -300,10 +285,9 @@ def make_arrays(
         index_1_Lc = np.where(list_Lc_scales == 1)
         window_norm = arr["window"][index_1_BxBt, index_1_Lc]
         threshold_norm = arr["threshold"][index_1_BxBt, index_1_Lc]
-        print("yep")
+
         arr["window_norm"] = (arr["window"] - window_norm) / abs(window_norm) - 1
-        arr["threshold_norm"] = arr["threshold"] / threshold_norm
-        arr["threshold_norm"] -= 1
+        arr["threshold_norm"] = arr["threshold"] / threshold_norm - 1
 
     return arr
 
@@ -333,20 +317,13 @@ def make_window_band(
         True if control variable is heat flux
 
     """
-    # o = copy.deepcopy(o)
-    # d = copy.deepcopy(d)
 
-    band = dict()
-    if q == False:
-        crel = np.array(o["crel"])
-    else:
-        crel = 1 / np.array(o["crel"])
+    band = {}
+    crel = np.array(o["crel"]) if q is False else 1 / np.array(o["crel"])
     splot = np.array(o["Splot"])
     spolplot = np.array(o["SpolPlot"])
     Btot = d["Btot"]
     Btot_grad = np.gradient(Btot)
-
-    c_grid = np.linspace(crel[0], crel[-1], 1000)
 
     spar_from_crel = interpolate.UnivariateSpline(crel, splot, k=5)
     spol_from_crel = interpolate.UnivariateSpline(crel, spolplot, k=5)
@@ -380,18 +357,14 @@ def make_window_band(
 
 def file_write(data: dict[str, FloatArray], filename: PathLike):
     """Writes an object to a pickle file"""
-    with open(filename, "wb") as file:
-        # Open file in write binary mode, dump result to file
-        pkl.dump(data, file)
+    with open(filename, "wb") as f:
+        pkl.dump(data, f)
 
 
 def file_read(filename: PathLike) -> dict[str, FloatArray]:
     """Reads a pickle file and returns it"""
-    with open(filename, "rb") as filename:
-        # Open file in read binary mode, dump file to result.
-        data = pkl.load(filename)
-
-    return data
+    with open(filename, "rb") as f:
+        return pkl.load(f)
 
 
 def pad_profile(S, data):
@@ -404,6 +377,4 @@ def pad_profile(S, data):
     intended_length = len(S)
     actual_length = len(data)
 
-    out = np.insert(data, 0, np.zeros((intended_length - actual_length)))
-
-    return out
+    return np.insert(data, 0, np.zeros(intended_length - actual_length))
