@@ -23,7 +23,7 @@ def unpackConfigurationMK(
     File = balance file path
     Type = iu, il, ou, ol, box: inner upper and lower, outer upper and lower, or slab geometry
     polModulator: multiplier on poloidal B field
-    sepadd: code returns the nth sol ring from the separatrix, where n is sepadd
+    sepadd: code returns the nth sol ring outside the separatrix, where n = sepadd
     convention: target_to_midplane has target at s=0, midplane_to_target has midplane at s=0
     diagnostic_plot: plot a figure for a visual check
     absolute_B: return Bpol and Btot as absolute values
@@ -47,8 +47,8 @@ def unpackConfigurationMK(
 
     """------DATA EXTRACTION"""
     rootgrp = Dataset(File, "r", format="NETCDF4")
-    sep = rootgrp["jsep"][0]  # separatrix cell ring
-    sep += sepadd  # select cell ring to work on
+    sep = rootgrp["jsep"][0] + 2  # Add 1 for guard cell and 1 for first ring after sep
+    sep += sepadd   
     bb = rootgrp["bb"]  # B vector array
 
     full = {}  # dictionary to store parameters over full SOL ring
