@@ -79,9 +79,15 @@ def unpackConfigurationMK(
     for i in range(1, len(gradR)):
         if np.sign(gradR[i - 1]) != np.sign(gradR[i]):
             reversals.append(i)
-
-    omp = reversals[-2]  # outer midplane
-    imp = reversals[1]  # inner midplane
+   
+    ## Find IMP and OMP by zero crossings in Z
+    sign_changes = np.diff(np.sign(full["Z"]))
+    zero_crossings = np.where(sign_changes != 0)[0]
+    imp = zero_crossings[0]
+    omp = zero_crossings[1] + 1
+    
+    upper_break = np.argmax(np.gradient(full["R"]))  # Last cell on inner upper
+    
     xpoint = {}
     target = {}
     sol = defaultdict(dict)
@@ -92,27 +98,20 @@ def unpackConfigurationMK(
     xpoint["ou"] = reversals[-3]  # outer upper xpoint
 
     target["il"] = 0
-    target["iu"] = reversals[3] + 1
-    target["ou"] = reversals[4] - 1
+    target["iu"] = upper_break
+    target["ou"] = upper_break + 1
     target["ol"] = len(gradR)
-
-    if diagnostic_plot:
-        fig, ax = plt.subplots(dpi=150)
-        ax.set_aspect("equal")
-        ax.scatter(full["R"], full["Z"], s=5)
-        for i in reversals:
-            ax.scatter(full["R"][i], full["Z"][i], color="red", marker="*", s=10)
 
     # Define start and end for each segment, going clockwise from bottom left.
     start = {}
     end = {}
     start["il"] = target["il"]
-    start["iu"] = imp - 1
+    start["iu"] = imp 
     start["ou"] = target["ou"]
     start["ol"] = omp - 1
 
-    end["il"] = imp + 1
-    end["iu"] = target["iu"]
+    end["il"] = imp + 2
+    end["iu"] = target["iu"] + 1
     end["ou"] = omp + 1
     end["ol"] = target["ol"]
 
@@ -206,6 +205,13 @@ def unpackConfigurationMK(
 
     # Plot the four divertor SOLs and corresponding Xpoints
     if diagnostic_plot:
+        
+        fig, ax = plt.subplots()
+        ax.scatter(full["R"], full["Z"], s=20, c = "k")
+        markers = ["o", "v", "d", "s"]
+        for i, side in enumerate(["iu", "il", "ou", "ol"]):
+            ax.plot(data[side]["R"], data[side]["Z"], label=side, marker = markers[i], lw = 0, ms = 3)
+        
         fig, ax = plt.subplots(1, 4, figsize=(18, 4))
 
         xparam = "S"
@@ -258,6 +264,9 @@ def unpackConfigurationMK(
             d["Spol"],
             name=side,
         )
+            
+        profiles[side]["full_R"] = full["R"]
+        profiles[side]["full_Z"] = full["Z"]
 
     # Output by geometry type
     if Type != "box":
