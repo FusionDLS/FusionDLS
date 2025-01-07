@@ -17,46 +17,71 @@ deuterium_mass = physical_constants["deuteron mass"][0]
 
 @dataclass
 class SimulationState:
-    """
-    This class represents the simulation state and contains all the variables and data
-    needed to run the simulation. The state is passed around different functions, which
-    allows more of the algorithm to be abstracted away from the main function.
+    """A collection of all variables and data needed to a simulation.
 
+    The state is passed around different functions, which allows more of the
+    algorithm to be abstracted away from the main function.
     """
 
     nu: float = field(init=False)
+
     cz: float = field(init=False)
+
     T: FloatArray = field(init=False)
+
     q: FloatArray = field(init=False)
+
     Pu0: float = field(init=False)
+
     verbosity: int
+    """Level of verbosity. Higher is more verbose"""
+
     s: FloatArray = field(init=False)
-    """Working set of parallel coordinates (between front location and X-point)"""
+    """Working set of parallel coordinates.
+
+    Includes points between front location and X-point."""
+
     SparFront: FloatArray = field(init=False)
+
     cvar: float = field(init=False)
     """Control variable (density, impurity fraction or 1/power)"""
+
     Tu: float = field(init=False)
     """Upstream temperature"""
+
     Tucalc: float = field(init=False)
     """New calculation of upstream temperature"""
+
     lower_bound: float = 0.0
     """Lower estimate of the cvar solution"""
+
     upper_bound: float = 0.0
     """Upper estimate of the cvar solution"""
+
     error1: float = 1.0
-    """Control variable (inner) loop error based on upstream heat flux approaching qpllu0 or 0 depending on settings"""
+    """Control variable (inner) loop error based on upstream heat flux
+    approaching qpllu0 or 0 depending on settings"""
+
     error0: float = 1.0
-    """Temperature (outer) loop error based on upstream temperature converging to steady state"""
+    """Temperature (outer) loop error based on upstream temperature converging
+    to steady state"""
+
     qpllu1: float = 0.0
     """Calculated upstream heat flux"""
+
     qradial: float = 0.0
-    """qpllu1 converted into a source term representing radial heat flux between upstream and X-point"""
+    """qpllu1 converted into a source term representing radial heat flux
+    between upstream and X-point"""
+
     qpllt: float = 0.0
     """Virtual target heat flux (typically 0)"""
+
     point: int = 0
     """Location of front position in index space"""
+
     log: dict = field(default_factory=dict)
-    """Log of guesses of Tu and cvar, errors and bounds. Dictionary keys are front positions in index space"""
+    """Log of guesses of Tu and cvar, errors and bounds. Dictionary keys are
+    front positions in index space"""
 
     def __post_init__(self):
         self.singleLog = {
@@ -99,68 +124,109 @@ class SimulationState:
 
 @dataclass
 class SimulationInputs:
-    """
-    This class functions the same as SimulationState, but is used to store the inputs instead.
-    The separation is to make it easier to see which variables should be unchangeable.
+    """The inputs used to set up a simulation.
+
+    This class functions the same as SimulationState, but is used to store the
+    inputs instead. The separation is to make it easier to see which variables
+    should be unchangeable.
     """
 
     nu: float
+
     gamma_sheath: float
     """Heat transfer coefficient of the virtual target [-]"""
+
     qpllu0: float
-    """Upstream heat flux setting, overriden if control_variable is power [Wm^-2]"""
+    """Upstream heat flux setting.
+
+    Overriden if control_variable is power [Wm^-2]"""
+
     nu0: float
-    """Upstream density setting, overriden if control_variable is density [m^-3]"""
+    """Upstream density setting.
+
+    Overriden if control_variable is density [m^-3]"""
+
     cz0: float
-    """Impurity fraction setting, overriden if control_variable is impurity_frac [-]"""
+    """Impurity fraction setting.
+
+    Overriden if control_variable is impurity_frac [-]"""
+
     Tt: float
     """Desired virtual target temperature [eV]"""
+
     Lfunc: Callable[[float], float]
     """Cooling curve function, can be LfuncKallenbachx where x is Ne, Ar or N."""
+
     SparRange: FloatArray
     """List of S parallel locations to solve for"""
+
     Xpoint: int
     """Index of X-point in parallel space"""
+
     S: FloatArray
     """Parallel distance [m]"""
+
     Spol: FloatArray
     """Poloidal distance [m]"""
+
     B: Callable[[FloatArray], float]
     """Interpolator function returning a Btot for a given S"""
+
     Btot: FloatArray
     """Total B field [T]"""
+
     Bpol: FloatArray
     """Poloidal magnetic field [T]"""
+
     kappa0: float = 2500
     """Electron conductivity"""
+
     mi: float = deuterium_mass
     """Ion mass [kg]"""
+
     control_variable: str = "impurity_frac"
     """One of 'density', 'impurity_frac' or 'power'"""
+
     verbosity: int = 0
     """Level of verbosity. Higher is more verbose"""
+
     Ctol: float = 1e-3
     """Control variable (inner) loop convergence tolerance"""
+
     Ttol: float = 1e-2
     """Temperature (outer) loop convergence tolerance"""
+
     URF: float = 1.0
-    """Under-relaxation factor to smooth out temperature convergence (usually doesn't help with anything, keep at 1)"""
+    """Under-relaxation factor to smooth out temperature convergence.
+
+    This usually doesn't help with anything, so it's best to keep it at 1."""
+
     timeout: int = 20
     """Maximum number of iterations for each loop before warning or error"""
-    Lz: FloatArray = field(init=False)
-    """Cooling curve data, [0] contains temperatures in [eV] and [1] the corresponding cooling values in [W/m^3]"""
-    upstreamGrid: bool = True
-    """If true, includes domain above X-point and source of divertor
-    heat flux comes from radial transport upstream, with :math:`T_u` at the midplane.
 
-    If false, heat flux simply enters at the X-point as :math:`q_i`, and :math:`T_u` is at the X-point"""
+    Lz: list[FloatArray] = field(init=False)
+    """Cooling curve data.
+
+    [0] contains temperatures in [eV] and [1] the corresponding cooling values
+    in [W/m^3]"""
+
+    upstreamGrid: bool = True
+    """Determine whether to include domain above the X-point.
+
+    If true, includes domain above X-point and source of divertor heat flux
+    comes from radial transport upstream, with :math:`T_u` at the midplane.
+
+    If false, heat flux simply enters at the X-point as :math:`q_i`, and
+    :math:`T_u` is at the X-point"""
 
     def __post_init__(self):
         ALLOWED_VARIABLES = ["density", "impurity_frac", "power"]
         if self.control_variable not in ALLOWED_VARIABLES:
-            raise ValueError(
-                f"Unexpected value for 'control_variable' (got {self.control_variable}, expected one of {ALLOWED_VARIABLES})"
+            err = (
+                "Unexpected value for 'control_variable' "
+                f"(got {self.control_variable}, expected one of {ALLOWED_VARIABLES})"
             )
+            raise ValueError(err)
 
         # Initialise cooling curve
         Tcool = np.linspace(0.3, 500, 1000)
