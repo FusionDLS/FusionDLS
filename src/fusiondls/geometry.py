@@ -299,19 +299,20 @@ class MagneticGeometry:
         tolerance: float = 1e-3,
         maxiter: int = 50,
     ) -> Self:
-        """
-        Refines the grid around the front location.
-        Refinement is in the form of a Gaussian distribution
-        with a peak determined by fine_ratio and a given width.
+        """Refines the grid around the front location.
+
+        Refinement is in the form of a Gaussian distribution with a peak
+        determined by fine_ratio and a given width.
 
         Parameters
         ----------
-        fine_ratio:
+        fine_ratio
             Ratio of coarse cell size to fine cell size
-        width:
+        width
             Width of the fine region in meters parallel
-        resolution:
-            resolution of resulting grid. If None, use same resolution as original grid.
+        resolution
+            resolution of resulting grid. If None, use same resolution as
+            original grid.
         """
 
         if resolution is None:
