@@ -1,5 +1,4 @@
 from os import PathLike as os_PathLike
-from typing import Union
 
 from numpy import floating, integer, ndarray
 from numpy.typing import ArrayLike as ArrayLike  # Re-export
@@ -11,5 +10,5 @@ try:
 except ImportError:
     FloatArray = ndarray  # type: ignore[misc]
 
-Scalar = Union[float, integer, floating]
-PathLike = Union[os_PathLike, str]
+Scalar = float | integer | floating
+PathLike = os_PathLike | str

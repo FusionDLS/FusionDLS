@@ -1,6 +1,5 @@
 import pickle
 from dataclasses import asdict, dataclass
-from typing import Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -68,11 +67,11 @@ class MagneticGeometry:
     S: FloatArray
     Spol: FloatArray
     Xpoint: int
-    zl: Optional[FloatArray] = None
-    R_full: Optional[FloatArray] = None
-    Z_full: Optional[FloatArray] = None
-    R_ring: Optional[FloatArray] = None
-    Z_ring: Optional[FloatArray] = None
+    zl: FloatArray | None = None
+    R_full: FloatArray | None = None
+    Z_full: FloatArray | None = None
+    R_ring: FloatArray | None = None
+    Z_ring: FloatArray | None = None
 
     @property
     def Sx(self):
@@ -113,8 +112,8 @@ class MagneticGeometry:
     def scale_flux_expansion(
         self,
         *,
-        scale_factor: Optional[Scalar] = None,
-        expansion: Optional[Scalar] = None,
+        scale_factor: Scalar | None = None,
+        expansion: Scalar | None = None,
     ) -> Self:
         r"""Scale a :math:`B_\mathrm{total}` profile to have an arbitrary
         flux expansion (ratio of :math:`B_\mathrm{X-point}` to
@@ -175,8 +174,8 @@ class MagneticGeometry:
     def scale_connection_length(
         self,
         *,
-        scale_factor: Optional[Scalar] = None,
-        connection_length: Optional[Scalar] = None,
+        scale_factor: Scalar | None = None,
+        connection_length: Scalar | None = None,
     ) -> Self:
         r"""Scale :math:`S_\parallel` and :math:`S_{pol}` profiles for
         arbitrary connection length, :math:`L_c`, return a new `MagneticGeometry`.
@@ -233,8 +232,8 @@ class MagneticGeometry:
     def scale_midplane_length(
         self,
         *,
-        scale_factor: Optional[Scalar] = None,
-        midplane_length: Optional[Scalar] = None,
+        scale_factor: Scalar | None = None,
+        midplane_length: Scalar | None = None,
     ) -> Self:
         r"""Scale :math:`S_\parallel` and :math:`S_{pol}` profiles for
         arbitrary midplane length, :math:`L_m`, return a new `MagneticGeometry`.
@@ -292,7 +291,7 @@ class MagneticGeometry:
         Sfront,
         fine_ratio: float = 1.5,
         width: float = 4,
-        resolution: Optional[int] = None,
+        resolution: int | None = None,
         diagnostic_plot: bool = False,
         tolerance: float = 1e-3,
         maxiter: int = 50,
