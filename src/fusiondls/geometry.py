@@ -9,14 +9,6 @@ from typing_extensions import Self
 from .typing import FloatArray, PathLike, Scalar
 
 
-def _drop_properties(data: dict) -> dict:
-    """Helper function to remove dict keys that are now properties in `MagneticGeometry`"""
-
-    for var in ("Sx", "Spolx", "Bx", "zx"):
-        data.pop(var)
-    return data
-
-
 @dataclass
 class MagneticGeometry:
     r"""Magnetic geometry for a diverator leg
@@ -96,7 +88,7 @@ class MagneticGeometry:
         with open(filename, "rb") as f:
             eqb = pickle.load(f)
 
-        return cls(**_drop_properties(eqb[design][side]))
+        return cls(**cls._drop_properties(eqb[design][side]))
 
     @classmethod
     def read_design(cls, filename: PathLike, design: str) -> dict[str, Self]:
@@ -106,7 +98,18 @@ class MagneticGeometry:
             eqb = pickle.load(f)
 
         return {
-            side: cls(**_drop_properties(data)) for side, data in eqb[design].items()
+            side: cls(**cls._drop_properties(data))
+            for side, data in eqb[design].items()
+        }
+
+    @classmethod
+    def _drop_properties(cls, data: dict) -> dict:
+        """Helper function to remove dict keys that are now properties"""
+
+        return {
+            k: v
+            for k, v in data.items()
+            if not (k in cls.__dict__ and isinstance(cls.__dict__[k], property))
         }
 
     def scale_flux_expansion(
