@@ -204,7 +204,7 @@ def run_dls(
     Ttol: float = 1e-2,
     URF: float = 1,
     timeout: int = 20,
-    dynamicGrid: bool = False,
+    dynamicGrid: bool = True,
     dynamicGridRefinementRatio: float = 5,
     dynamicGridRefinementWidth: float = 1,
     dynamicGridResolution: Optional[float] = 500,
