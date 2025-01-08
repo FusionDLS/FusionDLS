@@ -307,6 +307,9 @@ class SimulationOutput(Mapping):
     def __getitem__(self, name: str) -> Any:
         return getattr(self, name)
 
+    def __setitem__(self, name: str, val: Any) -> None:
+        setattr(self, name, val)
+
     def __iter__(self) -> Iterator[str]:
         return iter(asdict(self))
 
