@@ -1392,7 +1392,7 @@ def LfuncKallenbach(species_choice: str) -> Callable[[float], float]:
 
     # Now let's trim the curves to a specific temperature
     # First find the last index before temperature of interest
-    Tmax = 500   # Keeping this reasonably low helps performance
+    Tmax = 500  # Keeping this reasonably low helps performance
     Tmax_idx = np.argmin(np.abs(T - Tmax))
     T[Tmax_idx] = Tmax  # Make sure this point is exactly Tmax
     radiation[species_choice][Tmax_idx + 1 :] = 0
