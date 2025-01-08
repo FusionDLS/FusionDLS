@@ -205,7 +205,6 @@ def unpackConfigurationMK(
 
     # Plot the four divertor SOLs and corresponding Xpoints
     if diagnostic_plot:
-
         fig, ax = plt.subplots()
         ax.scatter(full["R"], full["Z"], s=20, c="k")
         markers = ["o", "v", "d", "s"]
