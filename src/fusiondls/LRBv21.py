@@ -1,5 +1,6 @@
 from collections import defaultdict
 from timeit import default_timer as timer
+from typing import Optional
 
 import numpy as np
 from scipy import interpolate
@@ -206,6 +207,7 @@ def run_dls(
     dynamicGrid: bool = False,
     dynamicGridRefinementRatio: float = 5,
     dynamicGridRefinementWidth: float = 1,
+    dynamicGridResolution: Optional[float] = 500,
     dynamicGridDiagnosticPlot: bool = False,
     zero_qpllt: bool = False,
 ) -> dict[str, FloatArray]:
@@ -214,6 +216,9 @@ def run_dls(
     Returns the impurity fraction required for a given temperature at
     the target. Can request a low temperature at a given position to
     mimic a detachment front at that position.
+
+    Note: radiation output is very sensitive to grid resolution. Ensure
+    you achieve grid convergence.
 
     Parameters
     ----------
@@ -239,6 +244,8 @@ def run_dls(
         ratio of finest to coarsest cell width in dynamic grid
     dynamicGridRefinementWidth:
         size of dynamic grid refinement region in metres parallel
+    dynamicGridResolution:
+        resolution of the refined grid. If None, use same resolution as original grid
 
     """
     # Start timer
@@ -300,6 +307,7 @@ def run_dls(
                 fine_ratio=dynamicGridRefinementRatio,
                 width=dynamicGridRefinementWidth,
                 diagnostic_plot=dynamicGridDiagnosticPlot,
+                resolution=dynamicGridResolution,
             )
             si.Xpoint = newProfile["Xpoint"]
             si.S = newProfile["S"]
