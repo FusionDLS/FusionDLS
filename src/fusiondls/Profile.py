@@ -386,6 +386,17 @@ class Profile:
                 color="black",
                 alpha=1,
             )
+            ax.set_xlabel(r"$R\ (m)$")
+            ax.set_ylabel(r"$Z\ (m)$")
+
+            if ylim != (None, None):
+                ax.set_ylim(ylim)
+            if xlim != (None, None):
+                ax.set_xlim(xlim)
+
+            ax.set_title("RZ Space")
+            ax.grid(alpha=0.3, color="k")
+            ax.set_aspect("equal")
 
         default_line_args = {"c": "forestgreen", "alpha": 0.7, "zorder": 100}
         default_marker_args = {
@@ -403,19 +414,6 @@ class Profile:
             self["R_leg_spline"], self["Z_leg_spline"], **line_args, label=self.name
         )
         ax.scatter(self["R_control"], self["Z_control"], **marker_args)
-
-        if ax == None:
-            ax.set_xlabel(r"$R\ (m)$")
-            ax.set_ylabel(r"$Z\ (m)$")
-
-            if ylim != (None, None):
-                ax.set_ylim(ylim)
-            if xlim != (None, None):
-                ax.set_xlim(xlim)
-
-            ax.set_title("RZ Space")
-            ax.grid(alpha=0.3, color="k")
-            ax.set_aspect("equal")
 
 
 class Morph:
