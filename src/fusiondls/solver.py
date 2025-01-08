@@ -1,7 +1,8 @@
 from collections import defaultdict
-from collections.abc import Callable
-from dataclasses import dataclass, field
+from collections.abc import Callable, Iterator, Mapping
+from dataclasses import asdict, dataclass, field
 from timeit import default_timer as timer
+from typing import Any
 
 import numpy as np
 from scipy import interpolate
@@ -237,7 +238,7 @@ class SimulationInputs:
 
 
 @dataclass
-class SimulationOutput:
+class SimulationOutput(Mapping):
     r"""Output from the fusiondls model
 
     Attributes
@@ -303,8 +304,14 @@ class SimulationOutput:
     inputs: SimulationInputs
     state: SimulationState
 
-    def __getitem__(self, name: str):
+    def __getitem__(self, name: str) -> Any:
         return getattr(self, name)
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(asdict(self))
+
+    def __len__(self) -> int:
+        return len(asdict(self))
 
     @property
     def cvar_norm(self) -> FloatArray:
