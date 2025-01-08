@@ -105,6 +105,7 @@ def iterate(si, st):
         y0=[st.qpllt / si.B(st.s[0]), si.Tt],
         rtol=1e-5,
         atol=1e-10,
+        method="LSODA",
         args=(si, st),
     )
 

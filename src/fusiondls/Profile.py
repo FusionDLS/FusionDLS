@@ -404,17 +404,19 @@ class Profile:
         )
         ax.scatter(self["R_control"], self["Z_control"], **marker_args)
 
-        ax.set_xlabel(r"$R\ (m)$")
-        ax.set_ylabel(r"$Z\ (m)$")
+        if ax == None:
+            ax.set_xlabel(r"$R\ (m)$")
+            ax.set_ylabel(r"$Z\ (m)$")
 
-        if ylim != (None, None):
-            ax.set_ylim(ylim)
-        if xlim != (None, None):
-            ax.set_xlim(xlim)
+            if ylim != (None, None):
+                ax.set_ylim(ylim)
+            if xlim != (None, None):
+                ax.set_xlim(xlim)
 
-        ax.set_title("RZ Space")
-        ax.grid(alpha=0.3, color="k")
-        ax.set_aspect("equal")
+
+            ax.set_title("RZ Space")
+            ax.grid(alpha=0.3, color="k")
+            ax.set_aspect("equal")
 
 
 class Morph:
@@ -735,15 +737,27 @@ def shift_points(R, Z, offsets, factor=1):
 
     for point in offsets:
         position = point["pos"]
-        offsetx = point.get("offsetx", 0)
-        offsety = point.get("offsety", 0)
+        
+        if "offset" in point and "pos" not in point:
+            offsetx = point.get("offsetx", 0)
+            offsety = point.get("offsety", 0)
 
-        offsetx *= factor
-        offsety *= factor
+            offsetx *= factor
+            offsety *= factor
 
-        Rs, Zs = spl(position)
-        x.append(Rs + offsetx)
-        y.append(Zs + offsety)
+            Rs, Zs = spl(position)
+            x.append(Rs + offsetx)
+            y.append(Zs + offsety)
+        
+        elif "pos" in point and "offset" not in point:
+            x.append(point.get("xpos", 0))
+            y.append(point.get("ypos", 0))
+            
+            if factor != 1:
+                raise Exception("Factor scaling not supported when passing position")
+            
+        else:
+            raise ValueError("Must provide offsets or position")
 
     return np.array(x), np.array(y)
 
