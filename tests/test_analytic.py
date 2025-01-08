@@ -26,7 +26,7 @@ def test_analytic():
 
     s_parallel = np.linspace(0, d["S"][d["Xpoint"] - 1], 30)
 
-    result = run_dls(constants, radios, d, s_parallel, control_variable="density")
+    result = run_dls(constants, radios, d, s_parallel, front_sheath=True, control_variable="density")
     density_norm = result["cvar"] / result["cvar"][0]
 
     analytic = [
