@@ -139,12 +139,12 @@ class SimulationInputs:
     qpllu0: float
     """Upstream heat flux setting.
 
-    Overriden if control_variable is power [Wm^-2]"""
+    Overriden if control_variable is power [:math:`Wm^{-2}`]"""
 
     nu0: float
     """Upstream density setting.
 
-    Overriden if control_variable is density [m^-3]"""
+    Overriden if control_variable is density [:math:`m^{-3}`]"""
 
     cz0: float
     """Impurity fraction setting.
@@ -152,37 +152,38 @@ class SimulationInputs:
     Overriden if control_variable is impurity_frac [-]"""
 
     Tt: float
-    """Desired virtual target temperature [eV]"""
+    """Desired virtual target temperature [:math:`eV`]"""
 
     Lfunc: Callable[[float], float]
-    """Cooling curve function, can be LfuncKallenbachx where x is Ne, Ar or N."""
+    """Cooling curve function, can be LfuncKallenbachx where x is Ne, Ar or
+    N."""
 
     SparRange: FloatArray
-    """List of S parallel locations to solve for"""
+    """List of :math:`S_parallel` locations to solve for"""
 
     Xpoint: int
     """Index of X-point in parallel space"""
 
     S: FloatArray
-    """Parallel distance [m]"""
+    """Parallel distance [:math:`m`]"""
 
     Spol: FloatArray
-    """Poloidal distance [m]"""
+    """Poloidal distance [:math:`m`]"""
 
     B: Callable[[FloatArray], float]
-    """Interpolator function returning a Btot for a given S"""
+    """Interpolator function returning :math:`B_{tot}` for a given :math:`S`"""
 
     Btot: FloatArray
-    """Total B field [T]"""
+    """Total B field [:math:`T`]"""
 
     Bpol: FloatArray
-    """Poloidal magnetic field [T]"""
+    """Poloidal magnetic field [:math:`T`]"""
 
     kappa0: float = 2500
     """Electron conductivity"""
 
     mi: float = deuterium_mass
-    """Ion mass [kg]"""
+    """Ion mass [:math:`kg`]"""
 
     control_variable: str = "impurity_frac"
     """One of 'density', 'impurity_frac' or 'power'"""
@@ -207,8 +208,8 @@ class SimulationInputs:
     Lz: list[FloatArray] = field(init=False)
     """Cooling curve data.
 
-    [0] contains temperatures in [eV] and [1] the corresponding cooling values
-    in [W/m^3]"""
+    [0] contains temperatures in [:math:`eV`] and [1] the corresponding cooling
+    values in [:math:`Wm^{-3}`]"""
 
     upstreamGrid: bool = True
     """Determine whether to include domain above the X-point.
@@ -315,18 +316,18 @@ def run_dls(
     geometry: MagneticGeometry,
     SparRange: FloatArray,
     control_variable: str = "impurity_frac",
-    verbosity: int = 0,
     Ctol: float = 1e-3,
     Ttol: float = 1e-2,
     URF: float = 1,
     timeout: int = 20,
-    dynamicGrid: bool = False,
-    dynamicGridRefinementRatio: float = 5,
-    dynamicGridRefinementWidth: float = 1,
-    dynamicGridDiagnosticPlot: bool = False,
+    refinement_ratio: float = 5,
+    refinement_width: float = 1,
     zero_qpllt: bool = False,
+    static_grid: bool = False,
+    verbosity: int = 0,
+    diagnostic_plot: bool = False,
 ) -> dict[str, FloatArray]:
-    """Run the DLS-extended model
+    """Run the DLS-extended model.
 
     Returns the impurity fraction required for a given temperature at
     the target. Can request a low temperature at a given position to
@@ -334,25 +335,40 @@ def run_dls(
 
     Parameters
     ----------
-    constants:
-        dict of options
-    control_variable:
-        either impurity_frac, density or power
-    Ctol:
-        error tolerance target for the inner loop (i.e. density/impurity/heat flux)
-    Ttol:
-        error tolerance target for the outer loop (i.e. rerrunning until Tu convergence)
-    URF:
-        under-relaxation factor for temperature. If URF is 0.2, Tu_new = Tu_old*0.8 + Tu_calculated*0.2. Always set to 1.
-    Timeout:
-        controls timeout for all three loops within the code. Each has different message on timeout. Default 20
-    dynamicGrid:
-        enables iterative grid refinement around the front (recommended)
-    dynamicGridRefinementRatio:
-        ratio of finest to coarsest cell width in dynamic grid
-    dynamicGridRefinementWidth:
-        size of dynamic grid refinement region in metres parallel
-
+    constants
+        dict of options.
+    geometry
+        Dataclass describing the magnetic geometry profile.
+    SparRange
+        :math:`S_parallel` locations to solve for.
+    control_variable
+        Either ``"impurity_frac"``, ``"density"`` or ``"power"``.
+    Ctol
+        Error tolerance target for the inner loop, i.e. density/impurity/heat
+        flux.
+    Ttol
+        Error tolerance target for the outer loop, i.e. rerrunning until Tu
+        convergence.
+    URF
+      Under-relaxation factor for temperature. If URF is 0.2, :math:`Tu_{new} =
+      0.8Tu_{old} + 0.2Tu_{calculated}. Always set to 1.
+    timeout
+        Controls timeout for all three loops within the code. Each has
+        different message on timeout. Default 20.
+    refinement_ratio
+        Ratio of finest to coarsest cell width.
+    refinement_width
+        Size of grid refinement region in metres parallel.
+    zero_qpllt
+        Set the initial guess of ``qpllt``, the virtual target temperature , to
+        zero.
+    static_grid
+        Do not perform dynamic grid refinement. ``refinement_ratio`` and
+        ``refinement_width`` will be ignored, as will ``diagnostic_plot``.
+    verbosity
+        Level of verbosity. Higher is more verbose.
+    diagnostic_plot
+        Plot grid refinement.
     """
     # Start timer
     t0 = timer()
@@ -389,12 +405,14 @@ def run_dls(
         # Current prescribed parallel front location
         st.SparFront = SparFront
 
-        if dynamicGrid:
+        if static_grid:
+            point = st.point = int(np.argmin(abs(geometry.S - SparFront)))
+        else:
             newProfile = geometry.refine(
                 SparFront,
-                fine_ratio=dynamicGridRefinementRatio,
-                width=dynamicGridRefinementWidth,
-                diagnostic_plot=dynamicGridDiagnosticPlot,
+                fine_ratio=refinement_ratio,
+                width=refinement_width,
+                diagnostic_plot=diagnostic_plot,
             )
             si.Xpoint = newProfile.Xpoint
             si.S = newProfile.S
@@ -407,9 +425,6 @@ def run_dls(
             # Find index of front location on new grid
             SparFrontOld = si.SparRange[idx]
             point = st.point = int(np.argmin(abs(si.S - SparFrontOld)))
-
-        else:
-            point = st.point = int(np.argmin(abs(geometry.S - SparFront)))
 
         print(f"{SparFront:.2f}...", end="")
 
