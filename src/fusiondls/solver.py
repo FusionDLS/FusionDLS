@@ -9,7 +9,7 @@ from scipy import interpolate
 from scipy.constants import elementary_charge, physical_constants
 from scipy.integrate import cumulative_trapezoid, solve_ivp, trapezoid
 
-from .AnalyticCoolingCurves import cooling_curves
+from .analytic_cooling_curves import cooling_curves
 from .DLScommonTools import pad_profile
 from .geometry import MagneticGeometry
 from .typing import FloatArray
