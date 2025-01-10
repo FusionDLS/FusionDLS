@@ -2,7 +2,7 @@ import pathlib
 
 import numpy as np
 
-from fusiondls import MagneticGeometry, run_dls
+from fusiondls import MagneticGeometry, SimulationInputs, run_dls
 from fusiondls.Analytic_DLS import CfInt
 
 
@@ -12,19 +12,21 @@ def test_analytic():
     )
     geometry = MagneticGeometry.from_pickle(filename, "V10", "ou")
 
-    constants = {
-        "gamma_sheath": 7,
-        "Tt": 1,
-        "qpllu0": 4e8,
-        "nu": 1e20,
-        "nu0": 1e20,
-        "cz0": 0.02,
-        "cooling_curve": "N",
-    }
-
     s_parallel = np.linspace(0, geometry.S[geometry.Xpoint - 1], 30)
 
-    result = run_dls(constants, geometry, s_parallel, control_variable="density")
+    inputs = SimulationInputs(
+        SparRange = s_parallel,
+        nu = 1e20,
+        gamma_sheath = 7,
+        qpllu0 = 4e8,
+        nu0 = 1e20,
+        cz0 = 0.02,
+        Tt = 1,
+        cooling_curve = "N",
+        control_variable="density",
+    )
+
+    result = run_dls(inputs, geometry)
 
     analytic = [
         CfInt(geometry.S, geometry.Btot, geometry.Sx, np.max(geometry.S), s)
