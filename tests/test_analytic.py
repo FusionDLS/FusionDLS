@@ -15,14 +15,14 @@ def test_analytic():
     s_parallel = np.linspace(0, geometry.S[geometry.Xpoint - 1], 30)
 
     inputs = SimulationInputs(
-        SparRange = s_parallel,
-        nu = 1e20,
-        gamma_sheath = 7,
-        qpllu0 = 4e8,
-        nu0 = 1e20,
-        cz0 = 0.02,
-        Tt = 1,
-        cooling_curve = "N",
+        SparRange=s_parallel,
+        nu=1e20,
+        gamma_sheath=7,
+        qpllu0=4e8,
+        nu0=1e20,
+        cz0=0.02,
+        Tt=1,
+        cooling_curve="N",
         control_variable="density",
     )
 
