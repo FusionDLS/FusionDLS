@@ -201,7 +201,7 @@ def run_dls(
     control_variable: str = "impurity_frac",
     verbosity: int = 0,
     Ctol: float = 1e-3,
-    Ttol: float = 1e-2,
+    Ttol: float = 1e-3,
     URF: float = 1,
     timeout: int = 20,
     dynamicGrid: bool = True,
