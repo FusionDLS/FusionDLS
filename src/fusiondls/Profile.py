@@ -386,6 +386,17 @@ class Profile:
                 color="black",
                 alpha=1,
             )
+            ax.set_xlabel(r"$R\ (m)$")
+            ax.set_ylabel(r"$Z\ (m)$")
+
+            if ylim != (None, None):
+                ax.set_ylim(ylim)
+            if xlim != (None, None):
+                ax.set_xlim(xlim)
+
+            ax.set_title("RZ Space")
+            ax.grid(alpha=0.3, color="k")
+            ax.set_aspect("equal")
 
         default_line_args = {"c": "forestgreen", "alpha": 0.7, "zorder": 100}
         default_marker_args = {
@@ -403,18 +414,6 @@ class Profile:
             self["R_leg_spline"], self["Z_leg_spline"], **line_args, label=self.name
         )
         ax.scatter(self["R_control"], self["Z_control"], **marker_args)
-
-        ax.set_xlabel(r"$R\ (m)$")
-        ax.set_ylabel(r"$Z\ (m)$")
-
-        if ylim != (None, None):
-            ax.set_ylim(ylim)
-        if xlim != (None, None):
-            ax.set_xlim(xlim)
-
-        ax.set_title("RZ Space")
-        ax.grid(alpha=0.3, color="k")
-        ax.set_aspect("equal")
 
 
 class Morph:
@@ -735,15 +734,27 @@ def shift_points(R, Z, offsets, factor=1):
 
     for point in offsets:
         position = point["pos"]
-        offsetx = point.get("offsetx", 0)
-        offsety = point.get("offsety", 0)
 
-        offsetx *= factor
-        offsety *= factor
+        if "offset" in point and "pos" not in point:
+            offsetx = point.get("offsetx", 0)
+            offsety = point.get("offsety", 0)
 
-        Rs, Zs = spl(position)
-        x.append(Rs + offsetx)
-        y.append(Zs + offsety)
+            offsetx *= factor
+            offsety *= factor
+
+            Rs, Zs = spl(position)
+            x.append(Rs + offsetx)
+            y.append(Zs + offsety)
+
+        elif "pos" in point and "offset" not in point:
+            x.append(point.get("xpos", 0))
+            y.append(point.get("ypos", 0))
+
+            if factor != 1:
+                raise Exception("Factor scaling not supported when passing position")
+
+        else:
+            raise ValueError("Must provide offsets or position")
 
     return np.array(x), np.array(y)
 
