@@ -3,7 +3,7 @@ from dataclasses import asdict, dataclass
 
 import matplotlib.pyplot as plt
 import numpy as np
-import scipy
+from scipy import interpolate
 from typing_extensions import Self
 
 from .typing import FloatArray, PathLike, Scalar
@@ -111,6 +111,13 @@ class MagneticGeometry:
             for k, v in data.items()
             if not (k in cls.__dict__ and isinstance(cls.__dict__[k], property))
         }
+
+    def B(self, s: float) -> float:
+        try:
+            return self._B(s)
+        except AttributeError:
+            self._B = interpolate.interp1d(self.S, self.Btot, kind="cubic")
+            return self._B(s)
 
     def scale_flux_expansion(
         self,
@@ -382,7 +389,7 @@ class MagneticGeometry:
         pnew["S"] = Snew
         for par in ["S", "Spol", "R", "Z", "Btot", "Bpol"]:
             if par not in {"Xpoint", "S"}:
-                pnew[par] = scipy.interpolate.make_interp_spline(
+                pnew[par] = interpolate.make_interp_spline(
                     self.S, getattr(self, par), k=2
                 )(Snew)
 
