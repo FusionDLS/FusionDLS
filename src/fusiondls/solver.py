@@ -1,5 +1,5 @@
 from collections import defaultdict
-from collections.abc import Iterator, Mapping
+from collections.abc import Callable, Iterator, Mapping
 from dataclasses import asdict, dataclass, field
 from timeit import default_timer as timer
 from typing import Any
@@ -124,7 +124,29 @@ class SimulationState:
         return self.__dict__[param]
 
 
-@dataclass(slots=True)
+class CoolingCurve:
+    """Descriptor object, allows setting via function or string.
+
+    Adapted from the `Python docs <https://docs.python.org/3/library/dataclasses.html#descriptor-typed-fields>`_
+    """
+
+    def __set_name__(self, _, name):
+        self._name = "_" + name
+
+    def __get__(self, obj, _):
+        return getattr(obj, self._name)
+
+    def __set__(self, obj, value):
+        if isinstance(value, str):
+            try:
+                value = cooling_curves[value]
+            except KeyError as e:
+                msg = f"Unknown cooling curve '{value}'"
+                raise ValueError(msg) from e
+        setattr(obj, self._name, value)
+
+
+@dataclass
 class SimulationInputs:
     """The inputs used to set up a simulation.
 
@@ -159,10 +181,20 @@ class SimulationInputs:
     Tt: float
     """Desired virtual target temperature [:math:`eV`]"""
 
-    cooling_curve: str
+    cooling_curve: str | Callable[[float], float] = CoolingCurve()
     """Cooling curve function.
 
-    Can be ``"Kallenbachx"`` where ``"x"`` is ``"Ne"``, ``"Ar"`` or ``"N"``.
+    May be to a built-in cooling curve via a string such as ``"KallenbachX"``,
+    where ``"X"`` is ``"Ne"``, ``"Ar"`` or ``"N"``. See ``cooling_curves`` for
+    all examples.
+
+    Alternatively, a custom cooling curve may be set by supplying a
+    ``Callable`` that takes a single ``float`` argument and returns a
+    ``float``. A cooling curve should be a function of temperature in
+    [:math:`eV`].
+
+    The results are very sensitive to cooling curve choice, so care should be
+    taken to set this correctly.
     """
 
     kappa0: float = 2500
@@ -237,7 +269,7 @@ class SimulationInputs:
         # Initialise cooling curve
         Tcool = np.linspace(0.3, 500, 1000)
         Tcool = np.append(0, Tcool)
-        Lalpha = np.array([cooling_curves[self.cooling_curve](dT) for dT in Tcool])
+        Lalpha = np.fromiter((self.cooling_curve(dT) for dT in Tcool), float)
         self.Lz = [Tcool, Lalpha]
 
 
@@ -561,7 +593,7 @@ def run_dls(
             output["cvar"].append(st.cvar)
 
         Qrad = []
-        Lfunc = cooling_curves[inputs.cooling_curve]
+        Lfunc = inputs.cooling_curve
         for Tf in st.T:
             if inputs.control_variable == "impurity_frac":
                 Qrad.append(((inputs.nu0**2 * st.Tu**2) / Tf**2) * st.cvar * Lfunc(Tf))
@@ -683,7 +715,7 @@ def LengFunc(
 
     qoverB, T = y
     fieldValue = geometry.B(np.clip(s, geometry.S[0], geometry.S[-1]))
-    Lfunc = cooling_curves[inputs.cooling_curve]
+    Lfunc = inputs.cooling_curve
 
     # add a constant radial source of heat above the X point, which is
     # qradial = qpll at Xpoint/np.abs(S[-1]-S[Xpoint]) i.e. radial heat
