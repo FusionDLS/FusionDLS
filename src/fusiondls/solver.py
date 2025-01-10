@@ -9,6 +9,7 @@ from scipy import interpolate
 from scipy.constants import elementary_charge, physical_constants
 from scipy.integrate import cumulative_trapezoid, solve_ivp, trapezoid
 
+from .AnalyticCoolingCurves import cooling_curves
 from .DLScommonTools import pad_profile
 from .geometry import MagneticGeometry
 from .typing import FloatArray
@@ -155,9 +156,11 @@ class SimulationInputs:
     Tt: float
     """Desired virtual target temperature [:math:`eV`]"""
 
-    Lfunc: Callable[[float], float]
-    """Cooling curve function, can be LfuncKallenbachx where x is Ne, Ar or
-    N."""
+    cooling_curve: str
+    """Cooling curve function.
+
+    Can be ``"Kallenbachx"`` where ``"x"`` is ``"Ne"``, ``"Ar"`` or ``"N"``.
+    """
 
     SparRange: FloatArray
     """List of :math:`S_parallel` locations to solve for"""
@@ -233,7 +236,7 @@ class SimulationInputs:
         # Initialise cooling curve
         Tcool = np.linspace(0.3, 500, 1000)
         Tcool = np.append(0, Tcool)
-        Lalpha = np.array([self.Lfunc(dT) for dT in Tcool])
+        Lalpha = np.array([cooling_curves[self.cooling_curve](dT) for dT in Tcool])
         self.Lz = [Tcool, Lalpha]
 
 
@@ -615,13 +618,14 @@ def run_dls(
             output["cvar"].append(st.cvar)
 
         Qrad = []
+        Lfunc = cooling_curves[si.cooling_curve]
         for Tf in st.T:
             if si.control_variable == "impurity_frac":
-                Qrad.append(((si.nu0**2 * st.Tu**2) / Tf**2) * st.cvar * si.Lfunc(Tf))
+                Qrad.append(((si.nu0**2 * st.Tu**2) / Tf**2) * st.cvar * Lfunc(Tf))
             elif si.control_variable == "density":
-                Qrad.append(((st.cvar**2 * st.Tu**2) / Tf**2) * si.cz0 * si.Lfunc(Tf))
+                Qrad.append(((st.cvar**2 * st.Tu**2) / Tf**2) * si.cz0 * Lfunc(Tf))
             elif si.control_variable == "power":
-                Qrad.append(((si.nu0**2 * st.Tu**2) / Tf**2) * si.cz0 * si.Lfunc(Tf))
+                Qrad.append(((si.nu0**2 * st.Tu**2) / Tf**2) * si.cz0 * Lfunc(Tf))
 
         # Pad some profiles with zeros to ensure same length as S
         output["Sprofiles"].append(si.S)
@@ -729,6 +733,7 @@ def LengFunc(
 
     qoverB, T = y
     fieldValue = si.B(np.clip(s, si.S[0], si.S[-1]))
+    Lfunc = cooling_curves[si.cooling_curve]
 
     # add a constant radial source of heat above the X point, which is qradial = qpll at Xpoint/np.abs(S[-1]-S[Xpoint]
     # i.e. radial heat entering SOL evenly spread between midplane and xpoint needs to be sufficient to get the
@@ -736,7 +741,7 @@ def LengFunc(
 
     # working on neutral/ionisation model
     # dqoverBds = dqoverBds/fieldValue
-    dqoverBds = ((st.nu**2 * st.Tu**2) / T**2) * st.cz * si.Lfunc(T) / fieldValue
+    dqoverBds = ((st.nu**2 * st.Tu**2) / T**2) * st.cz * Lfunc(T) / fieldValue
 
     if si.upstreamGrid and s > si.S[si.Xpoint]:
         # The second term here converts the x point qpar to a radial heat source acting between midplane and the xpoint

@@ -2,7 +2,7 @@ import pathlib
 
 import numpy as np
 
-from fusiondls import LfuncN, MagneticGeometry, run_dls
+from fusiondls import MagneticGeometry, run_dls
 from fusiondls.Analytic_DLS import CfInt
 
 
@@ -19,7 +19,7 @@ def test_analytic():
         "nu": 1e20,
         "nu0": 1e20,
         "cz0": 0.02,
-        "Lfunc": LfuncN,
+        "cooling_curve": "N",
     }
 
     s_parallel = np.linspace(0, geometry.S[geometry.Xpoint - 1], 30)
