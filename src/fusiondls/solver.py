@@ -330,8 +330,9 @@ def run_dls(
     Ttol: float = 1e-2,
     URF: float = 1,
     timeout: int = 20,
-    refinement_ratio: float = 5,
-    refinement_width: float = 1,
+    grid_refinement_ratio: float = 5,
+    grid_refinement_width: float = 1,
+    grid_resolution: int | None = 500,
     zero_qpllt: bool = False,
     static_grid: bool = False,
     verbosity: int = 0,
@@ -342,6 +343,9 @@ def run_dls(
     Returns the impurity fraction required for a given temperature at
     the target. Can request a low temperature at a given position to
     mimic a detachment front at that position.
+
+    Note: radiation output is very sensitive to grid resolution. Ensure
+    you achieve grid convergence.
 
     Parameters
     ----------
@@ -365,16 +369,20 @@ def run_dls(
     timeout
         Controls timeout for all three loops within the code. Each has
         different message on timeout. Default 20.
-    refinement_ratio
+    grid_refinement_ratio
         Ratio of finest to coarsest cell width.
-    refinement_width
+    grid_refinement_width
         Size of grid refinement region in metres parallel.
+    grid_resolution
+        Resolution of the refined grid. If set to ``None``, uses the same resolution
+        as the original grid.
     zero_qpllt
         Set the initial guess of ``qpllt``, the virtual target temperature , to
         zero.
     static_grid
-        Do not perform dynamic grid refinement. ``refinement_ratio`` and
-        ``refinement_width`` will be ignored, as will ``diagnostic_plot``.
+        Do not perform dynamic grid refinement. ``grid_refinement_ratio``,
+        ``grid_refinement_width`` and ``grid_resolution`` will be ignored, as
+        will ``diagnostic_plot``.
     verbosity
         Level of verbosity. Higher is more verbose.
     diagnostic_plot
@@ -420,8 +428,9 @@ def run_dls(
         else:
             newProfile = geometry.refine(
                 SparFront,
-                fine_ratio=refinement_ratio,
-                width=refinement_width,
+                fine_ratio=grid_refinement_ratio,
+                width=grid_refinement_width,
+                resolution=grid_resolution,
                 diagnostic_plot=diagnostic_plot,
             )
             si.Xpoint = newProfile.Xpoint
