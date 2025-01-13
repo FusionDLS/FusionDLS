@@ -247,14 +247,20 @@ class SimulationInputs:
     If set to ``None``, uses the same resolution as the original grid.
     """
 
-    zero_qpllt: bool = False
-    """Set the initial guess of the virtual target temperature, to 0."""
-
     static_grid: bool = False
     """Do not perform dynamic grid refinement.
 
     ``grid_refinement_ratio``, ``grid_refinement_width`` and
     ``grid_resolution`` will be ignored, as will ``diagnostic_plot``.
+    """
+
+    front_sheath: bool = False
+    """Enables a sheath gamma style model for heat flux through the front."""
+
+    qpllt_fraction: float = 0.05
+    """Fraction of the upstream heat flux at the target.
+
+    Applies if ``front_sheath`` is ``False``.
     """
 
     def __post_init__(self):
@@ -481,10 +487,8 @@ def run_dls(
             )
             st.cvar = 1 / qradial_guess
 
-        # Initial guess of qpllt, the virtual target temperature (typically 0).
-        if inputs.zero_qpllt:
-            st.qpllt = inputs.qpllu0 * 1e-2
-        else:
+        # Assumption of target heat flux
+        if inputs.front_sheath:
             st.qpllt = (
                 inputs.gamma_sheath
                 / 2
@@ -493,6 +497,8 @@ def run_dls(
                 * elementary_charge
                 * np.sqrt(2 * inputs.Tt * elementary_charge / inputs.mi)
             )
+        else:
+            st.qpllt = inputs.qpllu0 * inputs.qpllt_fraction
 
         """------INITIALISATION------"""
         st.error1 = 1  # Inner loop error (error in qpllu based on provided cz/ne)

@@ -24,6 +24,7 @@ def test_analytic():
         Tt=1,
         cooling_curve="N",
         control_variable="density",
+        front_sheath=True,
     )
 
     result = run_dls(inputs, geometry)
