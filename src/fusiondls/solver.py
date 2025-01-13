@@ -26,24 +26,28 @@ class SimulationState:
     """
 
     nu: float = field(init=False)
+    """Current upstream density"""
 
     cz: float = field(init=False)
+    """Current impurity fraction"""
 
     T: FloatArray = field(init=False)
+    """Current temperature profile"""
 
     q: FloatArray = field(init=False)
+    """Current parallel electron heat flux profile"""
 
     Pu0: float = field(init=False)
+    """Initial upstream electron pressure"""
 
     verbosity: int
     """Level of verbosity. Higher is more verbose"""
 
     s: FloatArray = field(init=False)
-    """Working set of parallel coordinates.
-
-    Includes points between front location and X-point."""
+    """Parallel connection length profile"""
 
     SparFront: FloatArray = field(init=False)
+    """Current detachment front position  in [m]"""
 
     cvar: float = field(init=False)
     """Control variable (density, impurity fraction or 1/power)"""
