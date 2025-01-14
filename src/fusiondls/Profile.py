@@ -399,6 +399,7 @@ class Profile:
         ax=None,
         legend=False,
         parallel=True,
+        full_RZ = False,
         label="",
         color="teal",
         **kwargs,
