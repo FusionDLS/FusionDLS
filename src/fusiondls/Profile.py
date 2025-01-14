@@ -209,10 +209,10 @@ class Profile:
             self.R_leg, self.Z_leg, offsets, factor=factor
         )  # Control points defining profile
 
-        self.interpolate_leg_from_control_points()
-        self.recalculate_topology()
+        self._interpolate_leg_from_control_points()
+        self._recalculate_topology()
 
-    def interpolate_leg_from_control_points(self):
+    def _interpolate_leg_from_control_points(self):
         """
         Takes saved R_control and Z_control and uses them to interpolate new R,Z
         coordinates for the entire profile
@@ -250,7 +250,7 @@ class Profile:
             ]
         )
 
-    def recalculate_topology(self, constant_pitch=True, Bpol_shift=None):
+    def _recalculate_topology(self, constant_pitch=True, Bpol_shift=None):
         """
         Recalculate Spol, S, Btor, Bpol and Btot from R,Z
         If doing this after morphing a profile:
