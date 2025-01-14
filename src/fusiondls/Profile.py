@@ -852,14 +852,14 @@ def shift_points(R, Z, offsets, factor=1):
     for point in offsets:
         position = point["pos"]
 
-        if "offsetx" in point and "xpos" in point:
+        if "offsetx" in point and "posx" in point:
             raise ValueError("Offset and position cannot be set simultaneously")
-        if "offsety" in point and "ypos" in point:
+        if "offsety" in point and "posy" in point:
             raise ValueError("Offset and position cannot be set simultaneously")
         for key in point:
-            if key not in ["pos", "offsetx", "offsety", "xpos", "ypos"]:
+            if key not in ["pos", "offsetx", "offsety", "posx", "posy"]:
                 raise ValueError(
-                    f"Unknown key {key}! Provide either pos, offsetx, offsety or xpos, ypos"
+                    f"Unknown key {key}! Provide either pos, offsetx, offsety or posx, posy"
                 )
 
         # RZ coordinates of existing point
@@ -869,10 +869,10 @@ def shift_points(R, Z, offsets, factor=1):
         offsety = point.get("offsety", 0)
 
         # If position specified, overwrite offsets with a calculation
-        if "xpos" in point:
-            offsetx = point["xpos"] - Rs
-        if "ypos" in point:
-            offsety = point["ypos"] - Zs
+        if "posx" in point:
+            offsetx = point["posx"] - Rs
+        if "posy" in point:
+            offsety = point["posy"] - Zs
 
         offsetx *= factor
         offsety *= factor
