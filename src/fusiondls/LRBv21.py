@@ -330,7 +330,7 @@ def run_dls(
         else:
             point = st.point = np.argmin(abs(d["S"] - SparFront))
 
-        print(f"{SparFront:.2f}...", end="")
+        print(f"{SparFront:.4f}...", end="")
 
         """------INITIAL GUESSES------"""
 
