@@ -373,11 +373,14 @@ class Profile:
 
         fig.tight_layout()
 
-    def plot(self, ax=None, legend=False, parallel=True, name="", color="teal"):
+    def plot(self, mode = "Btot", ax=None, legend=False, parallel=True, label="", color="teal"):
         """Plot total B field profile over parallel or poloidal connection length.
 
         Parameters
         ----------
+        mode : str
+            What to plot, either "Btot" for total B profile or "RZ" real space plot
+            which omits the region above the X-point
         ax :
             Matplotlib axis to plot on (optional)
         legend : bool
@@ -391,7 +394,11 @@ class Profile:
             _fig, ax = plt.subplots()
 
         x = self.S if parallel else self.Spol
-        ax.plot(x, self.Btot, color=color, label=name)
+        if mode == "Btot":
+            ax.plot(x, self.Btot, color=color, label=label)
+        elif mode == "RZ":
+            ax.plot(self.R[:self.Xpoint], self.Z[:self.Xpoint], color=color, label=label)
+            
         ax.set_xlabel(r"$S_{\parallel}$ (m from target)")
         ax.set_ylabel(r"$B_{tot}$ (T)")
 
@@ -406,6 +413,7 @@ class Profile:
         xlim=(None, None),
         dpi=100,
         ax=None,
+        color = "limegreen",
     ):
         if markersettings is None:
             markersettings = {}
@@ -423,9 +431,9 @@ class Profile:
                 alpha=1,
             )
 
-        default_line_args = {"c": "forestgreen", "alpha": 0.7, "zorder": 100}
+        default_line_args = {"c": color, "alpha": 0.7, "zorder": 100}
         default_marker_args = {
-            "c": "limegreen",
+            "c": color,
             "marker": "+",
             "linewidth": 15,
             "s": 3,
