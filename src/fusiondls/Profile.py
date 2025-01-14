@@ -362,6 +362,31 @@ class Profile:
 
         fig.tight_layout()
 
+    def plot(self, ax=None, legend=False, parallel=True, name="", color="teal"):
+        """Plot total B field profile over parallel or poloidal connection length.
+
+        Parameters
+        ----------
+        ax :
+            Matplotlib axis to plot on (optional)
+        legend : bool
+            Whether to include a legend for when no axis is provided
+        parallel : bool
+            If true, plot parallel connection length, else poloidal
+        color : str
+            Color of the plot
+        """
+        if ax is None:
+            _fig, ax = plt.subplots()
+
+        x = self.S if parallel else self.Spol
+        ax.plot(x, self.Btot, color=color, label=name)
+        ax.set_xlabel(r"$S_{\parallel}$ (m from target)")
+        ax.set_ylabel(r"$B_{tot}$ (T)")
+
+        if legend is True and ax is None:
+            ax.legend()
+
     def plot_control_points(
         self,
         linesettings=None,
