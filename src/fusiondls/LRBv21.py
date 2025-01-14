@@ -251,7 +251,6 @@ def run_dls(
         enables a sheath gamma style model for heat flux through the front
     qpllt_fraction:
         if front_sheath is false, target heat flux is set to a constant fraction of the upstream heat flux
-
     """
     # Start timer
     t0 = timer()
