@@ -841,7 +841,7 @@ def shift_points(R, Z, offsets, factor=1):
         Each dictionary contains either positions or offsets and a position
         along the field line of a control point. See offset_control_points().
     factor : float
-        Factor to scale the effect of point shifting, where 0 = no change, 
+        Factor to scale the effect of point shifting, where 0 = no change,
         1 = profile shifted according to offsets, 0.5 = profile shifted halfway.
     """
 
@@ -858,7 +858,9 @@ def shift_points(R, Z, offsets, factor=1):
             raise ValueError("Offset and position cannot be set simultaneously")
         for key in point:
             if key not in ["pos", "offsetx", "offsety", "xpos", "ypos"]:
-                raise ValueError(f"Unknown key {key}! Provide either pos, offsetx, offsety or xpos, ypos")
+                raise ValueError(
+                    f"Unknown key {key}! Provide either pos, offsetx, offsety or xpos, ypos"
+                )
 
         # RZ coordinates of existing point
         Rs, Zs = spl(position)
