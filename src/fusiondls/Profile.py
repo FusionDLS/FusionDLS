@@ -186,7 +186,7 @@ class Profile:
                 "Warning: Scaling connection length. R,Z coordinates will no longer be valid"
             )
 
-    def offset_control_points(self, offsets, factor=1):
+    def offset_control_points(self, offsets, factor=1, verbose=True):
         """
         Take profile and add control points [x,y]
         Then perform cord spline interpolation to get interpolated profile in [xs,ys]
@@ -200,6 +200,17 @@ class Profile:
         Where pos is the fractional poloidal position along the field line
         starting at the target, and offsety and offsetx are vertical and
         horizontal offsets in [m].
+
+        Parameters
+        ----------
+        offsets : list of dictionaries
+            Each dictionary contains either positions or offsets and a position
+            along the field line of a control point. See offset_control_points().
+        factor : float
+            Factor to scale the effect of point shifting, where 0 = no change,
+            1 = profile shifted according to offsets, 0.5 = profile shifted halfway.
+        verbose : bool
+            Print warnings
         """
 
         self.R_original = self.R.copy()
@@ -210,7 +221,8 @@ class Profile:
         )  # Control points defining profile
 
         self._interpolate_leg_from_control_points()
-        self._recalculate_topology()
+        if verbose:
+            print("Profile modified. Now recalculate topology!")
 
     def _interpolate_leg_from_control_points(self):
         """
@@ -250,7 +262,7 @@ class Profile:
             ]
         )
 
-    def _recalculate_topology(self, constant_pitch=True, Bpol_shift=None):
+    def recalculate_topology(self, constant_pitch=True, Bpol_shift=None, verbose=True):
         """
         Recalculate Spol, S, Btor, Bpol and Btot from R,Z
         If doing this after morphing a profile:
@@ -258,11 +270,17 @@ class Profile:
         - The new leg is contained in R_leg_spline and Z_leg_spline
         - The above are used to calculate new topology
         Currently only supports changing topology below the X-point
-
+            
+        Parameters
+        ----------
+        constant_pitch : bool
+            If true, keep the same magnetic pitch. If false, keep same Bpol profile.
         Bpol_shift: dict()
             Width = gaussian width in m
             pos = position in m poloidal from the target
             height = height in Bpol units
+        verbose : bool
+            Print warnings        
         """
 
         ## Calculate existing toroidal field (1/R)
@@ -322,6 +340,8 @@ class Profile:
         # to old leg for Btor
         self["R_leg"] = self["R"][: self["Xpoint"] + 1]
         self["Z_leg"] = self["Z"][: self["Xpoint"] + 1]
+        if verbose:
+            print("Topology recalculated.")
 
     def plot_topology(self):
         fig, axes = plt.subplots(2, 2, figsize=(8, 8))
