@@ -419,6 +419,8 @@ class Profile:
             Whether to include a legend for when no axis is provided
         parallel : bool
             If true, plot parallel connection length, else poloidal
+        full_RZ : bool
+            If false, exclude region above X-point in RZ plot
         color : str
             Color of the plot
         kwargs : dict
@@ -438,13 +440,23 @@ class Profile:
             ax.plot(x, self.Btot, color=color, label=label, **kwargs)
             ax.set_ylabel("$B_{tot}$ (T)")
         elif mode == "RZ":
-            ax.plot(
-                self.R[: self.Xpoint],
-                self.Z[: self.Xpoint],
-                color=color,
-                label=label,
-                **kwargs,
-            )
+            if full_RZ:
+                ax.plot(
+                    self.R,
+                    self.Z,
+                    color=color,
+                    label=label,
+                    **kwargs,
+                )
+            else:
+                ax.plot(
+                    self.R[: self.Xpoint],
+                    self.Z[: self.Xpoint],
+                    color=color,
+                    label=label,
+                    **kwargs,
+                )
+                
             ax.set_ylabel("Z (m)")
         elif mode == "Spar_Spol":
             ax.plot(self.S, self.Spol, color=color, label=label, **kwargs)
