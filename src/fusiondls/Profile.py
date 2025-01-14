@@ -783,12 +783,12 @@ def shift_points(R, Z, offsets, factor=1):
     ----------
     R, Z: 1D arrays
         R and Z coordinates of field line.
-    i: list of ints
-        Indices of points to shift. They are the control points of the spline.
-    yoffset: list of floats
-        Y offset to apply to each point in i.
-    xoffset: list of floats
-        X offset to apply to each point in i.
+    offsets : list of dictionaries
+        Each dictionary contains either positions or offsets and a position
+        along the field line of a control point. See offset_control_points().
+    factor : float
+        Factor to scale the effect of point shifting, where 0 = no change, 
+        1 = profile shifted according to offsets, 0.5 = profile shifted halfway.
     """
 
     #        XPOINT ---------   TARGET
@@ -802,6 +802,9 @@ def shift_points(R, Z, offsets, factor=1):
             raise ValueError("Offset and position cannot be set simultaneously")
         if "offsety" in point and "ypos" in point:
             raise ValueError("Offset and position cannot be set simultaneously")
+        for key in point:
+            if key not in ["pos", "offsetx", "offsety", "xpos", "ypos"]:
+                raise ValueError(f"Unknown key {key}! Provide either pos, offsetx, offsety or xpos, ypos")
 
         # RZ coordinates of existing point
         Rs, Zs = spl(position)
