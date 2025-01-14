@@ -143,7 +143,7 @@ class Profile:
 
         if verbose:
             print(
-                "Warning: scaling flux expansion. R,Z coordinates will no longer be physical"
+                "Warning: Scaling flux expansion. R,Z coordinates will no longer be valid"
             )
 
         self.Btot = np.concatenate((Btot_leg_new, Btot_upstream))
