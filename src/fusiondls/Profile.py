@@ -393,14 +393,26 @@ class Profile:
 
         fig.tight_layout()
 
-    def plot(self, mode = "Btot", ax=None, legend=False, parallel=True, label="", color="teal"):
-        """Plot total B field profile over parallel or poloidal connection length.
+    def plot(
+        self,
+        mode="Btot",
+        ax=None,
+        legend=False,
+        parallel=True,
+        label="",
+        color="teal",
+        **kwargs,
+    ):
+        """
+
 
         Parameters
         ----------
         mode : str
-            What to plot, either "Btot" for total B profile or "RZ" real space plot
-            which omits the region above the X-point
+            What to plot:
+                "Btot" - total B profile
+                "RZ" - RZ space leg profile (excl. above X-point)
+                "Spar_Spol" - Parallel vs poloidal connection length
         ax :
             Matplotlib axis to plot on (optional)
         legend : bool
@@ -409,18 +421,41 @@ class Profile:
             If true, plot parallel connection length, else poloidal
         color : str
             Color of the plot
+        kwargs : dict
+            Keyword arguments to pass to plot
         """
         if ax is None:
             _fig, ax = plt.subplots()
 
-        x = self.S if parallel else self.Spol
+        if parallel:
+            x = self.S
+            ax.set_xlabel(r"$S_{\parallel}$ (m from target)")
+        else:
+            x = self.Spol
+            ax.set_xlabel(r"$S_{\theta}$ (m from target)")
+
         if mode == "Btot":
-            ax.plot(x, self.Btot, color=color, label=label)
+            ax.plot(x, self.Btot, color=color, label=label, **kwargs)
+            ax.set_ylabel("$B_{tot}$ (T)")
         elif mode == "RZ":
-            ax.plot(self.R[:self.Xpoint], self.Z[:self.Xpoint], color=color, label=label)
-            
-        ax.set_xlabel(r"$S_{\parallel}$ (m from target)")
-        ax.set_ylabel(r"$B_{tot}$ (T)")
+            ax.plot(
+                self.R[: self.Xpoint],
+                self.Z[: self.Xpoint],
+                color=color,
+                label=label,
+                **kwargs,
+            )
+            ax.set_ylabel("Z (m)")
+        elif mode == "Spar_Spol":
+            ax.plot(self.S, self.Spol, color=color, label=label, **kwargs)
+            ax.set_ylabel("$S_{\parallel} / S_{pol}$")
+        elif mode == "magnetic_pitch":
+            ax.plot(self.S, self.Bpol / self.Btot, color=color, label=label, **kwargs)
+            ax.set_ylabel("$B_{pol} / B_{tot}$")
+        else:
+            raise ValueError(
+                f"Mode {mode} not recognised. Try Btot, RZ, magnetic_pitch or Spar_Spol"
+            )
 
         if legend is True and ax is None:
             ax.legend()
