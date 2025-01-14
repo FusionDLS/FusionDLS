@@ -270,7 +270,7 @@ class Profile:
         - The new leg is contained in R_leg_spline and Z_leg_spline
         - The above are used to calculate new topology
         Currently only supports changing topology below the X-point
-            
+
         Parameters
         ----------
         constant_pitch : bool
@@ -280,7 +280,7 @@ class Profile:
             pos = position in m poloidal from the target
             height = height in Bpol units
         verbose : bool
-            Print warnings        
+            Print warnings
         """
 
         ## Calculate existing toroidal field (1/R)
