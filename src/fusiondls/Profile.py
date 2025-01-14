@@ -468,7 +468,7 @@ class Profile:
         xlim=(None, None),
         dpi=100,
         ax=None,
-        color = "limegreen",
+        color="limegreen",
     ):
         if markersettings is None:
             markersettings = {}
@@ -529,7 +529,6 @@ class Profile:
         if xlim != (None, None):
             ax.set_xlim(xlim)
 
-        ax.set_title("RZ Space")
         ax.grid(alpha=0.3, color="k")
         ax.set_aspect("equal")
 
