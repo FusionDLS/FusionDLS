@@ -397,6 +397,17 @@ class Profile:
                 color="black",
                 alpha=1,
             )
+            ax.set_xlabel(r"$R\ (m)$")
+            ax.set_ylabel(r"$Z\ (m)$")
+
+            if ylim != (None, None):
+                ax.set_ylim(ylim)
+            if xlim != (None, None):
+                ax.set_xlim(xlim)
+
+            ax.set_title("RZ Space")
+            ax.grid(alpha=0.3, color="k")
+            ax.set_aspect("equal")
 
         default_line_args = {"c": "forestgreen", "alpha": 0.7, "zorder": 100}
         default_marker_args = {
@@ -781,6 +792,9 @@ def shift_points(R, Z, offsets, factor=1):
             offsetx = point["xpos"] - Rs
         if "ypos" in point:
             offsety = point["ypos"] - Zs
+        
+        if "xpos" in point or "ypos" in point and factor != 1:
+            raise Exception("Factor scaling not supported when passing position")
 
         offsetx *= factor
         offsety *= factor

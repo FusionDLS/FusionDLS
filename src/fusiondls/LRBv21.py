@@ -209,7 +209,8 @@ def run_dls(
     dynamicGridRefinementWidth: float = 1,
     dynamicGridResolution: Optional[float] = 500,
     dynamicGridDiagnosticPlot: bool = False,
-    zero_qpllt: bool = False,
+    front_sheath: bool = False,
+    qpllt_fraction: float = 0.05,
 ) -> dict[str, FloatArray]:
     """Run the DLS-extended model
 
@@ -246,7 +247,10 @@ def run_dls(
         size of dynamic grid refinement region in metres parallel
     dynamicGridResolution:
         resolution of the refined grid. If None, use same resolution as original grid
-
+    front_sheath:
+        enables a sheath gamma style model for heat flux through the front
+    qpllt_fraction:
+        if front_sheath is false, target heat flux is set to a constant fraction of the upstream heat flux
     """
     # Start timer
     t0 = timer()
@@ -385,10 +389,8 @@ def run_dls(
             )
             st.cvar = 1 / qradial_guess
 
-        # Initial guess of qpllt, the virtual target temperature (typically 0).
-        if zero_qpllt:
-            st.qpllt = si.qpllu0 * 1e-2
-        else:
+        # Assumption of target heat flux
+        if front_sheath:
             st.qpllt = (
                 si.gamma_sheath
                 / 2
@@ -397,6 +399,8 @@ def run_dls(
                 * si.echarge
                 * np.sqrt(2 * si.Tt * si.echarge / si.mi)
             )
+        else:
+            st.qpllt = si.qpllu0 * qpllt_fraction
 
         """------INITIALISATION------"""
         st.error1 = 1  # Inner loop error (error in qpllu based on provided cz/ne)
