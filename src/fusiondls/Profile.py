@@ -276,7 +276,7 @@ class Profile:
         constant_pitch : bool
             If true, keep the same magnetic pitch. If false, keep same Bpol profile.
         Bpol_shift: dict()
-            Width = gaussian width in m
+            width = gaussian width in m
             pos = position in m poloidal from the target
             height = height in Bpol units
         verbose : bool
