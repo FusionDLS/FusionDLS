@@ -399,7 +399,7 @@ class Profile:
         ax=None,
         legend=False,
         parallel=True,
-        full_RZ = False,
+        full_RZ=False,
         label="",
         color="teal",
         **kwargs,
@@ -457,7 +457,7 @@ class Profile:
                     label=label,
                     **kwargs,
                 )
-                
+
             ax.set_ylabel("Z (m)")
         elif mode == "Spar_Spol":
             ax.plot(self.S, self.Spol, color=color, label=label, **kwargs)
@@ -894,11 +894,11 @@ def shift_points(R, Z, offsets, factor=1):
 
         # If position specified, overwrite offsets with a calculation
         if "posx" in point:
-            offsetx = point["xpos"] - Rs
+            offsetx = point["posx"] - Rs
         if "posy" in point:
-            offsety = point["ypos"] - Zs
-        
-        if "posx" in point or "posy" in point and factor != 1:
+            offsety = point["posy"] - Zs
+
+        if ("posx" in point or "posy" in point) and factor != 1:
             raise Exception("Factor scaling not supported when passing position")
 
         offsetx *= factor
