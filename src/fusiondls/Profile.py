@@ -432,14 +432,17 @@ class Profile:
 
         if parallel:
             x = self.S
-            ax.set_xlabel(r"$S_{\parallel}$ (m from target)")
+            ax.set_xlabel(r"$s_{\parallel}$ (m from target)")
         else:
             x = self.Spol
-            ax.set_xlabel(r"$S_{\theta}$ (m from target)")
+            ax.set_xlabel(r"$s_{\theta}$ (m from target)")
 
         if mode == "Btot":
             ax.plot(x, self.Btot, color=color, label=label, **kwargs)
             ax.set_ylabel("$B_{tot}$ (T)")
+        elif mode == "Bpol":
+            ax.plot(x, self.Bpol, color=color, label=label, **kwargs)
+            ax.set_ylabel("$B_{pol}$ (T)")
         elif mode == "RZ":
             if full_RZ:
                 ax.plot(
