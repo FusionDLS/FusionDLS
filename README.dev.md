@@ -78,11 +78,21 @@ git commit -n
 
 The online documentation can be built locally using:
 
-```
+```bash
 # From the top level of the project...
 cd docs
 make html
 ```
 
-To inspect the docs, open the file `/path/to/FusionDLS/docs/_build/html/index.html` in your
-web browser.
+To inspect the docs, open the file
+`/path/to/FusionDLS/docs/_build/html/index.html` in your web browser.
+
+Sometimes the docs may fail to build, especially after making substantive
+changes to the code such as renaming/removing files. Often this may be fixed by
+leaning the local build and deleting any automatically generated files:
+
+```bash
+cd docs
+make clean
+rm generated/*
+```
