@@ -792,8 +792,8 @@ def shift_points(R, Z, offsets, factor=1):
             offsetx = point["xpos"] - Rs
         if "ypos" in point:
             offsety = point["ypos"] - Zs
-        
-        if "xpos" in point or "ypos" in point and factor != 1:
+
+        if "xpos" in point or ("ypos" in point and factor != 1):
             raise Exception("Factor scaling not supported when passing position")
 
         offsetx *= factor
