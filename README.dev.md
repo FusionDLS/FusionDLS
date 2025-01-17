@@ -59,14 +59,16 @@ ruff check --fix
 ```
 
 To avoid accidentally pushing unlinted/unformatted code to GitHub, we recommend using
-the Git pre-commit hook provided:
+the `pre-commit` library with the provided `.pre-commit-config.yaml`:
 
 ```bash
-git config --local core.hooksPath .githooks
+pip install pre-commit
+pre-commit install
 ```
 
-This will run the formatter, check for linter warnings and run the tests before allowing
-you to commit. To override the pre-commit hook:
+This will perform some basic checks over the repository, format the Python code, and
+check for any linter violations. If you ever need to override the pre-commit hook, you
+can run:
 
 ```bash
 git commit --no-verify
