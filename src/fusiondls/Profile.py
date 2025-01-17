@@ -5,6 +5,8 @@ import numpy as np
 import scipy as sp
 from scipy.integrate import trapezoid
 
+from .typing import FloatArray
+
 
 class Profile:
     """
@@ -108,9 +110,9 @@ class Profile:
 
     def scale_BxBt(self, scale_factor=None, BxBt=None, verbose=True):
         """
-        Scale a Btot profile to have an arbitrary flux expansion
-        Specify either a scale factor or requried flux expansion
-        Will keep Spol the same (not pitch angle)
+        Scale a Btot profile to have an arbitrary flux expansion.
+        Specify either a scale factor or requried flux expansion.
+        Will keep Spol the same (not pitch angle).
         Will not modify R,Z coordinates!
         """
 
@@ -150,9 +152,9 @@ class Profile:
 
     def scale_Lc(self, scale_factor=None, Lc=None, verbose=True):
         """
-        Scale Spar and Spol profiles for arbitrary connection length
-        Specify either a scale factor or requried connection length
-        Will keep Spol the same (not pitch angle)
+        Scale Spar and Spol profiles for arbitrary connection length.
+        Specify either a scale factor or requried connection length.
+        Will keep Spol the same (not pitch angle).
         Will not modify R,Z coordinates!
         """
         # FIXME looks to have about 5% error when using Lc
@@ -186,30 +188,33 @@ class Profile:
                 "Warning: Scaling connection length. R,Z coordinates will no longer be valid"
             )
 
-    def offset_control_points(self, offsets, factor=1, verbose=True):
+    def offset_control_points(
+        self, offsets: list[dict], factor: float = 1.0, verbose: bool = True
+    ):
         """
-        Take profile and add control points [x,y]
-        Then perform cord spline interpolation to get interpolated profile in [xs,ys]
-        The degree of the morph can be controlled by the factor
-        Saves control points as R_control, Z_control
+        Take profile and add control points ``[x, y]``, then perform cord spline
+        interpolation to get interpolated profile in ``[xs, ys]``.  The degree
+        of the morph can be controlled by the factor. Saves control points as
+        ``R_control``, ``Z_control``.
 
-        Offsets are a list of dictionaries, each defining a point
-        along the leg to shift vertically or horizontally:
-            [dict(pos = 1, offsety = -0.1, offsetx = 0.2),
-                ...]
-        Where pos is the fractional poloidal position along the field line
-        starting at the target, and offsety and offsetx are vertical and
+        Offsets are a list of dictionaries, each defining a point along the leg
+        to shift vertically or horizontally::
+        
+            [dict(pos = 1, offsety = -0.1, offsetx = 0.2), ...]
+
+        Where ``pos`` is the fractional poloidal position along the field line
+        starting at the target, and ``offsety`` and ``offsetx`` are vertical and
         horizontal offsets in [m].
-
+        
         Parameters
         ----------
-        offsets : list of dictionaries
+        offsets
             Each dictionary contains either positions or offsets and a position
-            along the field line of a control point. See offset_control_points().
-        factor : float
+            along the field line of a control point.
+        factor
             Factor to scale the effect of point shifting, where 0 = no change,
             1 = profile shifted according to offsets, 0.5 = profile shifted halfway.
-        verbose : bool
+        verbose
             Print warnings
         """
 
@@ -227,8 +232,8 @@ class Profile:
     def _interpolate_leg_from_control_points(self):
         """
         Takes saved R_control and Z_control and uses them to interpolate new R,Z
-        coordinates for the entire profile
-        Saves new R and Z as well as the leg interpolations R_leg_spline and Z_leg_spline
+        coordinates for the entire profile.  Saves new R and Z as well as the
+        leg interpolations R_leg_spline and Z_leg_spline.
         """
 
         self.R_leg_spline, self.Z_leg_spline = cord_spline(
@@ -262,24 +267,33 @@ class Profile:
             ]
         )
 
-    def recalculate_topology(self, constant_pitch=True, Bpol_shift=None, verbose=True):
+    def recalculate_topology(
+        self,
+        constant_pitch: bool = True,
+        Bpol_shift: dict[str, float] | None = None,
+        verbose: bool = True,
+    ):
         """
-        Recalculate Spol, S, Btor, Bpol and Btot from R,Z
+        Recalculate Spol, S, Btor, Bpol and Btot from R,Z.
         If doing this after morphing a profile:
+
         - It requires R_leg and Z_leg to be the original leg
         - The new leg is contained in R_leg_spline and Z_leg_spline
         - The above are used to calculate new topology
+
         Currently only supports changing topology below the X-point
 
         Parameters
         ----------
-        constant_pitch : bool
+        constant_pitch
             If true, keep the same magnetic pitch. If false, keep same Bpol profile.
-        Bpol_shift: dict()
-            width = gaussian width in m
-            pos = position in m poloidal from the target
-            height = height in Bpol units
-        verbose : bool
+        Bpol_shift
+            Dict containing:
+
+            - ``"width"``: gaussian width in m
+            - ``"pos"``: position in m poloidal from the target
+            - ``"height"``: height in Bpol units
+        verbose
             Print warnings
         """
 
@@ -395,36 +409,35 @@ class Profile:
 
     def plot(
         self,
-        mode="Btot",
-        ax=None,
-        legend=False,
-        parallel=True,
-        full_RZ=False,
-        label="",
-        color="teal",
+        mode: str = "Btot",
+        ax: plt.Axes | None = None,
+        legend: bool = False,
+        parallel: bool = True,
+        full_RZ: bool = False,
+        label: str = "",
+        color: str = "teal",
         **kwargs,
     ):
         """
-
-
         Parameters
         ----------
-        mode : str
+        mode
             What to plot:
-            - "Btot": total B profile
-            - "RZ": RZ space leg profile (excl. above X-point)
-            - "Spar_Spol": Parallel vs poloidal connection length
-        ax :
+
+            - ``"Btot"``: total B profile
+            - ``"RZ"``: RZ space leg profile (excl. above X-point)
+            - ``"Spar_Spol"``: Parallel vs poloidal connection length
+        ax
             Matplotlib axis to plot on (optional)
-        legend : bool
+        legend
             Whether to include a legend for when no axis is provided
-        parallel : bool
+        parallel
             If true, plot parallel connection length, else poloidal
-        full_RZ : bool
+        full_RZ
             If false, exclude region above X-point in RZ plot
-        color : str
+        color
             Color of the plot
-        kwargs : dict
+        kwargs
             Keyword arguments to pass to plot
         """
         if ax is None:
@@ -856,18 +869,22 @@ def get_cord_distance(x, y):
     return np.r_[0, u_cord]  # the first point is parameterized at zero
 
 
-def shift_points(R, Z, offsets, factor=1):
+def shift_points(
+    R: FloatArray, Z: FloatArray, offsets: list[dict], factor: float = 1.0
+):
     """
     Make control points on a field line according to points of index in list i.
 
     Parameters
     ----------
-    R, Z: 1D arrays
-        R and Z coordinates of field line.
-    offsets : list of dictionaries
+    R
+        R coordinates of field line.
+    Z
+        Z coordinates of field line.
+    offsets
         Each dictionary contains either positions or offsets and a position
-        along the field line of a control point. See offset_control_points().
-    factor : float
+        along the field line of a control point. See ``offset_control_points()``.
+    factor
         Factor to scale the effect of point shifting, where 0 = no change,
         1 = profile shifted according to offsets, 0.5 = profile shifted halfway.
     """
@@ -884,7 +901,7 @@ def shift_points(R, Z, offsets, factor=1):
         if "offsety" in point and "posy" in point:
             raise ValueError("Offset and position cannot be set simultaneously")
         for key in point:
-            if key not in ["pos", "offsetx", "offsety", "posx", "posy"]:
+            if key not in {"pos", "offsetx", "offsety", "posx", "posy"}:
                 raise ValueError(
                     f"Unknown key {key}! Provide either pos, offsetx, offsety or posx, posy"
                 )
