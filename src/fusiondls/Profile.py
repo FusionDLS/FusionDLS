@@ -411,9 +411,9 @@ class Profile:
         ----------
         mode : str
             What to plot:
-                "Btot" - total B profile
-                "RZ" - RZ space leg profile (excl. above X-point)
-                "Spar_Spol" - Parallel vs poloidal connection length
+            - "Btot": total B profile
+            - "RZ": RZ space leg profile (excl. above X-point)
+            - "Spar_Spol": Parallel vs poloidal connection length
         ax :
             Matplotlib axis to plot on (optional)
         legend : bool
