@@ -199,13 +199,13 @@ class Profile:
 
         Offsets are a list of dictionaries, each defining a point along the leg
         to shift vertically or horizontally::
-        
+
             [dict(pos = 1, offsety = -0.1, offsetx = 0.2), ...]
 
         Where ``pos`` is the fractional poloidal position along the field line
         starting at the target, and ``offsety`` and ``offsetx`` are vertical and
         horizontal offsets in [m].
-        
+
         Parameters
         ----------
         offsets
