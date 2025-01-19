@@ -2,6 +2,7 @@ import copy
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import scipy as sp
 from scipy.integrate import trapezoid
 
@@ -356,6 +357,66 @@ class Profile:
         self["Z_leg"] = self["Z"][: self["Xpoint"] + 1]
         if verbose:
             print("Topology recalculated.")
+
+    def get_offsets_strike_point(self, pos, R_strike, Z_strike):
+        """
+        Calculate offsets to allow the creation of a new field line Profile based on
+        the strike point coordinates only. Useful for parameter scans.
+
+        Parameters:
+        -----------
+        pos : list or array-like
+            Positions along the leg where offsets need to be calculated.
+        R_strike : float
+            Radial coordinate of the strike point.
+        Z_strike : float
+            Vertical coordinate of the strike point.
+        Returns:
+        --------
+        offsets : list of dict
+            A list of dictionaries containing the calculated offsets for each position.
+            Each dictionary has the following keys:
+            - 'pos': The original position.
+            - 'posx': The new radial coordinate after applying the offset.
+            - 'posy': The new vertical coordinate after applying the offset.
+        """
+
+        Z_Xpoint = self["Z"][self["Xpoint"]]
+        R_Xpoint = self["R"][self["Xpoint"]]
+
+        R_strike_original = self["R"][0]
+        Z_strike_original = self["Z"][0]
+
+        cp = pd.DataFrame()  # control points
+        cp["pos"] = pos
+
+        spl = cord_spline(self.R_leg, self.Z_leg, return_spline=True)
+
+        for i, _ in enumerate(cp["pos"]):
+            R, Z = spl(pos)
+            cp.loc[i, "R"] = R
+            cp.loc[i, "Z"] = Z
+
+        strikeOffsetR = R_strike - R_strike_original
+        strikeOffsetZ = Z_strike - Z_strike_original
+
+        cp["Rdist"] = (R_Xpoint - cp["R"]) / (R_Xpoint - cp["R"].iloc[-1])
+        cp["Zdist"] = (Z_Xpoint - cp["Z"]) / (Z_Xpoint - cp["Z"].iloc[-1])
+        cp["Rnew"] = cp["R"] + strikeOffsetR * cp["Rdist"]
+        cp["Znew"] = cp["Z"] + strikeOffsetZ * cp["Zdist"]
+        cp["offsetx"] = cp["Rdist"]
+        cp["offsety"] = cp["Zdist"]
+
+        offsets = []
+        for i, _ in enumerate(cp["pos"]):
+            offsets.append(
+                {
+                    "pos": cp.loc[i, "pos"],
+                    "posx": cp.loc[i, "Rnew"],
+                    "posy": cp.loc[i, "Znew"],
+                }
+            )
+        return offsets
 
     def plot_topology(self):
         fig, axes = plt.subplots(2, 2, figsize=(8, 8))
