@@ -206,12 +206,15 @@ class Profile:
         Where ``pos`` is the fractional poloidal position along the field line
         starting at the target, and ``offsety`` and ``offsetx`` are vertical and
         horizontal offsets in [m].
+        
+        NOTE: ``pos`` is defined with 0 at the target, but should be defined starting
+        from the X-point, i.e. ``pos`` should start at 1 and then decrease towards 0.
 
         Parameters
         ----------
         offsets
             Each dictionary contains either positions or offsets and a position
-            along the field line of a control point.
+            along the field line of a control point, starting at the X-point (``pos``=1)
         factor
             Factor to scale the effect of point shifting, where 0 = no change,
             1 = profile shifted according to offsets, 0.5 = profile shifted halfway.
