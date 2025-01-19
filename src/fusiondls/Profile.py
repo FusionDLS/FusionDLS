@@ -422,7 +422,7 @@ class Profile:
         return offsets
 
     def plot_topology(self):
-        fig, axes = plt.subplots(2, 2, figsize=(8, 8))
+        fig, axes = plt.subplots(2, 2, figsize=(6,6))
 
         basestyle = {"c": "black"}
         xstyle = {"marker": "+", "linewidth": 2, "s": 150, "c": "r", "zorder": 100}
@@ -491,6 +491,7 @@ class Profile:
             - ``"Btot"``: total B profile
             - ``"RZ"``: RZ space leg profile (excl. above X-point)
             - ``"Spar_Spol"``: Parallel vs poloidal connection length
+            - ``"magnetic_pitch"``: Bpol / Btot
         ax
             Matplotlib axis to plot on (optional)
         legend
@@ -537,13 +538,13 @@ class Profile:
                     label=label,
                     **kwargs,
                 )
-
+            ax.set_xlabel("R (m)")
             ax.set_ylabel("Z (m)")
         elif mode == "Spar_Spol":
             ax.plot(self.S, self.Spol, color=color, label=label, **kwargs)
             ax.set_ylabel("$S_{\parallel} / S_{pol}$")
         elif mode == "magnetic_pitch":
-            ax.plot(self.S, self.Bpol / self.Btot, color=color, label=label, **kwargs)
+            ax.plot(x, self.Bpol / self.Btot, color=color, label=label, **kwargs)
             ax.set_ylabel("$B_{pol} / B_{tot}$")
         else:
             raise ValueError(
