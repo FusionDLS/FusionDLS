@@ -395,7 +395,7 @@ class Profile:
 
         spl = cord_spline(self.R_leg, self.Z_leg, return_spline=True)
 
-        for i, _ in enumerate(cp["pos"]):
+        for i, pos in enumerate(cp["pos"]):
             R, Z = spl(pos)
             cp.loc[i, "R"] = R
             cp.loc[i, "Z"] = Z
