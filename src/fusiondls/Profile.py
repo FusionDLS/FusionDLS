@@ -5,6 +5,8 @@ import numpy as np
 import scipy as sp
 from scipy.integrate import trapezoid
 
+from .typing import FloatArray
+
 
 class Profile:
     """
@@ -108,9 +110,9 @@ class Profile:
 
     def scale_BxBt(self, scale_factor=None, BxBt=None, verbose=True):
         """
-        Scale a Btot profile to have an arbitrary flux expansion
-        Specify either a scale factor or requried flux expansion
-        Will keep Spol the same (not pitch angle)
+        Scale a Btot profile to have an arbitrary flux expansion.
+        Specify either a scale factor or requried flux expansion.
+        Will keep Spol the same (not pitch angle).
         Will not modify R,Z coordinates!
         """
 
@@ -143,16 +145,16 @@ class Profile:
 
         if verbose:
             print(
-                "Warning: scaling flux expansion. R,Z coordinates will no longer be physical"
+                "Warning: Scaling flux expansion. R,Z coordinates will no longer be valid"
             )
 
         self.Btot = np.concatenate((Btot_leg_new, Btot_upstream))
 
     def scale_Lc(self, scale_factor=None, Lc=None, verbose=True):
         """
-        Scale Spar and Spol profiles for arbitrary connection length
-        Specify either a scale factor or requried connection length
-        Will keep Spol the same (not pitch angle)
+        Scale Spar and Spol profiles for arbitrary connection length.
+        Specify either a scale factor or requried connection length.
+        Will keep Spol the same (not pitch angle).
         Will not modify R,Z coordinates!
         """
         # FIXME looks to have about 5% error when using Lc
@@ -186,26 +188,52 @@ class Profile:
                 "Warning: Scaling connection length. R,Z coordinates will no longer be valid"
             )
 
-    def offset_control_points(self, offsets, factor=1):
+    def offset_control_points(
+        self, offsets: list[dict], factor: float = 1.0, verbose: bool = True
+    ):
         """
-        Take profile and add control points [x,y]
-        Then perform cord spline interpolation to get interpolated profile in [xs,ys]
-        The degree of the morph can be controlled by the factor
-        Saves control points as R_control, Z_control
+        Take profile and add control points ``[x, y]``, then perform cord spline
+        interpolation to get interpolated profile in ``[xs, ys]``.  The degree
+        of the morph can be controlled by the factor. Saves control points as
+        ``R_control``, ``Z_control``.
+
+        Offsets are a list of dictionaries, each defining a point along the leg
+        to shift vertically or horizontally::
+
+            [dict(pos = 1, offsety = -0.1, offsetx = 0.2), ...]
+
+        Where ``pos`` is the fractional poloidal position along the field line
+        starting at the target, and ``offsety`` and ``offsetx`` are vertical and
+        horizontal offsets in [m].
+
+        Parameters
+        ----------
+        offsets
+            Each dictionary contains either positions or offsets and a position
+            along the field line of a control point.
+        factor
+            Factor to scale the effect of point shifting, where 0 = no change,
+            1 = profile shifted according to offsets, 0.5 = profile shifted halfway.
+        verbose
+            Print warnings
         """
+
+        self.R_original = self.R.copy()
+        self.Z_original = self.Z.copy()
 
         self.R_control, self.Z_control = shift_points(
             self.R_leg, self.Z_leg, offsets, factor=factor
         )  # Control points defining profile
 
-        self.interpolate_leg_from_control_points()
-        self.recalculate_topology()
+        self._interpolate_leg_from_control_points()
+        if verbose:
+            print("Profile modified. Now recalculate topology!")
 
-    def interpolate_leg_from_control_points(self):
+    def _interpolate_leg_from_control_points(self):
         """
         Takes saved R_control and Z_control and uses them to interpolate new R,Z
-        coordinates for the entire profile
-        Saves new R and Z as well as the leg interpolations R_leg_spline and Z_leg_spline
+        coordinates for the entire profile.  Saves new R and Z as well as the
+        leg interpolations R_leg_spline and Z_leg_spline.
         """
 
         self.R_leg_spline, self.Z_leg_spline = cord_spline(
@@ -239,19 +267,34 @@ class Profile:
             ]
         )
 
-    def recalculate_topology(self, constant_pitch=True, Bpol_shift=None):
+    def recalculate_topology(
+        self,
+        constant_pitch: bool = True,
+        Bpol_shift: dict[str, float] | None = None,
+        verbose: bool = True,
+    ):
         """
-        Recalculate Spol, S, Btor, Bpol and Btot from R,Z
+        Recalculate Spol, S, Btor, Bpol and Btot from R,Z.
         If doing this after morphing a profile:
+
         - It requires R_leg and Z_leg to be the original leg
         - The new leg is contained in R_leg_spline and Z_leg_spline
         - The above are used to calculate new topology
+
         Currently only supports changing topology below the X-point
 
-        Bpol_shift: dict()
-            Width = gaussian width in m
-            pos = position in m poloidal from the target
-            height = height in Bpol units
+        Parameters
+        ----------
+        constant_pitch
+            If true, keep the same magnetic pitch. If false, keep same Bpol profile.
+        Bpol_shift
+            Dict containing:
+
+            - ``"width"``: gaussian width in m
+            - ``"pos"``: position in m poloidal from the target
+            - ``"height"``: height in Bpol units
+        verbose
+            Print warnings
         """
 
         ## Calculate existing toroidal field (1/R)
@@ -311,6 +354,8 @@ class Profile:
         # to old leg for Btor
         self["R_leg"] = self["R"][: self["Xpoint"] + 1]
         self["Z_leg"] = self["Z"][: self["Xpoint"] + 1]
+        if verbose:
+            print("Topology recalculated.")
 
     def plot_topology(self):
         fig, axes = plt.subplots(2, 2, figsize=(8, 8))
@@ -362,6 +407,88 @@ class Profile:
 
         fig.tight_layout()
 
+    def plot(
+        self,
+        mode: str = "Btot",
+        ax: plt.Axes | None = None,
+        legend: bool = False,
+        parallel: bool = True,
+        full_RZ: bool = False,
+        label: str = "",
+        color: str = "teal",
+        **kwargs,
+    ):
+        """
+        Parameters
+        ----------
+        mode
+            What to plot:
+
+            - ``"Btot"``: total B profile
+            - ``"RZ"``: RZ space leg profile (excl. above X-point)
+            - ``"Spar_Spol"``: Parallel vs poloidal connection length
+        ax
+            Matplotlib axis to plot on (optional)
+        legend
+            Whether to include a legend for when no axis is provided
+        parallel
+            If true, plot parallel connection length, else poloidal
+        full_RZ
+            If false, exclude region above X-point in RZ plot
+        color
+            Color of the plot
+        kwargs
+            Keyword arguments to pass to plot
+        """
+        if ax is None:
+            _fig, ax = plt.subplots()
+
+        if parallel:
+            x = self.S
+            ax.set_xlabel(r"$s_{\parallel}$ (m from target)")
+        else:
+            x = self.Spol
+            ax.set_xlabel(r"$s_{\theta}$ (m from target)")
+
+        if mode == "Btot":
+            ax.plot(x, self.Btot, color=color, label=label, **kwargs)
+            ax.set_ylabel("$B_{tot}$ (T)")
+        elif mode == "Bpol":
+            ax.plot(x, self.Bpol, color=color, label=label, **kwargs)
+            ax.set_ylabel("$B_{pol}$ (T)")
+        elif mode == "RZ":
+            if full_RZ:
+                ax.plot(
+                    self.R,
+                    self.Z,
+                    color=color,
+                    label=label,
+                    **kwargs,
+                )
+            else:
+                ax.plot(
+                    self.R[: self.Xpoint],
+                    self.Z[: self.Xpoint],
+                    color=color,
+                    label=label,
+                    **kwargs,
+                )
+
+            ax.set_ylabel("Z (m)")
+        elif mode == "Spar_Spol":
+            ax.plot(self.S, self.Spol, color=color, label=label, **kwargs)
+            ax.set_ylabel("$S_{\parallel} / S_{pol}$")
+        elif mode == "magnetic_pitch":
+            ax.plot(self.S, self.Bpol / self.Btot, color=color, label=label, **kwargs)
+            ax.set_ylabel("$B_{pol} / B_{tot}$")
+        else:
+            raise ValueError(
+                f"Mode {mode} not recognised. Try Btot, RZ, magnetic_pitch or Spar_Spol"
+            )
+
+        if legend is True and ax is None:
+            ax.legend()
+
     def plot_control_points(
         self,
         linesettings=None,
@@ -370,6 +497,7 @@ class Profile:
         xlim=(None, None),
         dpi=100,
         ax=None,
+        color="limegreen",
     ):
         if markersettings is None:
             markersettings = {}
@@ -398,9 +526,9 @@ class Profile:
             ax.grid(alpha=0.3, color="k")
             ax.set_aspect("equal")
 
-        default_line_args = {"c": "forestgreen", "alpha": 0.7, "zorder": 100}
+        default_line_args = {"c": color, "alpha": 0.7, "zorder": 100}
         default_marker_args = {
-            "c": "limegreen",
+            "c": color,
             "marker": "+",
             "linewidth": 15,
             "s": 3,
@@ -414,6 +542,35 @@ class Profile:
             self["R_leg_spline"], self["Z_leg_spline"], **line_args, label=self.name
         )
         ax.scatter(self["R_control"], self["Z_control"], **marker_args)
+
+        ax.set_xlabel(r"$R\ (m)$")
+        ax.set_ylabel(r"$Z\ (m)$")
+
+        pad = 0.2
+
+        selector = slice(None, self["Xpoint"])
+
+        R_leg_original = self["R_original"][selector]
+        Z_leg_original = self["Z_original"][selector]
+
+        Rmax = R_leg_original.max()
+        Rmin = R_leg_original.min()
+        Zmax = Z_leg_original.max()
+        Zmin = Z_leg_original.min()
+
+        Rspan = Rmax - Rmin
+        Zspan = Zmax - Zmin
+
+        ax.set_xlim(Rmin - Rspan * pad, Rmax + Rspan * pad)
+        ax.set_ylim(Zmin - Zspan * pad, Zmax + Zspan * pad)
+
+        if ylim != (None, None):
+            ax.set_ylim(ylim)
+        if xlim != (None, None):
+            ax.set_xlim(xlim)
+
+        ax.grid(alpha=0.3, color="k")
+        ax.set_aspect("equal")
 
 
 class Morph:
@@ -712,20 +869,24 @@ def get_cord_distance(x, y):
     return np.r_[0, u_cord]  # the first point is parameterized at zero
 
 
-def shift_points(R, Z, offsets, factor=1):
+def shift_points(
+    R: FloatArray, Z: FloatArray, offsets: list[dict], factor: float = 1.0
+):
     """
     Make control points on a field line according to points of index in list i.
 
     Parameters
     ----------
-    R, Z: 1D arrays
-        R and Z coordinates of field line.
-    i: list of ints
-        Indices of points to shift. They are the control points of the spline.
-    yoffset: list of floats
-        Y offset to apply to each point in i.
-    xoffset: list of floats
-        X offset to apply to each point in i.
+    R
+        R coordinates of field line.
+    Z
+        Z coordinates of field line.
+    offsets
+        Each dictionary contains either positions or offsets and a position
+        along the field line of a control point. See ``offset_control_points()``.
+    factor
+        Factor to scale the effect of point shifting, where 0 = no change,
+        1 = profile shifted according to offsets, 0.5 = profile shifted halfway.
     """
 
     #        XPOINT ---------   TARGET
@@ -735,26 +896,36 @@ def shift_points(R, Z, offsets, factor=1):
     for point in offsets:
         position = point["pos"]
 
-        if "offset" in point and "pos" not in point:
-            offsetx = point.get("offsetx", 0)
-            offsety = point.get("offsety", 0)
+        if "offsetx" in point and "posx" in point:
+            raise ValueError("Offset and position cannot be set simultaneously")
+        if "offsety" in point and "posy" in point:
+            raise ValueError("Offset and position cannot be set simultaneously")
+        for key in point:
+            if key not in {"pos", "offsetx", "offsety", "posx", "posy"}:
+                raise ValueError(
+                    f"Unknown key {key}! Provide either pos, offsetx, offsety or posx, posy"
+                )
 
-            offsetx *= factor
-            offsety *= factor
+        # RZ coordinates of existing point
+        Rs, Zs = spl(position)
 
-            Rs, Zs = spl(position)
-            x.append(Rs + offsetx)
-            y.append(Zs + offsety)
+        offsetx = point.get("offsetx", 0)
+        offsety = point.get("offsety", 0)
 
-        elif "pos" in point and "offset" not in point:
-            x.append(point.get("xpos", 0))
-            y.append(point.get("ypos", 0))
+        # If position specified, overwrite offsets with a calculation
+        if "posx" in point:
+            offsetx = point["posx"] - Rs
+        if "posy" in point:
+            offsety = point["posy"] - Zs
 
-            if factor != 1:
-                raise Exception("Factor scaling not supported when passing position")
+        if ("posx" in point or "posy" in point) and factor != 1:
+            raise Exception("Factor scaling not supported when passing position")
 
-        else:
-            raise ValueError("Must provide offsets or position")
+        offsetx *= factor
+        offsety *= factor
+
+        x.append(Rs + offsetx)
+        y.append(Zs + offsety)
 
     return np.array(x), np.array(y)
 
