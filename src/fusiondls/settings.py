@@ -97,7 +97,7 @@ class SimulationInputs:
     Ctol: float = 1e-3
     """Control variable (inner) loop convergence tolerance"""
 
-    Ttol: float = 1e-2
+    Ttol: float = 1e-3
     """Temperature (outer) loop convergence tolerance"""
 
     URF: float = 1.0
