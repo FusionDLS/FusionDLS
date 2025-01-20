@@ -44,7 +44,7 @@ class SimulationState:
     s: FloatArray = field(init=False)
     """Parallel connection length profile"""
 
-    SparFront: FloatArray = field(init=False)
+    SparFront: float = field(init=False)
     """Current detachment front position  in [m]"""
 
     cvar: float = field(init=False)
