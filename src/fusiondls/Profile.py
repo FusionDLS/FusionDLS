@@ -532,8 +532,8 @@ class Profile:
                 )
             else:
                 ax.plot(
-                    self.R[: self.Xpoint],
-                    self.Z[: self.Xpoint],
+                    self.R[: self.Xpoint+1],
+                    self.Z[: self.Xpoint+1],
                     color=color,
                     label=label,
                     **kwargs,
@@ -541,8 +541,8 @@ class Profile:
             ax.set_xlabel("R (m)")
             ax.set_ylabel("Z (m)")
         elif mode == "Spar_Spol":
-            ax.plot(self.S, self.Spol, color=color, label=label, **kwargs)
-            ax.set_ylabel("$S_{\parallel} / S_{pol}$")
+            ax.plot(self.Spol, self.S, color=color, label=label, **kwargs)
+            ax.set_ylabel("$S_{\parallel}$")
         elif mode == "magnetic_pitch":
             ax.plot(x, self.Bpol / self.Btot, color=color, label=label, **kwargs)
             ax.set_ylabel("$B_{pol} / B_{tot}$")
