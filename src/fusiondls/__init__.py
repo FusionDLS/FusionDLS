@@ -16,7 +16,7 @@ from .solver import run_dls
 
 __all__ = [
     "MagneticGeometry",
-    "Profile"
+    "Profile",
     "SimulationInputs",
     "cooling_curves",
     "file_read",
