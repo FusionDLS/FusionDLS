@@ -45,6 +45,7 @@ docs = [
 ]
 tests = [
     "pytest >= 3.3.0",
+    "nbmake",
     "pytest-cov",
 ]
 linting = [
