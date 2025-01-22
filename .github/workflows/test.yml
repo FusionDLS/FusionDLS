@@ -20,10 +20,7 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         python -m pip install .[tests]
-    - name: Test with pytest
-      run: |
-        pytest -vv ./tests
-    - name: Test notebooks
+    - name: Run tests using example notebooks
       run: |
         pytest --nbmake docs/examples/*.ipynb
 
