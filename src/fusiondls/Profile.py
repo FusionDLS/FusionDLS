@@ -2,6 +2,7 @@ import copy
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import scipy as sp
 from scipy.integrate import trapezoid
 
@@ -205,12 +206,15 @@ class Profile:
         Where ``pos`` is the fractional poloidal position along the field line
         starting at the target, and ``offsety`` and ``offsetx`` are vertical and
         horizontal offsets in [m].
+        
+        NOTE: ``pos`` is defined with 0 at the target, but should be defined starting
+        from the X-point, i.e. ``pos`` should start at 1 and then decrease towards 0.
 
         Parameters
         ----------
         offsets
             Each dictionary contains either positions or offsets and a position
-            along the field line of a control point.
+            along the field line of a control point, starting at the X-point (``pos``=1)
         factor
             Factor to scale the effect of point shifting, where 0 = no change,
             1 = profile shifted according to offsets, 0.5 = profile shifted halfway.
@@ -357,8 +361,68 @@ class Profile:
         if verbose:
             print("Topology recalculated.")
 
+    def get_offsets_strike_point(self, pos, R_strike, Z_strike):
+        """
+        Calculate offsets to allow the creation of a new field line Profile based on
+        the strike point coordinates only. Useful for parameter scans.
+
+        Parameters:
+        -----------
+        pos : list or array-like
+            Positions along the leg where offsets need to be calculated.
+        R_strike : float
+            Radial coordinate of the strike point.
+        Z_strike : float
+            Vertical coordinate of the strike point.
+        Returns:
+        --------
+        offsets : list of dict
+            A list of dictionaries containing the calculated offsets for each position.
+            Each dictionary has the following keys:
+            - 'pos': The original position.
+            - 'posx': The new radial coordinate after applying the offset.
+            - 'posy': The new vertical coordinate after applying the offset.
+        """
+
+        Z_Xpoint = self["Z"][self["Xpoint"]]
+        R_Xpoint = self["R"][self["Xpoint"]]
+
+        R_strike_original = self["R"][0]
+        Z_strike_original = self["Z"][0]
+
+        cp = pd.DataFrame()  # control points
+        cp["pos"] = pos
+
+        spl = cord_spline(self.R_leg, self.Z_leg, return_spline=True)
+
+        for i, pos in enumerate(cp["pos"]):
+            R, Z = spl(pos)
+            cp.loc[i, "R"] = R
+            cp.loc[i, "Z"] = Z
+
+        strikeOffsetR = R_strike - R_strike_original
+        strikeOffsetZ = Z_strike - Z_strike_original
+
+        cp["Rdist"] = (R_Xpoint - cp["R"]) / (R_Xpoint - cp["R"].iloc[-1])
+        cp["Zdist"] = (Z_Xpoint - cp["Z"]) / (Z_Xpoint - cp["Z"].iloc[-1])
+        cp["Rnew"] = cp["R"] + strikeOffsetR * cp["Rdist"]
+        cp["Znew"] = cp["Z"] + strikeOffsetZ * cp["Zdist"]
+        cp["offsetx"] = cp["Rdist"]
+        cp["offsety"] = cp["Zdist"]
+
+        offsets = []
+        for i, _ in enumerate(cp["pos"]):
+            offsets.append(
+                {
+                    "pos": cp.loc[i, "pos"],
+                    "posx": cp.loc[i, "Rnew"],
+                    "posy": cp.loc[i, "Znew"],
+                }
+            )
+        return offsets
+
     def plot_topology(self):
-        fig, axes = plt.subplots(2, 2, figsize=(8, 8))
+        fig, axes = plt.subplots(2, 2, figsize=(6,6))
 
         basestyle = {"c": "black"}
         xstyle = {"marker": "+", "linewidth": 2, "s": 150, "c": "r", "zorder": 100}
@@ -427,6 +491,7 @@ class Profile:
             - ``"Btot"``: total B profile
             - ``"RZ"``: RZ space leg profile (excl. above X-point)
             - ``"Spar_Spol"``: Parallel vs poloidal connection length
+            - ``"magnetic_pitch"``: Bpol / Btot
         ax
             Matplotlib axis to plot on (optional)
         legend
@@ -467,19 +532,19 @@ class Profile:
                 )
             else:
                 ax.plot(
-                    self.R[: self.Xpoint],
-                    self.Z[: self.Xpoint],
+                    self.R[: self.Xpoint+1],
+                    self.Z[: self.Xpoint+1],
                     color=color,
                     label=label,
                     **kwargs,
                 )
-
+            ax.set_xlabel("R (m)")
             ax.set_ylabel("Z (m)")
         elif mode == "Spar_Spol":
-            ax.plot(self.S, self.Spol, color=color, label=label, **kwargs)
-            ax.set_ylabel("$S_{\parallel} / S_{pol}$")
+            ax.plot(self.Spol, self.S, color=color, label=label, **kwargs)
+            ax.set_ylabel("$S_{\parallel}$")
         elif mode == "magnetic_pitch":
-            ax.plot(self.S, self.Bpol / self.Btot, color=color, label=label, **kwargs)
+            ax.plot(x, self.Bpol / self.Btot, color=color, label=label, **kwargs)
             ax.set_ylabel("$B_{pol} / B_{tot}$")
         else:
             raise ValueError(
