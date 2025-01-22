@@ -202,6 +202,8 @@ def run_dls(
     verbosity: int = 0,
     Ctol: float = 1e-3,
     Ttol: float = 1e-3,
+    atol: float = 1e-10,
+    rtol: float = 1e-5,
     URF: float = 1,
     timeout: int = 20,
     dynamicGrid: bool = True,
@@ -235,6 +237,10 @@ def run_dls(
         error tolerance target for the inner loop (i.e. density/impurity/heat flux)
     Ttol:
         error tolerance target for the outer loop (i.e. rerrunning until Tu convergence)
+    atol:
+        absolute tolerance for the solve_ivp ODE solver
+    rtol:
+        relative tolerance for the solve_ivp ODE solver
     URF:
         under-relaxation factor for temperature. If URF is 0.2, Tu_new = Tu_old*0.8 + Tu_calculated*0.2. Always set to 1.
     Timeout:
@@ -263,6 +269,8 @@ def run_dls(
     si.verbosity = verbosity
     si.Ctol = Ctol
     si.Ttol = Ttol
+    si.rtol = rtol
+    si.atol = atol
     si.URF = URF
     si.timeout = timeout
     si.radios = radios
@@ -588,7 +596,9 @@ def run_dls(
     # Convert back to regular dict
     output = dict(output)
     t1 = timer()
+    runtime = t1-t0
+    output["runtime"] = runtime
 
-    print(f"Complete in {t1 - t0:.1f} seconds")
+    print(f"Complete in {runtime:.1f} seconds")
 
     return output

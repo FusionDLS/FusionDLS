@@ -97,14 +97,14 @@ def iterate(si, st):
             f"qpllu0: {si.qpllu0:.3E} | nu: {st.nu:.3E} | Tu: {st.Tu:.1f} | cz: {st.cz:.3E} | cvar: {st.cvar:.2E}",
             end="",
         )
-
+        
     result = solve_ivp(
         LengFunc,
         t_span=(st.s[0], st.s[-1]),
         t_eval=st.s,
         y0=[st.qpllt / si.B(st.s[0]), si.Tt],
-        rtol=1e-5,
-        atol=1e-10,
+        rtol=si.rtol,
+        atol=si.atol,
         method="LSODA",
         args=(si, st),
     )
