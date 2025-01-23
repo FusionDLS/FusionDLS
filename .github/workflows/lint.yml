@@ -34,4 +34,4 @@ jobs:
         with:
           options: "--check --verbose"
           jupyter: true
-          src: "./src ./tests ./docs/examples/*.ipynb"
+          src: "./src ./tests ./docs/examples"
