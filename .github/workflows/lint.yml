@@ -21,7 +21,6 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install ruff
-      # Update output format to enable automatic inline annotations.
       - name: Run Ruff
         run: ruff check --output-format=github .
 
@@ -32,4 +31,4 @@ jobs:
       - uses: psf/black@stable
         with:
           options: "--check --verbose"
-          src: "./src ./tests"
+          src: "./src ./tests ./docs/examples/*.ipynb"
