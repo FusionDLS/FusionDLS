@@ -4,9 +4,11 @@ on:
   push:
     paths:
       - '**.py'
+      - '**.ipynb'
   pull_request:
     paths:
       - '**.py'
+      - '**.ipynb'
 
 jobs:
   lint:
@@ -31,4 +33,5 @@ jobs:
       - uses: psf/black@stable
         with:
           options: "--check --verbose"
+          jupyter: true
           src: "./src ./tests ./docs/examples/*.ipynb"
