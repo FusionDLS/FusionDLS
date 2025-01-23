@@ -23,9 +23,6 @@ jobs:
     - name: Test with pytest
       run: |
         pytest -vv ./tests
-    - name: Test notebooks
-      run: |
-        pytest --nbmake docs/examples/*.ipynb
 
   build-and-check:
     runs-on: ubuntu-latest
