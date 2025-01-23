@@ -3,7 +3,7 @@ requires = ["setuptools>=64", "setuptools_scm>=8"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "FusionDLS"
+name = "fusiondls"
 description = "1D model for evaluating heat flux in tokamak SOL"
 readme = "README.md"
 authors = [
@@ -64,9 +64,18 @@ where = ["src"]
 [tool.setuptools_scm]
 write_to = "src/fusiondls/_version.py"
 
+[tool.coverage.run]
+relative_files = true
+omit = [
+    "_version.py",
+    "__main__.py",
+    "__init__.py",
+]
+
 [tool.coverage.paths]
 source = [
   "src/",
+  "*/site-packages/",
 ]
 
 [tool.black]
