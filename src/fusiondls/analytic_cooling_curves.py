@@ -5,7 +5,22 @@ from scipy import interpolate
 
 from .typing import PathLike
 
+CoolingCurve = Callable[[float], float]
 
+cooling_curves = {}
+
+
+def register_cooling_curve(f: CoolingCurve) -> CoolingCurve:
+    """Adds cooling curve to the ``cooling_curves`` dictionary.
+
+    Renames to remove ``"Lfunc"`` from the function name.
+    """
+    name = f.__name__.replace("Lfunc", "")
+    cooling_curves[name] = f
+    return f
+
+
+@register_cooling_curve
 def LfuncN(T: float) -> float:
     """Nitrogen based cooling curve used in Lipschultz 2016
 
@@ -20,6 +35,7 @@ def LfuncN(T: float) -> float:
     return 0
 
 
+@register_cooling_curve
 def LfuncNe(T: float) -> float:
     """Ne based cooling curve produced by Matlab polynominal curve fitting "polyval" (Ryoko 2020 Nov)
 
@@ -46,6 +62,7 @@ def LfuncNe(T: float) -> float:
     return 0
 
 
+@register_cooling_curve
 def LfuncAr(T: float) -> float:
     """Ar based cooling curve produced by Matlab polynominal curve fitting "polyval" (Ryoko 2020 Nov)
 
@@ -74,6 +91,7 @@ def LfuncAr(T: float) -> float:
     return 0
 
 
+@register_cooling_curve
 def LfuncKallenbachN(T: float) -> float:
     """Nitrogen, Tau = 1ms, Kallenbach 2018, xlsx from David Moulton, units W/m3
 
@@ -139,6 +157,7 @@ def LfuncKallenbachN(T: float) -> float:
     return np.abs(Lz)
 
 
+@register_cooling_curve
 def LfuncKallenbachAr(T: float) -> float:
     """Argon, Tau = 1ms, Kallenbach 2018, xlsx from David Moulton, units W/m3
 
@@ -205,6 +224,7 @@ def LfuncKallenbachAr(T: float) -> float:
     return np.abs(Lz)
 
 
+@register_cooling_curve
 def LfuncKallenbachAr100B(T: float) -> float:
     """Argon, Tau = 1ms, Kallenbach 2018, xlsx from David Moulton, units W/m3
 
@@ -290,6 +310,7 @@ def LfuncKallenbachAr100B(T: float) -> float:
     return np.abs(Lz)
 
 
+@register_cooling_curve
 def LfuncKallenbachAr200(T: float) -> float:
     """Argon, Tau = 1ms, Kallenbach 2018, xlsx from David Moulton, units W/m3
 
@@ -356,6 +377,7 @@ def LfuncKallenbachAr200(T: float) -> float:
     return np.abs(Lz)
 
 
+@register_cooling_curve
 def LfuncKallenbachAr100(T: float) -> float:
     """Argon, Tau = 1ms, Kallenbach 2018, xlsx from David Moulton, units W/m3
 
@@ -422,6 +444,7 @@ def LfuncKallenbachAr100(T: float) -> float:
     return np.abs(Lz)
 
 
+@register_cooling_curve
 def LfuncKallenbachAr150(T: float) -> float:
     """Argon, Tau = 1ms, Kallenbach 2018, xlsx from David Moulton, units W/m3
 
@@ -488,6 +511,7 @@ def LfuncKallenbachAr150(T: float) -> float:
     return np.abs(Lz)
 
 
+@register_cooling_curve
 def LfuncKallenbachNe(T: float) -> float:
     """Neon, Tau = 1ms, Kallenbach 2018, xlsx from David Moulton, units W/m3
 

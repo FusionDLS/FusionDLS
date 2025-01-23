@@ -2,7 +2,7 @@ import numpy as np
 from scipy.integrate import quad, trapezoid
 from scipy.interpolate import interp1d
 
-from .AnalyticCoolingCurves import LfuncN
+from .analytic_cooling_curves import LfuncN
 
 
 def CfInt(spar, B_field, sx, L, sh=0, kappa1=2500):
