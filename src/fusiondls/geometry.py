@@ -1,11 +1,13 @@
 import pickle
 from dataclasses import asdict, dataclass
+from typing import Any
 
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy import interpolate
 from typing_extensions import Self
 
+from .Profile import Profile
 from .typing import FloatArray, PathLike, Scalar
 
 
@@ -82,6 +84,22 @@ class MagneticGeometry:
         return self.zl[self.Xpoint]
 
     @classmethod
+    def from_profile(cls, profile: Profile) -> Self:
+        """Create a ``MagneticGeometry`` from a ``Profile`` object.
+
+        These classes are expected to be merged in a future build.
+        """
+        return cls(
+            Bpol=profile.Bpol,
+            Btot=profile.Btot,
+            R=profile.R,
+            Z=profile.Z,
+            S=profile.S,
+            Spol=profile.Spol,
+            Xpoint=profile.Xpoint,
+        )
+
+    @classmethod
     def from_pickle(cls, filename: PathLike, design: str, side: str) -> Self:
         """Read a particular design and side from a pickle balance file."""
 
@@ -111,6 +129,9 @@ class MagneticGeometry:
             for k, v in data.items()
             if not (k in cls.__dict__ and isinstance(cls.__dict__[k], property))
         }
+
+    def __getitem__(self, key: str) -> Any:
+        return getattr(self, key)
 
     def B(self, s: float) -> float:
         try:

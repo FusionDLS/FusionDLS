@@ -1,9 +1,10 @@
 import pathlib
+from dataclasses import fields
 
 import numpy as np
 import pytest
 
-from fusiondls import MagneticGeometry
+from fusiondls import MagneticGeometry, Profile, file_read
 
 
 @pytest.fixture(scope="module")
@@ -21,6 +22,35 @@ def test_from_pickle():
     geometry = MagneticGeometry.from_pickle(filename, "V10", "ou")
 
     assert isinstance(geometry, MagneticGeometry)
+
+
+def test_from_profile():
+    filename = (
+        pathlib.Path(__file__).parent.parent / "docs/examples/eqb_store_lores.pkl"
+    )
+    eqb = file_read(filename)
+    outer = eqb["V10"]["ou"]
+    profile = Profile(
+        outer["R"],
+        outer["Z"],
+        outer["Xpoint"],
+        outer["Btot"],
+        outer["Bpol"],
+        outer["S"],
+        outer["Spol"],
+        name="profile",
+    )
+    from_prof = MagneticGeometry.from_profile(profile)
+    from_pkl = MagneticGeometry.from_pickle(filename, "V10", "ou")
+    for field in fields(from_prof):
+        prof_val = from_prof[field.name]
+        pkl_val = from_pkl[field.name]
+        if prof_val is None:
+            # Not all MagneticGeometry fields are present in Profile
+            continue
+        np.testing.assert_allclose(
+            prof_val, pkl_val, err_msg=f"Mismatch in {field.name}"
+        )
 
 
 def test_read_design():
