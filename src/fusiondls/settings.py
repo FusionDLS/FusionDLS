@@ -48,6 +48,22 @@ class SimulationInputs:
     SparRange: FloatArray
     """List of :math:`S_parallel` locations to solve for"""
 
+    cooling_curve: str | Callable[[float], float] = CoolingCurve()
+    """Cooling curve function.
+
+    May be to a built-in cooling curve via a string such as ``"KallenbachX"``,
+    where ``"X"`` is ``"Ne"``, ``"Ar"`` or ``"N"``. See ``cooling_curves`` for
+    all examples.
+
+    Alternatively, a custom cooling curve may be set by supplying a
+    ``Callable`` that takes a single ``float`` argument and returns a
+    ``float``. A cooling curve should be a function of temperature in
+    [:math:`eV`].
+
+    The results are very sensitive to cooling curve choice, so care should be
+    taken to set this correctly.
+    """
+
     qpllu0: float
     """Upstream heat flux setting.
 
@@ -68,22 +84,6 @@ class SimulationInputs:
 
     Tt: float = 0.5
     """Desired virtual target temperature. Aim for <1eV [:math:`eV`]"""
-
-    cooling_curve: str | Callable[[float], float] = CoolingCurve()
-    """Cooling curve function.
-
-    May be to a built-in cooling curve via a string such as ``"KallenbachX"``,
-    where ``"X"`` is ``"Ne"``, ``"Ar"`` or ``"N"``. See ``cooling_curves`` for
-    all examples.
-
-    Alternatively, a custom cooling curve may be set by supplying a
-    ``Callable`` that takes a single ``float`` argument and returns a
-    ``float``. A cooling curve should be a function of temperature in
-    [:math:`eV`].
-
-    The results are very sensitive to cooling curve choice, so care should be
-    taken to set this correctly.
-    """
 
     kappa0: float = 2500
     """Electron conductivity"""
