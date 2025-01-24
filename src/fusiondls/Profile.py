@@ -206,7 +206,7 @@ class Profile:
         Where ``pos`` is the fractional poloidal position along the field line
         starting at the target, and ``offsety`` and ``offsetx`` are vertical and
         horizontal offsets in [m].
-        
+
         NOTE: ``pos`` is defined with 0 at the target, but should be defined starting
         from the X-point, i.e. ``pos`` should start at 1 and then decrease towards 0.
 
@@ -361,19 +361,22 @@ class Profile:
         if verbose:
             print("Topology recalculated.")
 
-    def get_offsets_strike_point(self, pos, R_strike, Z_strike):
+    def get_offsets_strike_point(self, list_pos, R_strike, Z_strike):
         """
         Calculate offsets to allow the creation of a new field line Profile based on
         the strike point coordinates only. Useful for parameter scans.
 
         Parameters:
         -----------
-        pos : list or array-like
+        list_pos : list or array-like
             Positions along the leg where offsets need to be calculated.
+            These are the interpolation spline control points. You need at least 3 between
+            the X-point (pos = 1) and target (pos = 0). They need to be defined from 
+            the X-point first (i.e. starting at 1 and decreasing towards 0).
         R_strike : float
-            Radial coordinate of the strike point.
+            Desired radial coordinate of the strike point.
         Z_strike : float
-            Vertical coordinate of the strike point.
+            Desired vertical coordinate of the strike point.
         Returns:
         --------
         offsets : list of dict
@@ -390,39 +393,34 @@ class Profile:
         R_strike_original = self["R"][0]
         Z_strike_original = self["Z"][0]
 
-        cp = pd.DataFrame()  # control points
-        cp["pos"] = pos
-
+        R = np.zeros_like(list_pos)
+        Z = np.zeros_like(list_pos)
         spl = cord_spline(self.R_leg, self.Z_leg, return_spline=True)
 
-        for i, pos in enumerate(cp["pos"]):
-            R, Z = spl(pos)
-            cp.loc[i, "R"] = R
-            cp.loc[i, "Z"] = Z
+        for i, pos in enumerate(list_pos):
+            R[i], Z[i] = spl(pos)
 
         strikeOffsetR = R_strike - R_strike_original
         strikeOffsetZ = Z_strike - Z_strike_original
 
-        cp["Rdist"] = (R_Xpoint - cp["R"]) / (R_Xpoint - cp["R"].iloc[-1])
-        cp["Zdist"] = (Z_Xpoint - cp["Z"]) / (Z_Xpoint - cp["Z"].iloc[-1])
-        cp["Rnew"] = cp["R"] + strikeOffsetR * cp["Rdist"]
-        cp["Znew"] = cp["Z"] + strikeOffsetZ * cp["Zdist"]
-        cp["offsetx"] = cp["Rdist"]
-        cp["offsety"] = cp["Zdist"]
+        Rdist = (R_Xpoint - R) / (R_Xpoint - R[-1])
+        Zdist = (Z_Xpoint - Z) / (Z_Xpoint - Z[-1])
+        Rnew = R + strikeOffsetR * Rdist
+        Znew = Z + strikeOffsetZ * Zdist
 
         offsets = []
-        for i, _ in enumerate(cp["pos"]):
+        for i, pos in enumerate(list_pos):
             offsets.append(
                 {
-                    "pos": cp.loc[i, "pos"],
-                    "posx": cp.loc[i, "Rnew"],
-                    "posy": cp.loc[i, "Znew"],
+                    "pos": pos,
+                    "posx": Rnew[i],
+                    "posy": Znew[i],
                 }
             )
         return offsets
 
     def plot_topology(self):
-        fig, axes = plt.subplots(2, 2, figsize=(6,6))
+        fig, axes = plt.subplots(2, 2, figsize=(6, 6))
 
         basestyle = {"c": "black"}
         xstyle = {"marker": "+", "linewidth": 2, "s": 150, "c": "r", "zorder": 100}
@@ -532,8 +530,8 @@ class Profile:
                 )
             else:
                 ax.plot(
-                    self.R[: self.Xpoint+1],
-                    self.Z[: self.Xpoint+1],
+                    self.R[: self.Xpoint + 1],
+                    self.Z[: self.Xpoint + 1],
                     color=color,
                     label=label,
                     **kwargs,
