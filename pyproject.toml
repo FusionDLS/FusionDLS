@@ -3,7 +3,7 @@ requires = ["setuptools>=64", "setuptools_scm>=8"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "FusionDLS"
+name = "fusiondls"
 description = "1D model for evaluating heat flux in tokamak SOL"
 readme = "README.md"
 authors = [
@@ -32,7 +32,8 @@ dependencies = [
     "scipy >= 1.10.1",
     "netCDF4 >= 1.5.6",
     "freeqdsk >= 0.3",
-    "pandas"
+    "pandas",
+    "typing-extensions >= 4.6.0",
 ]
 
 [project.optional-dependencies]
@@ -44,6 +45,7 @@ docs = [
 ]
 tests = [
     "pytest >= 3.3.0",
+    "nbmake",
     "pytest-cov",
 ]
 linting = [
@@ -62,9 +64,18 @@ where = ["src"]
 [tool.setuptools_scm]
 write_to = "src/fusiondls/_version.py"
 
+[tool.coverage.run]
+relative_files = true
+omit = [
+    "_version.py",
+    "__main__.py",
+    "__init__.py",
+]
+
 [tool.coverage.paths]
 source = [
   "src/",
+  "*/site-packages/",
 ]
 
 [tool.black]
@@ -75,7 +86,7 @@ profile = "black"
 
 [tool.ruff]
 extend-include = ["*.ipynb"]
-target-version = "py39"
+target-version = "py310"
 
 [tool.ruff.lint]
 extend-select = [
