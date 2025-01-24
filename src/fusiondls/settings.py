@@ -48,6 +48,21 @@ class SimulationInputs:
     SparRange: FloatArray
     """List of :math:`S_parallel` locations to solve for"""
 
+    qpllu0: float
+    """Upstream heat flux setting.
+
+    Overriden if control_variable is power [:math:`Wm^{-2}`]"""
+
+    nu0: float
+    """Upstream density setting.
+
+    Overriden if control_variable is density [:math:`m^{-3}`]"""
+
+    cz0: float
+    """Impurity fraction setting.
+
+    Overriden if control_variable is impurity_frac [-]"""
+
     cooling_curve: str | Callable[[float], float] = CoolingCurve()
     """Cooling curve function.
 
@@ -63,21 +78,6 @@ class SimulationInputs:
     The results are very sensitive to cooling curve choice, so care should be
     taken to set this correctly.
     """
-
-    qpllu0: float
-    """Upstream heat flux setting.
-
-    Overriden if control_variable is power [:math:`Wm^{-2}`]"""
-
-    nu0: float
-    """Upstream density setting.
-
-    Overriden if control_variable is density [:math:`m^{-3}`]"""
-
-    cz0: float
-    """Impurity fraction setting.
-
-    Overriden if control_variable is impurity_frac [-]"""
 
     gamma_sheath: float = 7
     """Heat transfer coefficient of the virtual target [-]"""
