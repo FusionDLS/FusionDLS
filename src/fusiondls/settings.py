@@ -46,11 +46,6 @@ class SimulationInputs:
     SparRange: FloatArray
     """List of :math:`S_parallel` locations to solve for"""
 
-    nu: float
-
-    gamma_sheath: float
-    """Heat transfer coefficient of the virtual target [-]"""
-
     qpllu0: float
     """Upstream heat flux setting.
 
@@ -65,9 +60,12 @@ class SimulationInputs:
     """Impurity fraction setting.
 
     Overriden if control_variable is impurity_frac [-]"""
+    
+    gamma_sheath: float = 7
+    """Heat transfer coefficient of the virtual target [-]"""
 
-    Tt: float
-    """Desired virtual target temperature [:math:`eV`]"""
+    Tt: float = 0.5
+    """Desired virtual target temperature. Aim for <1eV [:math:`eV`]"""
 
     cooling_curve: str | Callable[[float], float] = CoolingCurve()
     """Cooling curve function.
