@@ -22,6 +22,8 @@ class CoolingCurve:
         self._name = "_" + name
 
     def __get__(self, obj, _):
+        if not hasattr(obj, self._name):
+            return None
         return getattr(obj, self._name)
 
     def __set__(self, obj, value):
@@ -60,7 +62,7 @@ class SimulationInputs:
     """Impurity fraction setting.
 
     Overriden if control_variable is impurity_frac [-]"""
-    
+
     gamma_sheath: float = 7
     """Heat transfer coefficient of the virtual target [-]"""
 
