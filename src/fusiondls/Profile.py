@@ -370,7 +370,7 @@ class Profile:
         list_pos : list or array-like
             Positions along the leg where offsets need to be calculated.
             These are the interpolation spline control points. You need at least 3 between
-            the X-point (pos = 1) and target (pos = 0). They need to be defined from 
+            the X-point (pos = 1) and target (pos = 0). They need to be defined from
             the X-point first (i.e. starting at 1 and decreasing towards 0).
         R_strike : float
             Desired radial coordinate of the strike point.
