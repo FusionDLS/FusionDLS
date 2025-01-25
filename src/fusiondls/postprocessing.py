@@ -43,7 +43,6 @@ class DLScasedeck:
 
         if not self.single_case:
             self.get_stable_region()
-        # self.get_stability_breakpoint()
 
     def get_stable_region(self, diagnostic_plot=False):
         """Calculate the size of the unstable region (when under flux compression)
@@ -62,8 +61,8 @@ class DLScasedeck:
         self.data.loc[:, "crel_grad"] = np.gradient(self.data["crel"])
         self.data.loc[:, "stable"] = False
         self.data.loc[self.data["crel_grad"] > 0, "stable"] = True
-        data_stable = self.data[self.data["stable"] is True]
-        data_unstable = self.data[self.data["stable"] is False]
+        data_stable = self.data[self.data["stable"]]
+        data_unstable = self.data[~self.data["stable"]]
 
         ## Size of unstable region when going backward
         if len(data_stable) == 0:
