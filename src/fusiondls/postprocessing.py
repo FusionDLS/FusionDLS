@@ -155,7 +155,10 @@ class DLScase:
     Also calculates a number of scalar statistics in DLScase.stats.
     """
 
-    def __init__(self, out, index=0):
+    def __init__(self, SimulationOutputs, index=0):
+        out = SimulationOutputs
+        inputs = out["inputs"]
+
         dls = pd.DataFrame()
         dls["Qrad"] = out["Rprofiles"][index]
         dls["Spar"] = out["Sprofiles"][index]
@@ -166,7 +169,7 @@ class DLScase:
         dls["Ne"] = (
             out["cvar"][index] * dls["Te"].iloc[-1] / dls["Te"]
         )  ## Assuming cvar is ne
-        dls["cz"] = out["state"].si.cz0
+        dls["cz"] = inputs.cz0
         Xpoint = out["Xpoints"][index]
         dls.loc[Xpoint, "Xpoint"] = 1
 
@@ -200,7 +203,7 @@ class DLScase:
         ### Calculate scalar properties
         s = {}
         s["cvar"] = out["state"].cvar
-        s["kappa0"] = out["state"].si.kappa0  # Electron conductivity
+        s["kappa0"] = inputs.kappa0  # Electron conductivity
         s["Bf"] = dls["Btot"].iloc[0]
         s["Bx"] = dls[dls["Xpoint"] == 1]["Btot"].iloc[0]
         s["Beff"] = (
@@ -261,7 +264,7 @@ class DLScase:
         ) ** (-2 / 7)
 
         # Cooling curve integral which includes effect of Tu clipping integral limit
-        self.Lfunc = lambda x: out["state"].si.Lfunc(x)
+        self.Lfunc = lambda x: inputs.cooling_curve(x)
         Lz = [self.Lfunc(x) for x in dls["Te"]]
         s["curveclip"] = (  # Term gamma from Kryjak 2025
             np.sqrt(
