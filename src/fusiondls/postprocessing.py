@@ -108,7 +108,9 @@ class FrontLocationScan:
             )
             ax.legend()
 
-    def plot_front_movement(self, ax=None, label="", parallel=False, relative=True):
+    def plot_front_movement(
+        self, ax=None, label="", parallel=False, relative=True, **kwargs
+    ):
         """Plot the front movement profile.
 
         Parameters
@@ -121,6 +123,8 @@ class FrontLocationScan:
             If True, plot the parallel front movement, otherwise poloidal
         relative : bool
             If True, plot the relative control parameter (crel). Otherwise cvar.
+        kwargs : dict
+            Additional plot settings passed to ax.plot().
         """
 
         if ax is None:
@@ -141,10 +145,12 @@ class FrontLocationScan:
             x = data["cvar"]
             xlabel = "C"
 
-        ax.plot(x, y, marker="o", lw=1, ms=3, label=label)
+        default_plot_settings = {"marker": "o", "lw": 2, "ms": 4}
+        plot_settings = {**default_plot_settings, **kwargs}
+
+        ax.plot(x, y, label=label, **plot_settings)
         ax.set_xlabel(xlabel)
         ax.set_ylabel(ylabel)
-        ax.set_title("Front movement")
 
 
 class FrontLocation:
