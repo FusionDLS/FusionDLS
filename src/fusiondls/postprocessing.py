@@ -4,7 +4,7 @@ import pandas as pd
 import scipy as sp
 
 
-class DLScasedeck:
+class FrontLocationScan:
     """A collection of DLS solutions at different front locations.
 
     Contains the whole detachment front movement profile and calculates
@@ -15,7 +15,7 @@ class DLScasedeck:
         num_locations = len(store["Sprofiles"])
         self.cases = []
         for i in range(num_locations):
-            self.cases.append(DLScase(store, index=i))
+            self.cases.append(FrontLocation(store, index=i))
 
         self.data = pd.DataFrame()
         self.data["Spar"] = store["Splot"]
@@ -147,11 +147,19 @@ class DLScasedeck:
         ax.set_title("Front movement")
 
 
-class DLScase:
+class FrontLocation:
     """A single DLS front position solution.
 
     Contains a dataframe with all of the underlying 1D profiles in DLScase.data.
     Also calculates a number of scalar statistics in DLScase.stats.
+
+    Parameters
+    ----------
+    SimulationOutputs : dict
+        The output object from a DLS simulation. Can contain an arbitrary number of
+        front locations.
+    index : int
+        Which front location to extract.
     """
 
     def __init__(self, SimulationOutputs, index=0):
