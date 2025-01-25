@@ -98,6 +98,9 @@ class SimulationState:
             "upper_bound": [],
         }
 
+    def keys(self):
+        return self.__dataclass_fields__.keys()
+
     def update_log(self) -> None:
         """Update primary log"""
         for param in self.singleLog:
@@ -205,6 +208,9 @@ class SimulationOutput(Mapping):
 
     def __len__(self) -> int:
         return len(asdict(self))
+
+    def keys(self):
+        return self.__dataclass_fields__.keys()
 
     @property
     def cvar_norm(self) -> FloatArray:
