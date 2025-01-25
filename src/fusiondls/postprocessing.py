@@ -13,9 +13,9 @@ class FrontLocationScan:
 
     def __init__(self, store):
         num_locations = len(store["Sprofiles"])
-        self.cases = []
+        self.FrontLocations = []
         for i in range(num_locations):
-            self.cases.append(FrontLocation(store, index=i))
+            self.FrontLocations.append(FrontLocation(store, index=i))
 
         self.data = pd.DataFrame()
         self.data["Spar"] = store["Splot"]
