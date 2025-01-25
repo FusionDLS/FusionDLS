@@ -22,6 +22,8 @@ class CoolingCurve:
         self._name = "_" + name
 
     def __get__(self, obj, _):
+        if not hasattr(obj, self._name):
+            return None
         return getattr(obj, self._name)
 
     def __set__(self, obj, value):
@@ -46,11 +48,6 @@ class SimulationInputs:
     SparRange: FloatArray
     """List of :math:`S_parallel` locations to solve for"""
 
-    nu: float
-
-    gamma_sheath: float
-    """Heat transfer coefficient of the virtual target [-]"""
-
     qpllu0: float
     """Upstream heat flux setting.
 
@@ -65,9 +62,6 @@ class SimulationInputs:
     """Impurity fraction setting.
 
     Overriden if control_variable is impurity_frac [-]"""
-
-    Tt: float
-    """Desired virtual target temperature [:math:`eV`]"""
 
     cooling_curve: str | Callable[[float], float] = CoolingCurve()
     """Cooling curve function.
@@ -84,6 +78,12 @@ class SimulationInputs:
     The results are very sensitive to cooling curve choice, so care should be
     taken to set this correctly.
     """
+
+    gamma_sheath: float = 7
+    """Heat transfer coefficient of the virtual target [-]"""
+
+    Tt: float = 0.5
+    """Desired virtual target temperature. Aim for <1eV [:math:`eV`]"""
 
     kappa0: float = 2500
     """Electron conductivity"""
