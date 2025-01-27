@@ -164,16 +164,16 @@ class SimulationOutput(Mapping):
     state: SimulationState
     """
 
-    Splot: FloatArray
-    SpolPlot: FloatArray
+    Spar_front: FloatArray
+    Spol_front: FloatArray
     cvar: list[FloatArray]
-    Sprofiles: list[FloatArray]
-    Tprofiles: list[FloatArray]
-    Rprofiles: list[FloatArray]
-    Qprofiles: list[FloatArray]
-    Spolprofiles: list[FloatArray]
-    Btotprofiles: list[FloatArray]
-    Bpolprofiles: list[FloatArray]
+    Spar_profiles: list[FloatArray]
+    Te_profiles: list[FloatArray]
+    Qrad_profiles: list[FloatArray]
+    qpar_profiles: list[FloatArray]
+    Spol_profiles: list[FloatArray]
+    Btot_profiles: list[FloatArray]
+    Bpol_profiles: list[FloatArray]
     Xpoints: list[FloatArray]
     Wradials: list[FloatArray]
     logs: dict
@@ -270,8 +270,8 @@ def run_dls(
 
         # Current set of parallel position coordinates
         st.s = geometry.S[point:]
-        output["Splot"].append(geometry.S[point])
-        output["SpolPlot"].append(geometry.Spol[point])
+        output["Spar_front"].append(geometry.S[point])
+        output["Spol_front"].append(geometry.Spol[point])
 
         # Inital guess for the value of qpll integrated across connection length
         qavLguess = 0.0
@@ -448,13 +448,17 @@ def run_dls(
                 )
 
         # Pad some profiles with zeros to ensure same length as S
-        output["Sprofiles"].append(geometry.S)
-        output["Tprofiles"].append(pad_profile(geometry.S, st.T))
-        output["Rprofiles"].append(pad_profile(geometry.S, Qrad))  # Radiation in W/m3
-        output["Qprofiles"].append(pad_profile(geometry.S, st.q))  # Heat flux in W/m2
-        output["Spolprofiles"].append(geometry.Spol)
-        output["Btotprofiles"].append(np.array(geometry.Btot))
-        output["Bpolprofiles"].append(np.array(geometry.Bpol))
+        output["Spar_profiles"].append(geometry.S)
+        output["Te_profiles"].append(pad_profile(geometry.S, st.T))
+        output["Qrad_profiles"].append(  # Radiation in W/m3
+            pad_profile(geometry.S, Qrad)
+        )
+        output["qpar_profiles"].append(  # Heat flux in W/m2
+            pad_profile(geometry.S, st.q)
+        )
+        output["Spol_profiles"].append(geometry.Spol)
+        output["Btot_profiles"].append(np.array(geometry.Btot))
+        output["Bpol_profiles"].append(np.array(geometry.Bpol))
         output["Xpoints"].append(geometry.Xpoint)
         output["Wradials"].append(st.qradial)
 

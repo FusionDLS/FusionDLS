@@ -11,19 +11,20 @@ class FrontLocationScan:
     useful statistics: detachment window and unstable region size.
     """
 
-    def __init__(self, store):
-        num_locations = len(store["Sprofiles"])
+    def __init__(self, SimulationOutputs):
+        out = SimulationOutputs
+        num_locations = len(out["Spar_profiles"])
         self.FrontLocations = []
         for i in range(num_locations):
-            self.FrontLocations.append(FrontLocation(store, index=i))
+            self.FrontLocations.append(FrontLocation(out, index=i))
 
         self.data = pd.DataFrame()
-        self.data["Spar"] = store["Splot"]
-        self.data["Spol"] = store["SpolPlot"]
-        self.data["cvar"] = store["cvar"]  # cvar at detachment threshold
-        self.data["crel"] = store["cvar"] / store["cvar"][0]
+        self.data["Spar"] = out["Spar_front"]
+        self.data["Spol"] = out["Spol_front"]
+        self.data["cvar"] = out["cvar"]  # control variable
+        self.data["crel"] = out["cvar"] / out["cvar"][0]  # Relative control variable
 
-        self.single_case = "window" not in store
+        self.single_case = "window" not in out
 
         if self.single_case:
             print(
@@ -33,9 +34,9 @@ class FrontLocationScan:
             self.window_frac = 0
             self.window_ratio = 0
         else:
-            self.window = store["window"]  # Cx - Ct
-            self.window_frac = store["window_frac"]  # (Cx - Ct) / Ct
-            self.window_ratio = store["window_ratio"]  # Cx / Ct
+            self.window = out["window"]  # Cx - Ct
+            self.window_frac = out["window_frac"]  # (Cx - Ct) / Ct
+            self.window_ratio = out["window_ratio"]  # Cx / Ct
 
         if len(self.data) != len(self.data.drop_duplicates(subset="Spar")):
             print("Warning: Duplicate Spar values found, removing!")
@@ -175,45 +176,47 @@ class FrontLocation:
         out = SimulationOutputs
         inputs = out["inputs"]
 
+        ## Load profiles for each front location into a dataframe
         dls = pd.DataFrame()
-        dls["Qrad"] = out["Rprofiles"][index]
-        dls["Spar"] = out["Sprofiles"][index]
-        dls["Spol"] = out["Spolprofiles"][index]
-        dls["Te"] = out["Tprofiles"][index]
-        dls["qpar"] = out["Qprofiles"][index]
-        dls["Btot"] = out["Btotprofiles"][index]
+        dls["Qrad"] = out["Qrad_profiles"][index]
+        dls["Spar"] = out["Spar_profiles"][index]
+        dls["Spol"] = out["Spol_profiles"][index]
+        dls["Te"] = out["Te_profiles"][index]
+        dls["qpar"] = out["qpar_profiles"][index]
+        dls["Btot"] = out["Btot_profiles"][index]
+        dls["Bpol"] = out["Bpol_profiles"][index]
         dls["Ne"] = (
             out["cvar"][index] * dls["Te"].iloc[-1] / dls["Te"]
         )  ## Assuming cvar is ne
+        dls["Pe"] = dls["Te"] * dls["Ne"] * 1.60217662e-19
+
         dls["cz"] = inputs.cz0
         Xpoint = out["Xpoints"][index]
         dls.loc[Xpoint, "Xpoint"] = 1
 
-        # qradial is the uniform upstream heat source
+        # Uniform upstream heat source
         dls["qradial"] = 1.0
-        # dls["qradial"].iloc[Xpoint:] = out["state"].qradial
         dls.loc[Xpoint:, "qradial"] = out["state"].qradial
 
+        ## Calculating radiation profiles
         # Radiative power loss without flux expansion effect.
         # Units are W, bit integrated assuming unity cross-sectional area, so really W/m2
         # Done by reconstructing the RHS of the qpar equation
-        dls["Prad_per_area"] = (
+        dls["Qrad_per_area"] = (
             np.gradient(dls["qpar"] / dls["Btot"], dls["Spar"])
             + dls["qradial"] / dls["Btot"]
         )
-        dls["Prad_per_area_cum"] = sp.integrate.cumulative_trapezoid(
-            y=dls["Prad_per_area"], x=dls["Spar"], initial=0
+        dls["Qrad_per_area_cum"] = sp.integrate.cumulative_trapezoid(
+            y=dls["Qrad_per_area"], x=dls["Spar"], initial=0
         )  # W/m2
-        dls["Prad_per_area_cum_norm"] = (
-            dls["Prad_per_area_cum"] / dls["Prad_per_area_cum"].max()
+        dls["Qrad_per_area_cum_norm"] = (
+            dls["Qrad_per_area_cum"] / dls["Qrad_per_area_cum"].max()
         )
         # Proper radiative power integral [W]
-        dls["Prad_cum"] = sp.integrate.cumulative_trapezoid(
+        dls["Qrad_cum"] = sp.integrate.cumulative_trapezoid(
             y=dls["Qrad"] / dls["Btot"], x=dls["Spar"], initial=0
         )  # Radiation integral over volume
-        dls["Prad_cum_norm"] = dls["Prad_cum"] / dls["Prad_cum"].max()
-
-        dls["Pe"] = dls["Te"] * dls["Ne"] * 1.60217662e-19
+        dls["Qrad_cum_norm"] = dls["Qrad_cum"] / dls["Qrad_cum"].max()
         dls["qpar_over_B"] = dls["qpar"] / dls["Btot"]
 
         ### Calculate scalar properties
@@ -246,8 +249,6 @@ class FrontLocation:
         )
 
         s["avgB_ratio"] = dlsx["Btot"].iloc[0] / avgB_div  # avgB term from Cowley 2022
-
-        # print(s["avgB_ratio"])
 
         ## DLS-Extended effects (see Kryjak 2025)
         # Impact of qpar profile changing upstream due to B field and radiation,
