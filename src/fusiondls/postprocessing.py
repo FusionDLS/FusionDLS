@@ -13,6 +13,8 @@ class FrontLocationScan:
 
     def __init__(self, SimulationOutputs):
         out = SimulationOutputs
+        self.inputs = out.inputs
+
         num_locations = len(out["Spar_profiles"])
         self.FrontLocations = []
         for i in range(num_locations):
@@ -181,6 +183,7 @@ class FrontLocation:
     def __init__(self, SimulationOutputs, index=0):
         out = SimulationOutputs
         inputs = out["inputs"]
+        self.inputs = inputs
 
         ## Load profiles for each front location into a dataframe
         dls = pd.DataFrame()
