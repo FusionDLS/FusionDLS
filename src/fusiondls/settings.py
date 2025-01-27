@@ -45,6 +45,9 @@ class SimulationInputs:
     should be unchangeable.
     """
 
+    control_variable: str
+    """One of 'density', 'impurity_frac' or 'power'"""
+
     SparRange: FloatArray
     """List of :math:`S_parallel` locations to solve for"""
 
@@ -90,9 +93,6 @@ class SimulationInputs:
 
     mi: float = deuterium_mass
     """Ion mass [:math:`kg`]"""
-
-    control_variable: str = "impurity_frac"
-    """One of 'density', 'impurity_frac' or 'power'"""
 
     Ctol: float = 1e-3
     """Control variable (inner) loop convergence tolerance"""
