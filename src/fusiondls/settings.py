@@ -151,6 +151,9 @@ class SimulationInputs:
     Applies if ``front_sheath`` is ``False``.
     """
 
+    def keys(self):
+        return self.__dataclass_fields__.keys()
+
     def __post_init__(self):
         ALLOWED_VARIABLES = ["density", "impurity_frac", "power"]
         if self.control_variable not in ALLOWED_VARIABLES:
