@@ -191,12 +191,20 @@ class FrontLocation:
         dls["qpar"] = out["qpar_profiles"][index]
         dls["Btot"] = out["Btot_profiles"][index]
         dls["Bpol"] = out["Bpol_profiles"][index]
-        dls["Ne"] = (
-            out["cvar"][index] * dls["Te"].iloc[-1] / dls["Te"]
-        )  ## Assuming cvar is ne
+
+        if inputs.control_variable == "density":
+            dls["Ne"] = out["cvar"][index] * dls["Te"].iloc[-1] / dls["Te"]
+        else:
+            dls["Ne"] = inputs.nu0
+
+        if inputs.control_variable == "impurity_frac":
+            dls["cz"] = out["cvar"][index]
+            dls["Ne"] = inputs.nu0 * dls["Te"].iloc[-1] / dls["Te"]
+        else:
+            dls["cz"] = inputs.cz0
+
         dls["Pe"] = dls["Te"] * dls["Ne"] * 1.60217662e-19
 
-        dls["cz"] = inputs.cz0
         Xpoint = out["Xpoints"][index]
         dls.loc[Xpoint, "Xpoint"] = 1
 
