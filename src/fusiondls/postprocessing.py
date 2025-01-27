@@ -24,7 +24,11 @@ class FrontLocationScan:
         self.data["cvar"] = out["cvar"]  # control variable
         self.data["crel"] = out["cvar"] / out["cvar"][0]  # Relative control variable
 
-        self.single_case = "window" not in out
+        if 0 not in self.data["Spar"]:
+            raise Exception("No solution found at Spar = 0")
+
+        self.threshold = out["cvar"][0]  # Detachment threshold
+        self.single_case = len(out["cvar"]) == 1  # Does the scan only have one case?
 
         if self.single_case:
             print(
@@ -34,9 +38,11 @@ class FrontLocationScan:
             self.window_frac = 0
             self.window_ratio = 0
         else:
-            self.window = out["window"]  # Cx - Ct
-            self.window_frac = out["window_frac"]  # (Cx - Ct) / Ct
-            self.window_ratio = out["window_ratio"]  # Cx / Ct
+            self.window = out["cvar"][-1] - out["cvar"][0]  # Cx - Ct
+            self.window_frac = (out["cvar"][-1] - out["cvar"][0]) / out["cvar"][
+                0
+            ]  # (Cx - Ct) / Ct
+            self.window_ratio = out["cvar"][-1] / out["cvar"][0]  # Cx / Ct
 
         if len(self.data) != len(self.data.drop_duplicates(subset="Spar")):
             print("Warning: Duplicate Spar values found, removing!")
