@@ -241,7 +241,7 @@ class FrontLocation:
             dls["Spar"] <= dlsx["Spar"].iloc[0]
         ]  # Profile quantities below X-point
         avgB_div = (
-            sp.integrate.trapz(dls_div["Btot"], x=dls_div["Spar"])
+            sp.integrate.trapezoid(dls_div["Btot"], x=dls_div["Spar"])
             / dls_div["Spar"].iloc[-1]
         )
 
@@ -254,7 +254,7 @@ class FrontLocation:
         # leading to a different qpar at the X-point
         s["upstream_rad"] = np.sqrt(  # Term delta from Kryjak 2025
             2
-            * sp.integrate.trapz(
+            * sp.integrate.trapezoid(
                 y=dls["qpar"].iloc[Xpoint:]
                 / (dls["Btot"].iloc[Xpoint:] ** 2 * s["Wradial"]),
                 x=dls["Spar"].iloc[Xpoint:],
@@ -285,7 +285,9 @@ class FrontLocation:
         s["curveclip"] = (  # Term gamma from Kryjak 2025
             np.sqrt(
                 2
-                * sp.integrate.trapz(y=s["kappa0"] * dls["Te"] ** 0.5 * Lz, x=dls["Te"])
+                * sp.integrate.trapezoid(
+                    y=s["kappa0"] * dls["Te"] ** 0.5 * Lz, x=dls["Te"]
+                )
             )
             ** -1
         )
