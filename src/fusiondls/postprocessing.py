@@ -238,7 +238,7 @@ class FrontLocation:
 
         ### Calculate scalar properties
         s = {}
-        s["cvar"] = out["state"].cvar
+        s["cvar"] = out["cvar"][index]
         s["kappa0"] = inputs.kappa0  # Electron conductivity
         s["Bf"] = dls["Btot"].iloc[0]
         s["Bx"] = dls[dls["Xpoint"] == 1]["Btot"].iloc[0]
