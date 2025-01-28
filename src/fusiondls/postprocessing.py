@@ -3,6 +3,8 @@ import numpy as np
 import pandas as pd
 import scipy as sp
 
+from fusiondls import SimulationOutputs
+
 
 class FrontLocationScan:
     """A collection of DLS solutions at different front locations.
@@ -40,11 +42,12 @@ class FrontLocationScan:
             self.window_frac = 0
             self.window_ratio = 0
         else:
-            self.window = out["cvar"][-1] - out["cvar"][0]  # Cx - Ct
-            self.window_frac = (out["cvar"][-1] - out["cvar"][0]) / out["cvar"][
-                0
-            ]  # (Cx - Ct) / Ct
-            self.window_ratio = out["cvar"][-1] / out["cvar"][0]  # Cx / Ct
+            # Cx - Ct
+            self.window = out["cvar"][-1] - out["cvar"][0]
+            # (Cx - Ct) / Ct
+            self.window_frac = (out["cvar"][-1] - out["cvar"][0]) / out["cvar"][0]
+            # Cx / Ct
+            self.window_ratio = out["cvar"][-1] / out["cvar"][0]
 
         if len(self.data) != len(self.data.drop_duplicates(subset="Spar")):
             print("Warning: Duplicate Spar values found, removing!")
@@ -173,15 +176,14 @@ class FrontLocation:
 
     Parameters
     ----------
-    SimulationOutputs : dict
-        The output object from a DLS simulation. Can contain an arbitrary number of
+    out : dict
+        The SimulationOutputs output object from a DLS simulation. Can contain an arbitrary number of
         front locations.
     index : int
         Which front location to extract.
     """
 
-    def __init__(self, SimulationOutputs, index=0):
-        out = SimulationOutputs
+    def __init__(self, out: SimulationOutputs, index=0):
         inputs = out["inputs"]
         self.inputs = inputs
 
