@@ -272,13 +272,21 @@ class Profile:
 
     def recalculate_topology(
         self,
-        constant_pitch: bool = True,
+        constant_pitch: bool = False,
         Bpol_shift: dict[str, float] | None = None,
         verbose: bool = True,
     ):
         """
         Recalculate Spol, S, Btor, Bpol and Btot from R,Z.
-        If doing this after morphing a profile:
+        By default, keep Bpol profile the same. If constant_pitch = true,
+        keep magnetic pitch the same. Keeping magnetic pitch the same
+        can lead to high Bpol causing unrealistically high Btot near the target
+        for short divertor leg designs where Btor is low. This can lead to
+        a region of flux compression.
+        Can also include an arbitrary region of poloidal flux expansion defined
+        using a Gaussian function.
+
+        For developers:
 
         - It requires R_leg and Z_leg to be the original leg
         - The new leg is contained in R_leg_spline and Z_leg_spline
