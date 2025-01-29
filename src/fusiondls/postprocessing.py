@@ -3,16 +3,27 @@ import numpy as np
 import pandas as pd
 import scipy as sp
 
+from fusiondls.solver import SimulationOutput
+
 
 class FrontLocationScan:
-    """A collection of DLS solutions at different front locations.
-
-    Contains the whole detachment front movement profile and calculates
+    """A collection of FrontLocation objects representing DLS solutions
+    at different front locations.
+        Contains the whole detachment front movement profile and calculates
     useful statistics: detachment window and unstable region size.
+
+
+    Parameters
+    ----------
+    out : SimulationOutput
+        The SimulationOutputs output object from a DLS simulation.
+        Can contain an arbitrary number of front locations.
+    verbose : bool
+        If True, print warnings.
+
     """
 
-    def __init__(self, SimulationOutputs):
-        out = SimulationOutputs
+    def __init__(self, out: SimulationOutput, verbose: bool = True):
         self.inputs = out.inputs
 
         num_locations = len(out["Spar_profiles"])
@@ -33,18 +44,20 @@ class FrontLocationScan:
         self.single_case = len(out["cvar"]) == 1  # Does the scan only have one case?
 
         if self.single_case:
-            print(
-                "Warning, deck contains only one case! Detachment window and unstable region not available."
-            )
+            if verbose:
+                print(
+                    "Warning, deck contains only one case! Detachment window and unstable region not available."
+                )
             self.window = 0
             self.window_frac = 0
             self.window_ratio = 0
         else:
-            self.window = out["cvar"][-1] - out["cvar"][0]  # Cx - Ct
-            self.window_frac = (out["cvar"][-1] - out["cvar"][0]) / out["cvar"][
-                0
-            ]  # (Cx - Ct) / Ct
-            self.window_ratio = out["cvar"][-1] / out["cvar"][0]  # Cx / Ct
+            # Cx - Ct
+            self.window = out["cvar"][-1] - out["cvar"][0]
+            # (Cx - Ct) / Ct
+            self.window_frac = (out["cvar"][-1] - out["cvar"][0]) / out["cvar"][0]
+            # Cx / Ct
+            self.window_ratio = out["cvar"][-1] / out["cvar"][0]
 
         if len(self.data) != len(self.data.drop_duplicates(subset="Spar")):
             print("Warning: Duplicate Spar values found, removing!")
@@ -168,20 +181,22 @@ class FrontLocationScan:
 class FrontLocation:
     """A single DLS front position solution.
 
-    Contains a dataframe with all of the underlying 1D profiles in DLScase.data.
-    Also calculates a number of scalar statistics in DLScase.stats.
+    Contains a dataframe with the 1D profiles of a single DLS front location
+    solution, present in FrontLocation.data.
+    Contains a number of useful scalar statistics in FrontLocation.stats.
+    This object can be assembled with other FrontLocation objects into
+    a FrontLocationScan object.
 
     Parameters
     ----------
-    SimulationOutputs : dict
-        The output object from a DLS simulation. Can contain an arbitrary number of
+    out : SimulationOutput
+        The SimulationOutput output object from a DLS simulation. Can contain an arbitrary number of
         front locations.
     index : int
         Which front location to extract.
     """
 
-    def __init__(self, SimulationOutputs, index=0):
-        out = SimulationOutputs
+    def __init__(self, out: SimulationOutput, index: int = 0):
         inputs = out["inputs"]
         self.inputs = inputs
 
