@@ -3,39 +3,61 @@ import numpy as np
 import pandas as pd
 import scipy as sp
 
+from fusiondls.solver import SimulationOutput
+
 
 class FrontLocationScan:
-    """A collection of DLS solutions at different front locations.
-
-    Contains the whole detachment front movement profile and calculates
+    """A collection of FrontLocation objects representing DLS solutions
+    at different front locations.
+        Contains the whole detachment front movement profile and calculates
     useful statistics: detachment window and unstable region size.
+
+
+    Parameters
+    ----------
+    out : SimulationOutput
+        The SimulationOutputs output object from a DLS simulation.
+        Can contain an arbitrary number of front locations.
+    verbose : bool
+        If True, print warnings.
+
     """
 
-    def __init__(self, store):
-        num_locations = len(store["Sprofiles"])
+    def __init__(self, out: SimulationOutput, verbose: bool = True):
+        self.inputs = out.inputs
+
+        num_locations = len(out["Spar_profiles"])
         self.FrontLocations = []
         for i in range(num_locations):
-            self.FrontLocations.append(FrontLocation(store, index=i))
+            self.FrontLocations.append(FrontLocation(out, index=i))
 
         self.data = pd.DataFrame()
-        self.data["Spar"] = store["Splot"]
-        self.data["Spol"] = store["SpolPlot"]
-        self.data["cvar"] = store["cvar"]  # cvar at detachment threshold
-        self.data["crel"] = store["cvar"] / store["cvar"][0]
+        self.data["Spar"] = out["Spar_front"]
+        self.data["Spol"] = out["Spol_front"]
+        self.data["cvar"] = out["cvar"]  # control variable
+        self.data["crel"] = out["cvar"] / out["cvar"][0]  # Relative control variable
 
-        self.single_case = "window" not in store
+        if 0 not in self.data["Spar"]:
+            raise Exception("No solution found at Spar = 0")
+
+        self.threshold = out["cvar"][0]  # Detachment threshold
+        self.single_case = len(out["cvar"]) == 1  # Does the scan only have one case?
 
         if self.single_case:
-            print(
-                "Warning, deck contains only one case! Detachment window and unstable region not available."
-            )
+            if verbose:
+                print(
+                    "Warning, deck contains only one case! Detachment window and unstable region not available."
+                )
             self.window = 0
             self.window_frac = 0
             self.window_ratio = 0
         else:
-            self.window = store["window"]  # Cx - Ct
-            self.window_frac = store["window_frac"]  # (Cx - Ct) / Ct
-            self.window_ratio = store["window_ratio"]  # Cx / Ct
+            # Cx - Ct
+            self.window = out["cvar"][-1] - out["cvar"][0]
+            # (Cx - Ct) / Ct
+            self.window_frac = (out["cvar"][-1] - out["cvar"][0]) / out["cvar"][0]
+            # Cx / Ct
+            self.window_ratio = out["cvar"][-1] / out["cvar"][0]
 
         if len(self.data) != len(self.data.drop_duplicates(subset="Spar")):
             print("Warning: Duplicate Spar values found, removing!")
@@ -159,66 +181,79 @@ class FrontLocationScan:
 class FrontLocation:
     """A single DLS front position solution.
 
-    Contains a dataframe with all of the underlying 1D profiles in DLScase.data.
-    Also calculates a number of scalar statistics in DLScase.stats.
+    Contains a dataframe with the 1D profiles of a single DLS front location
+    solution, present in FrontLocation.data.
+    Contains a number of useful scalar statistics in FrontLocation.stats.
+    This object can be assembled with other FrontLocation objects into
+    a FrontLocationScan object.
 
     Parameters
     ----------
-    SimulationOutputs : dict
-        The output object from a DLS simulation. Can contain an arbitrary number of
+    out : SimulationOutput
+        The SimulationOutput output object from a DLS simulation. Can contain an arbitrary number of
         front locations.
     index : int
         Which front location to extract.
     """
 
-    def __init__(self, SimulationOutputs, index=0):
-        out = SimulationOutputs
+    def __init__(self, out: SimulationOutput, index: int = 0):
         inputs = out["inputs"]
+        self.inputs = inputs
 
+        ## Load profiles for each front location into a dataframe
         dls = pd.DataFrame()
-        dls["Qrad"] = out["Rprofiles"][index]
-        dls["Spar"] = out["Sprofiles"][index]
-        dls["Spol"] = out["Spolprofiles"][index]
-        dls["Te"] = out["Tprofiles"][index]
-        dls["qpar"] = out["Qprofiles"][index]
-        dls["Btot"] = out["Btotprofiles"][index]
-        dls["Ne"] = (
-            out["cvar"][index] * dls["Te"].iloc[-1] / dls["Te"]
-        )  ## Assuming cvar is ne
-        dls["cz"] = inputs.cz0
+        dls["Qrad"] = out["Qrad_profiles"][index]
+        dls["Spar"] = out["Spar_profiles"][index]
+        dls["Spol"] = out["Spol_profiles"][index]
+        dls["Te"] = out["Te_profiles"][index]
+        dls["qpar"] = out["qpar_profiles"][index]
+        dls["Btot"] = out["Btot_profiles"][index]
+        dls["Bpol"] = out["Bpol_profiles"][index]
+
+        if inputs.control_variable == "density":
+            dls["Ne"] = out["cvar"][index] * dls["Te"].iloc[-1] / dls["Te"]
+        else:
+            dls["Ne"] = inputs.nu0
+
+        if inputs.control_variable == "impurity_frac":
+            dls["cz"] = out["cvar"][index]
+            dls["Ne"] = inputs.nu0 * dls["Te"].iloc[-1] / dls["Te"]
+        else:
+            dls["cz"] = inputs.cz0
+
+        dls["Pe"] = dls["Te"] * dls["Ne"] * 1.60217662e-19
+
         Xpoint = out["Xpoints"][index]
         dls.loc[Xpoint, "Xpoint"] = 1
 
-        # qradial is the uniform upstream heat source
+        # Uniform upstream heat source
         dls["qradial"] = 1.0
-        # dls["qradial"].iloc[Xpoint:] = out["state"].qradial
         dls.loc[Xpoint:, "qradial"] = out["state"].qradial
 
+        ## Calculating radiation profiles
         # Radiative power loss without flux expansion effect.
         # Units are W, bit integrated assuming unity cross-sectional area, so really W/m2
         # Done by reconstructing the RHS of the qpar equation
-        dls["Prad_per_area"] = (
+        dls["Qrad_per_area"] = (
             np.gradient(dls["qpar"] / dls["Btot"], dls["Spar"])
             + dls["qradial"] / dls["Btot"]
         )
-        dls["Prad_per_area_cum"] = sp.integrate.cumulative_trapezoid(
-            y=dls["Prad_per_area"], x=dls["Spar"], initial=0
+        dls["Qrad_per_area_cum"] = sp.integrate.cumulative_trapezoid(
+            y=dls["Qrad_per_area"], x=dls["Spar"], initial=0
         )  # W/m2
-        dls["Prad_per_area_cum_norm"] = (
-            dls["Prad_per_area_cum"] / dls["Prad_per_area_cum"].max()
+        dls["Qrad_per_area_cum_norm"] = (
+            dls["Qrad_per_area_cum"] / dls["Qrad_per_area_cum"].max()
         )
         # Proper radiative power integral [W]
-        dls["Prad_cum"] = sp.integrate.cumulative_trapezoid(
+        dls["Qrad_cum"] = sp.integrate.cumulative_trapezoid(
             y=dls["Qrad"] / dls["Btot"], x=dls["Spar"], initial=0
         )  # Radiation integral over volume
-        dls["Prad_cum_norm"] = dls["Prad_cum"] / dls["Prad_cum"].max()
-
-        dls["Pe"] = dls["Te"] * dls["Ne"] * 1.60217662e-19
+        dls["Qrad_cum_norm"] = dls["Qrad_cum"] / dls["Qrad_cum"].max()
         dls["qpar_over_B"] = dls["qpar"] / dls["Btot"]
 
         ### Calculate scalar properties
         s = {}
-        s["cvar"] = out["state"].cvar
+        s["cvar"] = out["cvar"][index]
         s["kappa0"] = inputs.kappa0  # Electron conductivity
         s["Bf"] = dls["Btot"].iloc[0]
         s["Bx"] = dls[dls["Xpoint"] == 1]["Btot"].iloc[0]
@@ -241,20 +276,18 @@ class FrontLocation:
             dls["Spar"] <= dlsx["Spar"].iloc[0]
         ]  # Profile quantities below X-point
         avgB_div = (
-            sp.integrate.trapz(dls_div["Btot"], x=dls_div["Spar"])
+            sp.integrate.trapezoid(dls_div["Btot"], x=dls_div["Spar"])
             / dls_div["Spar"].iloc[-1]
         )
 
         s["avgB_ratio"] = dlsx["Btot"].iloc[0] / avgB_div  # avgB term from Cowley 2022
-
-        # print(s["avgB_ratio"])
 
         ## DLS-Extended effects (see Kryjak 2025)
         # Impact of qpar profile changing upstream due to B field and radiation,
         # leading to a different qpar at the X-point
         s["upstream_rad"] = np.sqrt(  # Term delta from Kryjak 2025
             2
-            * sp.integrate.trapz(
+            * sp.integrate.trapezoid(
                 y=dls["qpar"].iloc[Xpoint:]
                 / (dls["Btot"].iloc[Xpoint:] ** 2 * s["Wradial"]),
                 x=dls["Spar"].iloc[Xpoint:],
@@ -285,7 +318,9 @@ class FrontLocation:
         s["curveclip"] = (  # Term gamma from Kryjak 2025
             np.sqrt(
                 2
-                * sp.integrate.trapz(y=s["kappa0"] * dls["Te"] ** 0.5 * Lz, x=dls["Te"])
+                * sp.integrate.trapezoid(
+                    y=s["kappa0"] * dls["Te"] ** 0.5 * Lz, x=dls["Te"]
+                )
             )
             ** -1
         )
