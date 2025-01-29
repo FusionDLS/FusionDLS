@@ -1,6 +1,6 @@
 from collections import defaultdict
-from collections.abc import Iterator, Mapping
-from dataclasses import asdict, dataclass, field
+from collections.abc import Iterator, MutableMapping
+from dataclasses import dataclass, field
 from timeit import default_timer as timer
 from typing import Any
 
@@ -16,7 +16,7 @@ from .typing import FloatArray
 
 
 @dataclass
-class SimulationState:
+class SimulationState(MutableMapping):
     """A collection of all variables and data needed to a simulation.
 
     The state is passed around different functions, which allows more of the
@@ -98,9 +98,6 @@ class SimulationState:
             "upper_bound": [],
         }
 
-    def keys(self):
-        return self.__dataclass_fields__.keys()
-
     def update_log(self) -> None:
         """Update primary log"""
         for param in self.singleLog:
@@ -124,13 +121,24 @@ class SimulationState:
                 f"upper_bound: {log['upper_bound'][-1]:.3E}"
             )
 
-    # Return parameter from state
-    def get(self, param):
-        return self.__dict__[param]
+    def __getitem__(self, key: str) -> Any:
+        return getattr(self, key)
+
+    def __setitem__(self, key: str, value: Any) -> None:
+        setattr(self, key, value)
+
+    def __delitem__(self, key: str) -> None:
+        raise NotImplementedError("Deletion of items is not allowed")
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(self.__dataclass_fields__)
+
+    def __len__(self) -> int:
+        return len(self.__dataclass_fields__)
 
 
 @dataclass
-class SimulationOutput(Mapping):
+class SimulationOutput(MutableMapping):
     r"""Output from the fusiondls model
 
     Attributes
@@ -187,14 +195,14 @@ class SimulationOutput(Mapping):
     def __setitem__(self, name: str, val: Any) -> None:
         setattr(self, name, val)
 
+    def __delitem__(self, key: str) -> None:
+        raise NotImplementedError("Deletion of items is not allowed")
+
     def __iter__(self) -> Iterator[str]:
-        return iter(asdict(self))
+        return iter(self.__dataclass_fields__)
 
     def __len__(self) -> int:
-        return len(asdict(self))
-
-    def keys(self):
-        return self.__dataclass_fields__.keys()
+        return len(self.__dataclass_fields__)
 
     @property
     def cvar_norm(self) -> FloatArray:
@@ -206,7 +214,7 @@ def run_dls(
     geometry: MagneticGeometry,
     verbosity: int = 0,
     diagnostic_plot: bool = False,
-) -> dict[str, FloatArray]:
+) -> SimulationOutput:
     """Run the DLS-extended model.
 
     Returns the impurity fraction required for a given temperature at
