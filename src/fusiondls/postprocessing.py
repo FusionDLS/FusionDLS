@@ -199,6 +199,7 @@ class FrontLocation:
     def __init__(self, out: SimulationOutput, index: int = 0):
         inputs = out["inputs"]
         self.inputs = inputs
+        self.log = out["logs"][inputs.SparRange[index]]
 
         ## Load profiles for each front location into a dataframe
         dls = pd.DataFrame()
@@ -327,6 +328,55 @@ class FrontLocation:
 
         self.data = dls
         self.stats = s
+
+    def plot_performance(self):
+        """Plot log of solver performance.
+
+        The first plot shows the evolution of the outer loop error (error0, Tu)
+        and the inner loop error (error1, cvar). The inner loop is currently
+        solved using a homemade binary search algorithm, while the outer loop
+        is solved by feeding the result back into the model for convergence.
+        Each iteration is solved by the Scipy solve_ivp solver. For the solution
+        to finish both error0 and error1 have to drop below Ttol and Ctol, respectively.
+        Ttol and Ctol are shown as dashed/dotted lines.
+
+        The second plot shows the evolution of the actual value of cvar and Tu.
+        Both are normalised to their final value.
+
+        Sometimes the binary search algorithm doesn't converge. In those cases, it timeouts
+        and the solution progresses to the next outer loop iteration, hoping that the inner
+        loop will have better success next time, which practically always happens eventually.
+        Only if the outer loop timeouts does the solver process stop.
+
+        The performance is currently limited by the binary search algorithm, i.e. the cvar solver.
+        It should be replaced with a more clever minimisation algorithm from Scipy.
+        """
+        log = self.log
+
+        fig, axes = plt.subplots(2, 1, figsize=(4.5, 6))
+
+        axes[0].set_title("Evolution of errors")
+        axes[0].plot(abs(np.array(log["error0"])), label="error0 (Tu)", color="teal")
+        axes[0].plot(
+            abs(np.array(log["error1"])), label="error1 (cvar)", color="darkorange"
+        )
+        axes[0].set_yscale("log")
+        xlims = axes[0].get_xlim()
+        axes[0].hlines(self.inputs.Ttol, *xlims, color="teal", ls="--")
+        axes[0].hlines(self.inputs.Ctol, *xlims, color="darkorange", ls=":")
+        axes[0].set_xlim(xlims)
+
+        axes[1].set_title("Evolution of Tu and cvar")
+        axes[1].plot(log["Tu"] / log["Tu"][-1], label="$T_u/T_u^{final}$")
+        axes[1].plot(log["cvar"] / log["cvar"][-1], label="$cvar/cvar^{final}$")
+        axes[1].set_ylabel("Normalised value")
+
+        for ax in axes:
+            ax.legend(loc="upper right", fontsize="small")
+            ax.set_xlabel("Iteration")
+            ax.grid()
+
+        fig.tight_layout()
 
     def keys(self):
         return self.__dataclass_fields__.keys()
