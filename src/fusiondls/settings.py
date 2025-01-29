@@ -1,8 +1,10 @@
-from collections.abc import Callable
+from collections.abc import Callable, Iterator, MutableMapping
 from dataclasses import dataclass, field
+from typing import Any
 
 import numpy as np
 from scipy.constants import physical_constants
+from typing_extensions import Never
 
 from .analytic_cooling_curves import cooling_curves
 from .typing import FloatArray
@@ -21,23 +23,31 @@ class CoolingCurve:
     def __set_name__(self, _, name):
         self._name = "_" + name
 
-    def __get__(self, obj, _):
+    def __get__(self, obj, _) -> Callable[[float], float]:
+        # Bug: This should raise AttributeError, when self._name is not defined,
+        # as cooling_curve should not have a default value. However, this causes
+        # a bug with IPython autoreload. As a result, creating a
+        # SimulationInputs with too few arguments will not warn of missing
+        # positional arguments.
         if not hasattr(obj, self._name):
             return None
         return getattr(obj, self._name)
 
-    def __set__(self, obj, value):
+    def __set__(self, obj, value: str | Callable[[float], float]):
         if isinstance(value, str):
             try:
                 value = cooling_curves[value]
             except KeyError as e:
                 msg = f"Unknown cooling curve '{value}'"
                 raise ValueError(msg) from e
+        # Ensure a callable has been set
+        if not callable(value):
+            raise ValueError("Cooling curve must be a callable or a string")
         setattr(obj, self._name, value)
 
 
 @dataclass
-class SimulationInputs:
+class SimulationInputs(MutableMapping):
     """The inputs used to set up a simulation.
 
     This class functions the same as SimulationState, but is used to store the
@@ -66,7 +76,7 @@ class SimulationInputs:
 
     Overriden if control_variable is impurity_frac [-]"""
 
-    cooling_curve: str | Callable[[float], float] = CoolingCurve()
+    cooling_curve: CoolingCurve = CoolingCurve()
     """Cooling curve function.
 
     May be to a built-in cooling curve via a string such as ``"KallenbachX"``,
@@ -151,8 +161,20 @@ class SimulationInputs:
     Applies if ``front_sheath`` is ``False``.
     """
 
-    def keys(self):
-        return self.__dataclass_fields__.keys()
+    def __getitem__(self, key: str) -> Any:
+        return getattr(self, key)
+
+    def __setitem__(self, key: str, value: Any) -> None:
+        setattr(self, key, value)
+
+    def __delitem__(self, _) -> Never:
+        raise NotImplementedError("Deletion of items is not allowed")
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(self.__dataclass_fields__)
+
+    def __len__(self) -> int:
+        return len(self.__dataclass_fields__)
 
     def __post_init__(self):
         ALLOWED_VARIABLES = ["density", "impurity_frac", "power"]
