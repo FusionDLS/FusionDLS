@@ -206,11 +206,14 @@ class Profile:
         starting at the target, and ``offsety`` and ``offsetx`` are vertical and
         horizontal offsets in [m].
 
+        NOTE: ``pos`` is defined with 0 at the target, but should be defined starting
+        from the X-point, i.e. ``pos`` should start at 1 and then decrease towards 0.
+
         Parameters
         ----------
         offsets
             Each dictionary contains either positions or offsets and a position
-            along the field line of a control point.
+            along the field line of a control point, starting at the X-point (``pos``=1)
         factor
             Factor to scale the effect of point shifting, where 0 = no change,
             1 = profile shifted according to offsets, 0.5 = profile shifted halfway.
@@ -269,13 +272,21 @@ class Profile:
 
     def recalculate_topology(
         self,
-        constant_pitch: bool = True,
+        constant_pitch: bool = False,
         Bpol_shift: dict[str, float] | None = None,
         verbose: bool = True,
     ):
         """
         Recalculate Spol, S, Btor, Bpol and Btot from R,Z.
-        If doing this after morphing a profile:
+        By default, keep Bpol profile the same. If constant_pitch = true,
+        keep magnetic pitch the same. Keeping magnetic pitch the same
+        can lead to high Bpol causing unrealistically high Btot near the target
+        for short divertor leg designs where Btor is low. This can lead to
+        a region of flux compression.
+        Can also include an arbitrary region of poloidal flux expansion defined
+        using a Gaussian function.
+
+        For developers:
 
         - It requires R_leg and Z_leg to be the original leg
         - The new leg is contained in R_leg_spline and Z_leg_spline
@@ -357,8 +368,69 @@ class Profile:
         if verbose:
             print("Topology recalculated.")
 
+    def get_offsets_strike_point(
+        self, list_pos: list, R_strike: float, Z_strike: float
+    ):
+        """
+        Calculate offsets to allow the creation of a new field line Profile based on
+        the strike point coordinates only. Useful for parameter scans.
+
+        Parameters:
+        -----------
+        list_pos : list or array-like
+            Positions along the leg where offsets need to be calculated.
+            These are the interpolation spline control points. You need at least 3 between
+            the X-point (pos = 1) and target (pos = 0). They need to be defined from
+            the X-point first (i.e. starting at 1 and decreasing towards 0). Recommend to use
+            several points near the target to ensure the profile doesn't curl due to the interpolation.
+        R_strike : float
+            Desired radial coordinate of the strike point.
+        Z_strike : float
+            Desired vertical coordinate of the strike point.
+        Returns:
+        --------
+        offsets : list of dict
+            A list of dictionaries containing the calculated offsets for each position.
+            Each dictionary has the following keys:
+            - 'pos': The original position.
+            - 'posx': The new radial coordinate after applying the offset.
+            - 'posy': The new vertical coordinate after applying the offset.
+        """
+
+        Z_Xpoint = self["Z"][self["Xpoint"]]
+        R_Xpoint = self["R"][self["Xpoint"]]
+
+        R_strike_original = self["R"][0]
+        Z_strike_original = self["Z"][0]
+
+        R = np.zeros_like(list_pos)
+        Z = np.zeros_like(list_pos)
+        spl = cord_spline(self.R_leg, self.Z_leg, return_spline=True)
+
+        for i, pos in enumerate(list_pos):
+            R[i], Z[i] = spl(pos)
+
+        strikeOffsetR = R_strike - R_strike_original
+        strikeOffsetZ = Z_strike - Z_strike_original
+
+        Rdist = (R_Xpoint - R) / (R_Xpoint - R[-1])
+        Zdist = (Z_Xpoint - Z) / (Z_Xpoint - Z[-1])
+        Rnew = R + strikeOffsetR * Rdist
+        Znew = Z + strikeOffsetZ * Zdist
+
+        offsets = []
+        for i, pos in enumerate(list_pos):
+            offsets.append(
+                {
+                    "pos": pos,
+                    "posx": Rnew[i],
+                    "posy": Znew[i],
+                }
+            )
+        return offsets
+
     def plot_topology(self):
-        fig, axes = plt.subplots(2, 2, figsize=(8, 8))
+        fig, axes = plt.subplots(2, 2, figsize=(6, 6))
 
         basestyle = {"c": "black"}
         xstyle = {"marker": "+", "linewidth": 2, "s": 150, "c": "r", "zorder": 100}
@@ -427,6 +499,7 @@ class Profile:
             - ``"Btot"``: total B profile
             - ``"RZ"``: RZ space leg profile (excl. above X-point)
             - ``"Spar_Spol"``: Parallel vs poloidal connection length
+            - ``"magnetic_pitch"``: Bpol / Btot
         ax
             Matplotlib axis to plot on (optional)
         legend
@@ -467,19 +540,19 @@ class Profile:
                 )
             else:
                 ax.plot(
-                    self.R[: self.Xpoint],
-                    self.Z[: self.Xpoint],
+                    self.R[: self.Xpoint + 1],
+                    self.Z[: self.Xpoint + 1],
                     color=color,
                     label=label,
                     **kwargs,
                 )
-
+            ax.set_xlabel("R (m)")
             ax.set_ylabel("Z (m)")
         elif mode == "Spar_Spol":
-            ax.plot(self.S, self.Spol, color=color, label=label, **kwargs)
-            ax.set_ylabel("$S_{\parallel} / S_{pol}$")
+            ax.plot(self.Spol, self.S, color=color, label=label, **kwargs)
+            ax.set_ylabel("$S_{\parallel}$")
         elif mode == "magnetic_pitch":
-            ax.plot(self.S, self.Bpol / self.Btot, color=color, label=label, **kwargs)
+            ax.plot(x, self.Bpol / self.Btot, color=color, label=label, **kwargs)
             ax.set_ylabel("$B_{pol} / B_{tot}$")
         else:
             raise ValueError(
