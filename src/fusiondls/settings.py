@@ -24,7 +24,7 @@ class CoolingCurve:
         self._name = "_" + name
 
     def __get__(self, obj, _) -> Callable[[float], float]:
-        # Bug: This should raise AttributeError, when self._name is not defined,
+        # Bug: This should raise AttributeError when self._name is not defined,
         # as cooling_curve should not have a default value. However, this causes
         # a bug with IPython autoreload. As a result, creating a
         # SimulationInputs with too few arguments will not warn of missing
@@ -40,7 +40,6 @@ class CoolingCurve:
             except KeyError as e:
                 msg = f"Unknown cooling curve '{value}'"
                 raise ValueError(msg) from e
-        # Ensure a callable has been set
         if not callable(value):
             raise ValueError("Cooling curve must be a callable or a string")
         setattr(obj, self._name, value)
