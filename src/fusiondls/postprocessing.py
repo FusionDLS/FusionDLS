@@ -130,9 +130,6 @@ class FrontLocationScan:
             )
             ax.legend()
 
-    def keys(self):
-        return self.__dataclass_fields__.keys()
-
     def plot_front_movement(
         self, ax=None, label="", parallel=False, relative=True, **kwargs
     ):
@@ -327,6 +324,3 @@ class FrontLocation:
 
         self.data = dls
         self.stats = s
-
-    def keys(self):
-        return self.__dataclass_fields__.keys()
