@@ -131,37 +131,46 @@ class SimulationState:
 
 @dataclass
 class SimulationOutput(Mapping):
-    r"""Output from the fusiondls model
+    r"""Output from the fusiondls model.
+    Most of the output are lists where each element corresponds
+    to a front location.
 
     Attributes
     ----------
-    Splot: FloatArray
+    Spar_front: FloatArray
         :math:`S_\parallel` of each front location
-    SpolPlot: FloatArray
+    Spol_front: FloatArray
         :math:`S_{poloidal}` of each front locations
     cvar: FloatArray
         Control variable
-    Sprofiles: FloatArray
+    Spar_profiles: FloatArray
         :math:`S_\parallel` profiles for each front location
-    Tprofiles: FloatArray
+    Te_profiles: FloatArray
         Temperature profiles
-    Rprofiles: FloatArray
-        Radiation in W/m^3
-    Qprofiles: FloatArray
+    Qrad_profiles: FloatArray
+        Profiles of radiation in W/m^3
+    qpar_profiles: FloatArray
         Heat flux in W/m^2
-    Spolprofiles: FloatArray
-    Btotprofiles: FloatArray
-    Bpolprofiles: FloatArray
+    Spol_profiles: FloatArray
+        Profiles of poloidal position
+    Btot_profiles: FloatArray
+        Profiles of Btot
+    Bpol_profiles: FloatArray
+        Profiles of Bpol
     Xpoints: FloatArray
+        Xpoint locations
     Wradials: FloatArray
+        Upstream power sources
     logs: dict
-    spar_onset: int
-    spol_onset: int
-    splot: FloatArray
-    threshold: float
+        Performance logs. This is a dict where the key is the Spar location
     inputs: SimulationInputs
+        Simulation inputs
     geometry: MagneticGeometry
+        Profile geometry
     state: SimulationState
+        State object of the final simulation for debug purposes
+    runtime: float
+        Number of seconds taken to run all front positions
     """
 
     Spar_front: FloatArray
