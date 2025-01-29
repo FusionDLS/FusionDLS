@@ -597,9 +597,9 @@ def iterate(
         t_span=(st.s[0], st.s[-1]),
         t_eval=st.s,
         y0=[st.qpllt / geometry.B(st.s[0]), inputs.Tt],
-        rtol=1e-5,
-        atol=1e-10,
-        method="RK23",
+        rtol=inputs.rtol,
+        atol=inputs.atol,
+        method=inputs.solver,
         args=(inputs, geometry, st),
     ).y
 
