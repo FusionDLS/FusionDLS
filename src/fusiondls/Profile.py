@@ -360,7 +360,9 @@ class Profile:
         if verbose:
             print("Topology recalculated.")
 
-    def get_offsets_strike_point(self, list_pos, R_strike, Z_strike):
+    def get_offsets_strike_point(
+        self, list_pos: list, R_strike: float, Z_strike: float
+    ):
         """
         Calculate offsets to allow the creation of a new field line Profile based on
         the strike point coordinates only. Useful for parameter scans.
@@ -371,7 +373,8 @@ class Profile:
             Positions along the leg where offsets need to be calculated.
             These are the interpolation spline control points. You need at least 3 between
             the X-point (pos = 1) and target (pos = 0). They need to be defined from
-            the X-point first (i.e. starting at 1 and decreasing towards 0).
+            the X-point first (i.e. starting at 1 and decreasing towards 0). Recommend to use
+            several points near the target to ensure the profile doesn't curl due to the interpolation.
         R_strike : float
             Desired radial coordinate of the strike point.
         Z_strike : float
