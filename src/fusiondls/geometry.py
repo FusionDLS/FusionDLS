@@ -1,4 +1,5 @@
 import pickle
+from collections.abc import Iterator, MutableMapping
 from dataclasses import asdict, dataclass
 from typing import Any
 
@@ -12,7 +13,7 @@ from .typing import FloatArray, PathLike, Scalar
 
 
 @dataclass
-class MagneticGeometry:
+class MagneticGeometry(MutableMapping):
     r"""Magnetic geometry for a diverator leg
 
     .. todo:: Make X-point variables properties?
@@ -81,6 +82,8 @@ class MagneticGeometry:
 
     @property
     def zx(self):
+        if self.zl is None:
+            raise AttributeError("zx not available, zl not set")
         return self.zl[self.Xpoint]
 
     @classmethod
@@ -132,6 +135,18 @@ class MagneticGeometry:
 
     def __getitem__(self, key: str) -> Any:
         return getattr(self, key)
+
+    def __setitem__(self, key: str, value: Any) -> None:
+        setattr(self, key, value)
+
+    def __delitem__(self, key: str) -> None:
+        raise NotImplementedError("Deletion of items is not allowed")
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(self.__dataclass_fields__)
+
+    def __len__(self) -> int:
+        return len(self.__dataclass_fields__)
 
     def B(self, s: float) -> float:
         try:
