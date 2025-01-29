@@ -189,6 +189,7 @@ class SimulationOutput(Mapping):
     inputs: SimulationInputs
     geometry: MagneticGeometry
     state: SimulationState
+    runtime: float
 
     def __getitem__(self, name: str) -> Any:
         return getattr(self, name)
@@ -474,7 +475,9 @@ def run_dls(
     output["logs"] = st.log  # Append log with all front positions
 
     t1 = timer()
-    print(f"Complete in {t1 - t0:.1f} seconds")
+    runtime = t1 - t0
+    print(f"Complete in {runtime:.1f} seconds")
+    output["runtime"] = runtime
 
     # return output
     return SimulationOutput(inputs=inputs, geometry=geometry, state=st, **output)
