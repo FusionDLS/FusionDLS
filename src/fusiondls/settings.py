@@ -100,6 +100,14 @@ class SimulationInputs:
     Ttol: float = 1e-3
     """Temperature (outer) loop convergence tolerance"""
 
+    atol: float = 1e-10
+    """Solver absolute tolerance"""
+
+    rtol: float = 1e-5
+    """Solver relative tolerance"""
+
+    solver: str = "RK23"
+
     URF: float = 1.0
     """Under-relaxation factor to smooth out temperature convergence.
 
