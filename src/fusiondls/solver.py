@@ -258,7 +258,8 @@ def run_dls(
     # Initialise output dictionary
     output = defaultdict(list)
 
-    print("Solving...", end="")
+    if verbosity > 0:
+        print("Solving...", end="")
 
     """------SOLVE------"""
     # For each detachment front location:
@@ -283,7 +284,8 @@ def run_dls(
             point = int(np.argmin(abs(geometry.S - SparFrontOld)))
         st.point = point
 
-        print(f"{SparFront:.2f}...", end="")
+        if verbosity > 0:
+            print(f"{SparFront:.2f}...", end="")
 
         """------INITIAL GUESSES------"""
 
@@ -485,7 +487,8 @@ def run_dls(
 
     t1 = timer()
     runtime = t1 - t0
-    print(f"Complete in {runtime:.1f} seconds")
+    if verbosity > 0:
+        print(f"Complete in {runtime:.1f} seconds")
     output["runtime"] = runtime
 
     # return output

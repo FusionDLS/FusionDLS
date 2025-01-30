@@ -469,7 +469,7 @@ class Profile(MutableMapping):
             Bpol=Bpol_new,
             Btot=Btot_new,
             S=S_new,
-            S_pol=Spol_new,
+            Spol=Spol_new,
         )
 
     @staticmethod
