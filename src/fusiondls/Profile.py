@@ -215,6 +215,7 @@ class Profile(MutableMapping):
         *,
         scale_factor: Scalar | None = None,
         expansion: Scalar | None = None,
+        name: str | None = None,
     ) -> Self:
         r"""Scale a :math:`B_\mathrm{total}` profile to have an arbitrary
         flux expansion (ratio of :math:`B_\mathrm{X-point}` to
@@ -229,6 +230,8 @@ class Profile(MutableMapping):
             Multiplicative factor applied to initial ``Btot``
         expansion
             Desired flux expansion
+        name
+            Name of the new profile, uses old name by default.
 
         Example
         -------
@@ -269,13 +272,17 @@ class Profile(MutableMapping):
         # So that we are only scaling downstream of Xpoint
         Btot_new[self.Xpoint :] = self.Btot[self.Xpoint :]
 
-        return replace(self, Btot=Btot_new)
+        if name is None:
+            name = self.name
+
+        return replace(self, Btot=Btot_new, name=name)
 
     def scale_connection_length(
         self,
         *,
         scale_factor: Scalar | None = None,
         connection_length: Scalar | None = None,
+        name: str | None = None,
     ) -> Self:
         r"""Scale :math:`S_\parallel` and :math:`S_{pol}` profiles for arbitrary
         connection length, :math:`L_c`, return a new `Profile`.
@@ -291,6 +298,8 @@ class Profile(MutableMapping):
             Multiplicative factor applied to initial ``S`` and ``Spol``
         connection_length
             Desired connection length
+        name
+            Name of the new profile, uses old name by default.
         """
 
         if scale_factor is None and connection_length is None:
@@ -336,7 +345,10 @@ class Profile(MutableMapping):
         S_new -= S_new[0]
         Spol_new -= Spol_new[0]
 
-        return replace(self, S=S_new, Spol=Spol_new)
+        if name is None:
+            name = self.name
+
+        return replace(self, S=S_new, Spol=Spol_new, name=name)
 
     def offset_control_points(
         self,
@@ -344,6 +356,7 @@ class Profile(MutableMapping):
         factor: float = 1.0,
         constant_pitch: bool = False,
         Bpol_shift: dict[str, float] | None = None,
+        name: str | None = None,
     ) -> Self:
         """
         Take profile and add control points ``[x, y]``, then perform cord spline
@@ -389,6 +402,8 @@ class Profile(MutableMapping):
             - ``"width"``: gaussian width in m
             - ``"pos"``: position in m poloidal from the target
             - ``"height"``: height in Bpol units
+        name
+            Name of the new profile, uses old name by default.
         """
         if Bpol_shift is not None:
             keys = {"width", "pos", "height"}
@@ -462,6 +477,9 @@ class Profile(MutableMapping):
         # Calculate parallel connection length
         S_new = returnS(R_new, Z_new, Btot_new, Bpol_new)
 
+        if name is None:
+            name = self.name
+
         return replace(
             self,
             R=R_new,
@@ -470,6 +488,7 @@ class Profile(MutableMapping):
             Btot=Btot_new,
             S=S_new,
             Spol=Spol_new,
+            name=name,
         )
 
     @staticmethod
