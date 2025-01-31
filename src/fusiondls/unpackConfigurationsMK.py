@@ -5,7 +5,7 @@ import numpy as np
 from netCDF4 import Dataset
 from scipy import interpolate
 
-from .Profile import Profile
+from . import MagneticGeometry
 
 
 def unpackConfigurationMK(
@@ -256,18 +256,18 @@ def unpackConfigurationMK(
 
     """------OUTPUT"""
 
-    # Pack into a Profile class
+    # Pack into a MagneticGeometry class
     profiles = {}
     for side in ["iu", "il", "ou", "ol"]:
         d = data[side]
-        profiles[side] = Profile(
-            d["R"],
-            d["Z"],
-            d["Xpoint"],
-            d["Btot"],
-            d["Bpol"],
-            d["S"],
-            d["Spol"],
+        profiles[side] = MagneticGeometry(
+            R=d["R"],
+            Z=d["Z"],
+            Xpoint=d["Xpoint"],
+            Btot=d["Btot"],
+            Bpol=d["Bpol"],
+            Spar=d["S"],
+            Spol=d["Spol"],
             name=side,
         )
 

@@ -10,13 +10,11 @@ except PackageNotFoundError:
 from .analytic_cooling_curves import cooling_curves
 from .DLScommonTools import file_read, file_write, make_arrays
 from .geometry import MagneticGeometry
-from .Profile import Profile
 from .settings import SimulationInputs
 from .solver import SimulationOutput, run_dls
 
 __all__ = [
     "MagneticGeometry",
-    "Profile",
     "SimulationInputs",
     "SimulationOutput",
     "cooling_curves",
