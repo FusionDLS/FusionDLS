@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import copy
 import pickle
 from collections.abc import Iterator, MutableMapping
@@ -213,6 +215,130 @@ class Profile(MutableMapping):
             self._B = interpolate.interp1d(self.Spar, self.Btot, kind="cubic")
             return self._B(s)
 
+    # Grid refinement
+
+    def refine(
+        self,
+        Sfront,
+        fine_ratio: float = 1.5,
+        width: float = 4,
+        resolution: int | None = None,
+        diagnostic_plot: bool = False,
+        tolerance: float = 1e-3,
+        maxiter: int = 50,
+    ) -> Self:
+        """Refines the grid around the front location.
+
+        Refinement is in the form of a Gaussian distribution with a peak
+        determined by fine_ratio and a given width.
+
+        TODO: Update docs
+
+        Parameters
+        ----------
+        Sfront
+        fine_ratio
+            Ratio of coarse cell size to fine cell size
+        width
+            Width of the fine region in meters parallel
+        resolution
+            resolution of resulting grid. If ``None``, use same resolution as
+            original grid.
+        diagnostic_plot
+            If ``True``, plot the grid refinement process.
+        tolerance
+        maxiter
+        """
+
+        if resolution is None:
+            resolution = len(self.Spar)
+
+        # Grid generation is an iterative process because dSnew must know where to put the gaussian
+        # refinement in S space, so it needs an initial S guess. Then we calculate new S from the dS
+        # and loop again until it stops changing.
+        # Initialise S with uniform spacing
+        Snew = np.linspace(self.Spar[0], self.Spar[-1], resolution - 1)
+
+        if diagnostic_plot:
+            fig, axes = plt.subplots(2, 1, figsize=(5, 5), height_ratios=(8, 4))
+
+        dSnew2 = np.ones_like(Snew) * 1e-18
+        for i in range(maxiter):
+            dSnew = 1 / (
+                (width * np.sqrt(2 * np.pi))
+                * np.exp(-0.5 * ((Snew - Sfront) / (width)) ** 2)
+                * (fine_ratio - 1)
+                + 1
+            )
+            dSnew *= self.Spar[-1] / dSnew.sum()  # Normalise to the original S
+            Snew = np.cumsum(dSnew)
+            residual = abs((dSnew2[-1] - dSnew[-1]) / dSnew2[-1])
+            dSnew2 = dSnew
+
+            if diagnostic_plot:
+                axes[0].plot(Snew, dSnew, label=i)
+                axes[1].scatter(
+                    Snew,
+                    np.ones_like(Snew) * -i,
+                    marker="|",
+                    s=5,
+                    linewidths=0.5,
+                    alpha=0.1,
+                )
+
+            if residual < tolerance:
+                break
+
+        else:
+            raise RuntimeError(
+                f"Iterative grid adaption iteration limit ({maxiter}) reached, "
+                f"try reducing refinement ratio ({fine_ratio}) and running with 'diagnostic_plot=True'"
+            )
+
+        # len(dS) = len(S) - 1
+        Snew = np.insert(Snew, 0, 0)
+
+        # Grid width diagnostics plot settings
+        if diagnostic_plot:
+            axes[1].set_yticklabels([])
+            fig.tight_layout()
+            fig.legend(loc="upper center", bbox_to_anchor=(0.5, 0), ncols=5)
+            axes[0].set_title("Adaptive grid iterations")
+
+            axes[0].set_ylabel("dS [m]")
+            axes[0].set_xlabel("S [m]")
+            axes[1].set_title("S spacing")
+            axes[1].set_xlabel("S [m]")
+            fig.tight_layout()
+
+        ## Interpolate geometry and field onto the new S coordinate
+        pnew = {}
+        pnew["Spar"] = Snew
+        for par in ["Spar", "Spol", "R", "Z", "Btot", "Bpol"]:
+            if par not in {"Xpoint", "Spar"}:
+                pnew[par] = interpolate.make_interp_spline(
+                    self.Spar, getattr(self, par), k=2
+                )(Snew)
+
+                if diagnostic_plot:
+                    fig, ax = plt.subplots(dpi=100)
+                    ax.plot(
+                        self.Spar,
+                        getattr(self, par),
+                        label="Original",
+                        marker="o",
+                        color="darkorange",
+                        alpha=0.3,
+                        ms=10,
+                        markerfacecolor="None",
+                    )
+                    ax.plot(pnew["S"], pnew[par], label="New", marker="o", ms=3)
+                    ax.set_title(par)
+
+        pnew["Xpoint"] = int(np.argmin(np.abs(Snew - self.Spar[self.Xpoint])))
+
+        return self.__class__(**pnew)
+
     # Scaling and morphing functions
 
     def scale_flux_expansion(
@@ -362,10 +488,15 @@ class Profile(MutableMapping):
         constant_pitch: bool = False,
         Bpol_shift: dict[str, float] | None = None,
         name: str | None = None,
-    ) -> Self:
+    ) -> OffsetControlPointsResult:
         """
         Take profile and add control points ``[x, y]``, then perform cord spline
         interpolation to get interpolated profile in ``[xs, ys]``.
+
+        Returns an object containing a new profile and some additional data
+        that can be plotted. To access the new profile, use::
+
+            new_profile = profile.offset_control_points(offsets).profile
 
         Offsets are a list of dictionaries, each defining a point along the leg
         to shift vertically or horizontally::
@@ -485,15 +616,23 @@ class Profile(MutableMapping):
         if name is None:
             name = self.name
 
-        return replace(
-            self,
-            R=R_new,
-            Z=Z_new,
-            Bpol=Bpol_new,
-            Btot=Btot_new,
-            Spar=Spar_new,
-            Spol=Spol_new,
-            name=name,
+        return OffsetControlPointsResult(
+            profile=replace(
+                self,
+                R=R_new,
+                Z=Z_new,
+                Bpol=Bpol_new,
+                Btot=Btot_new,
+                Spar=Spar_new,
+                Spol=Spol_new,
+                name=name,
+            ),
+            R_original=self.R,
+            Z_original=self.Z,
+            R_control=R_control,
+            Z_control=Z_control,
+            R_leg_spline=R_leg_spline,
+            Z_leg_spline=Z_leg_spline,
         )
 
     @staticmethod
@@ -753,6 +892,17 @@ class Profile(MutableMapping):
         if legend is True and ax is None:
             ax.legend()
 
+
+@dataclass(kw_only=True)
+class OffsetControlPointsResult:
+    profile: Profile
+    R_original: NDArray[np.floating]
+    Z_original: NDArray[np.floating]
+    R_control: NDArray[np.floating]
+    Z_control: NDArray[np.floating]
+    R_leg_spline: NDArray[np.floating]
+    Z_leg_spline: NDArray[np.floating]
+
     def plot_control_points(
         self,
         linesettings=None,
@@ -770,8 +920,8 @@ class Profile(MutableMapping):
         if ax is None:
             _fig, ax = plt.subplots(dpi=dpi)
             ax.plot(
-                self.R,
-                self.Z,
+                self.profile.R,
+                self.profile.Z,
                 linewidth=3,
                 marker="o",
                 markersize=0,
@@ -803,19 +953,19 @@ class Profile(MutableMapping):
         marker_args = {**default_marker_args, **markersettings}
 
         ax.plot(
-            self["R_leg_spline"], self["Z_leg_spline"], **line_args, label=self.name
+            self.R_leg_spline, self.Z_leg_spline, **line_args, label=self.profile.name
         )
-        ax.scatter(self["R_control"], self["Z_control"], **marker_args)
+        ax.scatter(self.R_control, self.Z_control, **marker_args)
 
         ax.set_xlabel(r"$R\ (m)$")
         ax.set_ylabel(r"$Z\ (m)$")
 
         pad = 0.2
 
-        selector = slice(None, self.Xpoint)
+        selector = slice(None, self.profile.Xpoint)
 
-        R_leg_original = self["R_original"][selector]
-        Z_leg_original = self["Z_original"][selector]
+        R_leg_original = self.R_original[selector]
+        Z_leg_original = self.Z_original[selector]
 
         Rmax = R_leg_original.max()
         Rmin = R_leg_original.min()
