@@ -36,7 +36,7 @@ class Profile(MutableMapping):
     Z: FloatArray
     """Vertical coordinate in metres"""
 
-    S: FloatArray
+    Spar: FloatArray
     r""":math:`S_\parallel`, distance from the target"""
 
     Spol: FloatArray
@@ -70,7 +70,7 @@ class Profile(MutableMapping):
         """Read a particular design and side from a pickle balance file."""
         with open(filename, "rb") as f:
             eqb = pickle.load(f)
-        return cls(**cls._drop_properties(eqb[design][side]))
+        return cls(**cls._update_params(eqb[design][side]))
 
     @classmethod
     def read_design(cls, filename: PathLike, design: str) -> dict[str, Self]:
@@ -78,18 +78,23 @@ class Profile(MutableMapping):
         with open(filename, "rb") as f:
             eqb = pickle.load(f)
         return {
-            side: cls(**cls._drop_properties(data))
-            for side, data in eqb[design].items()
+            side: cls(**cls._update_params(data)) for side, data in eqb[design].items()
         }
 
     @classmethod
-    def _drop_properties(cls, data: dict) -> dict:
-        """Helper function to remove dict keys that are now properties"""
-        return {
+    def _update_params(cls, data: dict) -> dict:
+        """A helper function used to read from older pickle files.
+
+        Removes dict keys that are now properties and renames variables.
+        """
+        result = {
             k: v
             for k, v in data.items()
             if not (k in cls.__dict__ and isinstance(cls.__dict__[k], property))
         }
+        result["Spar"] = result.pop("S")
+        result.pop("Sx")
+        return result
 
     def copy(self) -> Self:
         """Return a deep copy of the profile"""
@@ -130,9 +135,9 @@ class Profile(MutableMapping):
         return self.Z[: self.Xpoint + 1]
 
     @property
-    def Sx(self) -> float:
+    def Sparx(self) -> float:
         """Parallel coordinate at the X-point"""
-        return self.S[self.Xpoint]
+        return self.Spar[self.Xpoint]
 
     @property
     def Spolx(self) -> float:
@@ -154,12 +159,12 @@ class Profile(MutableMapping):
     @property
     def connection_length(self) -> float:
         """Return connection length of profile"""
-        return self.S[-1] - self.S[0]
+        return self.Spar[-1] - self.Spar[0]
 
     @property
     def upstream_length(self) -> float:
         """Return connection length upstream of the X-point"""
-        return self.connection_length - self.Sx
+        return self.connection_length - self.Sparx
 
     @property
     def total_flux_expansion(self) -> float:
@@ -205,7 +210,7 @@ class Profile(MutableMapping):
         try:
             return self._B(s)
         except AttributeError:
-            self._B = interpolate.interp1d(self.S, self.Btot, kind="cubic")
+            self._B = interpolate.interp1d(self.Spar, self.Btot, kind="cubic")
             return self._B(s)
 
     # Scaling and morphing functions
@@ -295,7 +300,7 @@ class Profile(MutableMapping):
         Parameters
         ----------
         scale_factor
-            Multiplicative factor applied to initial ``S`` and ``Spol``
+            Multiplicative factor applied to initial ``Spar`` and ``Spol``
         connection_length
             Desired connection length
         name
@@ -327,28 +332,28 @@ class Profile(MutableMapping):
         # adjusted_scale_factor = len_leg_new / len_leg
         adjusted_scale_factor = (
             self.connection_length * scale_factor - self.upstream_length
-        ) / self.Sx
+        ) / self.Sparx
 
         # Scale up to get correct length
-        S_new = self.S * adjusted_scale_factor
+        Spar_new = self.Spar * adjusted_scale_factor
         Spol_new = self.Spol * adjusted_scale_factor
 
         # Align Xpoints
-        S_new += self.S[self.Xpoint] - S_new[self.Xpoint]
+        Spar_new += self.Spar[self.Xpoint] - Spar_new[self.Xpoint]
         Spol_new += self.Spol[self.Xpoint] - Spol_new[self.Xpoint]
 
         # Make both the same upstream of self.Xpoint
-        S_new[self.Xpoint :] = self.S[self.Xpoint :]
+        Spar_new[self.Xpoint :] = self.Spar[self.Xpoint :]
         Spol_new[self.Xpoint :] = self.Spol[self.Xpoint :]
 
-        # Offset to make both targets at S = 0
-        S_new -= S_new[0]
+        # Offset to make both targets at Spar = 0
+        Spar_new -= Spar_new[0]
         Spol_new -= Spol_new[0]
 
         if name is None:
             name = self.name
 
-        return replace(self, S=S_new, Spol=Spol_new, name=name)
+        return replace(self, Spar=Spar_new, Spol=Spol_new, name=name)
 
     def offset_control_points(
         self,
@@ -375,7 +380,7 @@ class Profile(MutableMapping):
         starting from the X-point, i.e. ``pos`` should start at 1 and then
         decrease towards 0.
 
-        Following the offsets, ``S``, ``Spol``, ``Bpol`` and ``Btot`` are
+        Following the offsets, ``Spar``, ``Spol``, ``Bpol`` and ``Btot`` are
         recalculated.
 
         Currently only supports changing topology below the X-point.
@@ -424,8 +429,8 @@ class Profile(MutableMapping):
         R_leg_spline, Z_leg_spline = spl(dist)
 
         # Calculate total RZ by adding upstream
-        R_new = np.concatenate((R_leg_spline, self.R[self["Xpoint"] + 1 :]))
-        Z_new = np.concatenate((Z_leg_spline, self.Z[self["Xpoint"] + 1 :]))
+        R_new = np.concatenate((R_leg_spline, self.R[self.Xpoint + 1 :]))
+        Z_new = np.concatenate((Z_leg_spline, self.Z[self.Xpoint + 1 :]))
 
         # Calculate existing toroidal field (1/R)
         Btor = np.sqrt(self.Btot**2 - self.Bpol**2)  # Toroidal field
@@ -472,10 +477,10 @@ class Profile(MutableMapping):
             Btot_leg_new = np.sqrt(Btor_leg_new**2 + Bpol_leg**2)
             Bpol_new = self.Bpol
 
-        Btot_new = np.concatenate((Btot_leg_new, self.Btot[self["Xpoint"] + 1 :]))
+        Btot_new = np.concatenate((Btot_leg_new, self.Btot[self.Xpoint + 1 :]))
 
         # Calculate parallel connection length
-        S_new = returnS(R_new, Z_new, Btot_new, Bpol_new)
+        Spar_new = returnS(R_new, Z_new, Btot_new, Bpol_new)
 
         if name is None:
             name = self.name
@@ -486,7 +491,7 @@ class Profile(MutableMapping):
             Z=Z_new,
             Bpol=Bpol_new,
             Btot=Btot_new,
-            S=S_new,
+            Spar=Spar_new,
             Spol=Spol_new,
             name=name,
         )
@@ -626,13 +631,13 @@ class Profile(MutableMapping):
         ax = axes[0, 0]
         ax.set_title(r"Fractional $B_{tot}$ gradient")
         ax.plot(
-            self["Spol"],
-            np.gradient(self["Btot"], self["Spol"]) / self["Btot"],
+            self.Spol,
+            np.gradient(self.Btot, self.Spol) / self.Btot,
             **basestyle,
         )
         ax.scatter(
-            self["Spol"][self["Xpoint"]],
-            (np.gradient(self["Btot"], self["Spol"]) / self["Btot"])[self["Xpoint"]],
+            self.Spol[self.Xpoint],
+            (np.gradient(self.Btot, self.Spol) / self.Btot)[self.Xpoint],
             **xstyle,
         )
         ax.set_xlabel(r"$S_{\theta} \   [m]$")
@@ -640,17 +645,17 @@ class Profile(MutableMapping):
 
         ax = axes[1, 0]
         ax.set_title(r"$B_{tot}$")
-        ax.plot(self["Spol"], self["Btot"], **basestyle)
-        ax.scatter(self["Spol"][self["Xpoint"]], self["Btot"][self["Xpoint"]], **xstyle)
+        ax.plot(self.Spol, self.Btot, **basestyle)
+        ax.scatter(self.Spol[self.Xpoint], self.Btot[self.Xpoint], **xstyle)
         ax.set_xlabel(r"$S_{\theta} \   [m]$")
         ax.set_ylabel(r"$B_{tot}$ $[T]$")
 
         ax = axes[0, 1]
         ax.set_title(r"Field line pitch $B_{pol}/B_{tot}$")
-        ax.plot(self["Spol"], self["Bpol"] / self["Btot"], **basestyle)
+        ax.plot(self.Spol, self.Bpol / self.Btot, **basestyle)
         ax.scatter(
-            self["Spol"][self["Xpoint"]],
-            (self["Bpol"] / self["Btot"])[self["Xpoint"]],
+            self.Spol[self.Xpoint],
+            (self.Bpol / self.Btot)[self.Xpoint],
             **xstyle,
         )
         ax.set_xlabel(r"$S_{\theta} \   [m]$")
@@ -658,10 +663,8 @@ class Profile(MutableMapping):
 
         ax = axes[1, 1]
         ax.set_title(r"$B_{pol}$")
-        ax.plot(self["Spol"], self["Bpol"], **basestyle)
-        ax.scatter(
-            self["Spol"][self["Xpoint"]], (self["Bpol"])[self["Xpoint"]], **xstyle
-        )
+        ax.plot(self.Spol, self.Bpol, **basestyle)
+        ax.scatter(self.Spol[self.Xpoint], (self.Bpol)[self.Xpoint], **xstyle)
         ax.set_xlabel(r"$S_{\theta} \   [m]$")
         ax.set_ylabel(r"$B_{\theta}$ $[T]$")
 
@@ -705,7 +708,7 @@ class Profile(MutableMapping):
             _fig, ax = plt.subplots()
 
         if parallel:
-            x = self.S
+            x = self.Spar
             ax.set_xlabel(r"$s_{\parallel}$ (m from target)")
         else:
             x = self.Spol
@@ -737,7 +740,7 @@ class Profile(MutableMapping):
             ax.set_xlabel("R (m)")
             ax.set_ylabel("Z (m)")
         elif mode == "Spar_Spol":
-            ax.plot(self.Spol, self.S, color=color, label=label, **kwargs)
+            ax.plot(self.Spol, self.Spar, color=color, label=label, **kwargs)
             ax.set_ylabel(r"$S_{\parallel}$")
         elif mode == "magnetic_pitch":
             ax.plot(x, self.Bpol / self.Btot, color=color, label=label, **kwargs)
@@ -767,8 +770,8 @@ class Profile(MutableMapping):
         if ax is None:
             _fig, ax = plt.subplots(dpi=dpi)
             ax.plot(
-                self["R"],
-                self["Z"],
+                self.R,
+                self.Z,
                 linewidth=3,
                 marker="o",
                 markersize=0,
@@ -809,7 +812,7 @@ class Profile(MutableMapping):
 
         pad = 0.2
 
-        selector = slice(None, self["Xpoint"])
+        selector = slice(None, self.Xpoint)
 
         R_leg_original = self["R_original"][selector]
         Z_leg_original = self["Z_original"][selector]
@@ -841,7 +844,7 @@ class Morph:
     intermediate ones according to a morph factor.
     """
 
-    def __init__(self, R, Z, Xpoint, Btot, Bpol, S, Spol):
+    def __init__(self, R, Z, Xpoint, Btot, Bpol, Spar, Spol):
         """
         Class is initialised with the properties of the base (start) profile.
         Needs to be refactored to accept a Profile class.
@@ -856,7 +859,7 @@ class Morph:
 
         self.Btot = Btot
         self.Bpol = Bpol
-        self.S = S
+        self.Spar = Spar
         self.Spol = Spol
 
     def set_start_profile(self, profile, offsets):
@@ -872,7 +875,7 @@ class Morph:
         self.start["Z_leg"] = self.Z_leg
         self.start["R"] = self.R
         self.start["Z"] = self.Z
-        self.start["S"] = self.S
+        self.start["Spar"] = self.Spar
         self.start["Spol"] = self.Spol
         self.start["Btot"] = self.Btot
         self.start["Bpol"] = self.Bpol
@@ -960,7 +963,7 @@ class Morph:
             ]
         )
 
-        prof["S"] = returnS(prof["R"], prof["Z"], prof["Btot"], prof["Bpol"])
+        prof["Spar"] = returnS(prof["R"], prof["Z"], prof["Btot"], prof["Bpol"])
 
         return prof
 

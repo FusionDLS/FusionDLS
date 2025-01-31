@@ -97,7 +97,7 @@ class MagneticGeometry(MutableMapping):
             Btot=profile.Btot,
             R=profile.R,
             Z=profile.Z,
-            S=profile.S,
+            S=profile.Spar,
             Spol=profile.Spol,
             Xpoint=profile.Xpoint,
         )
