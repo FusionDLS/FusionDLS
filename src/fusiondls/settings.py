@@ -23,13 +23,6 @@ class CoolingCurve:
         self._name = "_" + name
 
     def __get__(self, obj, _) -> Callable[[float], float]:
-        # Bug: This should raise AttributeError when self._name is not defined,
-        # as cooling_curve should not have a default value. However, this causes
-        # a bug with IPython autoreload. As a result, creating a
-        # SimulationInputs with too few arguments will not warn of missing
-        # positional arguments.
-        if not hasattr(obj, self._name):
-            return None
         return getattr(obj, self._name)
 
     def __set__(self, obj, value: str | Callable[[float], float]):
