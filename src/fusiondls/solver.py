@@ -1,5 +1,5 @@
 from collections import defaultdict
-from collections.abc import Iterator, MutableMapping
+from collections.abc import Iterator, Mapping
 from dataclasses import dataclass, field
 from timeit import default_timer as timer
 from typing import Any
@@ -16,7 +16,7 @@ from .typing import FloatArray
 
 
 @dataclass
-class SimulationState(MutableMapping):
+class SimulationState(Mapping):
     """A collection of all variables and data needed to a simulation.
 
     The state is passed around different functions, which allows more of the
@@ -122,13 +122,16 @@ class SimulationState(MutableMapping):
             )
 
     def __getitem__(self, key: str) -> Any:
-        return getattr(self, key)
+        try:
+            return getattr(self, key)
+        except AttributeError:
+            raise KeyError(f"Unknown key: {key}")
 
     def __setitem__(self, key: str, value: Any) -> None:
-        setattr(self, key, value)
-
-    def __delitem__(self, key: str) -> None:
-        raise NotImplementedError("Deletion of items is not allowed")
+        if hasattr(self, key):
+            setattr(self, key, value)
+        else:
+            raise KeyError(f"Unknown key: {key}")
 
     def __iter__(self) -> Iterator[str]:
         return iter(self.__dataclass_fields__)
@@ -138,7 +141,7 @@ class SimulationState(MutableMapping):
 
 
 @dataclass
-class SimulationOutput(MutableMapping):
+class SimulationOutput(Mapping):
     r"""Output from the fusiondls model.
 
     Most of the output are lists where each element corresponds
@@ -201,13 +204,16 @@ class SimulationOutput(MutableMapping):
     runtime: float
 
     def __getitem__(self, name: str) -> Any:
-        return getattr(self, name)
+        try:
+            return getattr(self, name)
+        except AttributeError:
+            raise KeyError(f"Unknown key: {name}")
 
     def __setitem__(self, name: str, val: Any) -> None:
-        setattr(self, name, val)
-
-    def __delitem__(self, key: str) -> None:
-        raise NotImplementedError("Deletion of items is not allowed")
+        if hasattr(self, name):
+            setattr(self, name, val)
+        else:
+            raise KeyError(f"Unknown key: {name}")
 
     def __iter__(self) -> Iterator[str]:
         return iter(self.__dataclass_fields__)

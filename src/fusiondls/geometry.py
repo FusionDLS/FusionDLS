@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import copy
 import pickle
-from collections.abc import Iterator, MutableMapping
+from collections.abc import Iterator, Mapping
 from dataclasses import dataclass, replace
 from typing import Any
 
@@ -13,13 +13,13 @@ from matplotlib.axes import Axes
 from numpy.typing import NDArray
 from scipy import interpolate
 from scipy.integrate import trapezoid
-from typing_extensions import Never, Self
+from typing_extensions import Self
 
 from .typing import FloatArray, PathLike, Scalar
 
 
 @dataclass
-class MagneticGeometry(MutableMapping):
+class MagneticGeometry(Mapping):
     r"""Magnetic profile for a single diverger leg.
 
     Contains methods to calculate basic statistics as well as to modify the
@@ -104,20 +104,20 @@ class MagneticGeometry(MutableMapping):
         """Return a deep copy"""
         return copy.deepcopy(self)
 
-    # Components to implement MutableMapping
+    # Components to implement Mapping
     # These give the object dictionary-like behaviour
 
     def __getitem__(self, key: str) -> Any:
-        return getattr(self, key)
+        try:
+            return getattr(self, key)
+        except AttributeError:
+            raise KeyError(f"Unknown key: {key}")
 
     def __setitem__(self, key: str, value: Any) -> None:
         if hasattr(self, key):
             setattr(self, key, value)
         else:
             raise KeyError(f"Unknown key: {key}")
-
-    def __delitem__(self, _) -> Never:
-        raise NotImplementedError("Deleting attributes is not allowed")
 
     def __iter__(self) -> Iterator[str]:
         return iter(self.__dict__)

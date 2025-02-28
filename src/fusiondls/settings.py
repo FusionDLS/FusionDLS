@@ -1,10 +1,9 @@
-from collections.abc import Callable, Iterator, MutableMapping
+from collections.abc import Callable, Iterator, Mapping
 from dataclasses import dataclass, field
 from typing import Any
 
 import numpy as np
 from scipy.constants import physical_constants
-from typing_extensions import Never
 
 from .analytic_cooling_curves import cooling_curves
 from .typing import FloatArray
@@ -46,7 +45,7 @@ class CoolingCurve:
 
 
 @dataclass
-class SimulationInputs(MutableMapping):
+class SimulationInputs(Mapping):
     """The inputs used to set up a simulation.
 
     This class functions the same as SimulationState, but is used to store the
@@ -169,13 +168,16 @@ class SimulationInputs(MutableMapping):
     """
 
     def __getitem__(self, key: str) -> Any:
-        return getattr(self, key)
+        try:
+            return getattr(self, key)
+        except AttributeError:
+            raise KeyError(f"Unknown key: {key}")
 
     def __setitem__(self, key: str, value: Any) -> None:
-        setattr(self, key, value)
-
-    def __delitem__(self, _) -> Never:
-        raise NotImplementedError("Deletion of items is not allowed")
+        if hasattr(self, key):
+            setattr(self, key, value)
+        else:
+            raise KeyError(f"Unknown key: {key}")
 
     def __iter__(self) -> Iterator[str]:
         return iter(self.__dataclass_fields__)
