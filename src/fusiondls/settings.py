@@ -1,5 +1,6 @@
-from collections.abc import Callable
+from collections.abc import Callable, Iterator, Mapping
 from dataclasses import dataclass, field
+from typing import Any
 
 import numpy as np
 from scipy.constants import physical_constants
@@ -21,23 +22,23 @@ class CoolingCurve:
     def __set_name__(self, _, name):
         self._name = "_" + name
 
-    def __get__(self, obj, _):
-        if not hasattr(obj, self._name):
-            return None
+    def __get__(self, obj, _) -> Callable[[float], float]:
         return getattr(obj, self._name)
 
-    def __set__(self, obj, value):
+    def __set__(self, obj, value: str | Callable[[float], float]):
         if isinstance(value, str):
             try:
                 value = cooling_curves[value]
             except KeyError as e:
                 msg = f"Unknown cooling curve '{value}'"
                 raise ValueError(msg) from e
+        if not callable(value):
+            raise ValueError("Cooling curve must be a callable or a string")
         setattr(obj, self._name, value)
 
 
 @dataclass
-class SimulationInputs:
+class SimulationInputs(Mapping):
     """The inputs used to set up a simulation.
 
     This class functions the same as SimulationState, but is used to store the
@@ -66,7 +67,7 @@ class SimulationInputs:
 
     Overriden if control_variable is impurity_frac [-]"""
 
-    cooling_curve: str | Callable[[float], float] = CoolingCurve()
+    cooling_curve: CoolingCurve = CoolingCurve()
     """Cooling curve function.
 
     May be to a built-in cooling curve via a string such as ``"KallenbachX"``,
@@ -159,8 +160,23 @@ class SimulationInputs:
     Applies if ``front_sheath`` is ``False``.
     """
 
-    def keys(self):
-        return self.__dataclass_fields__.keys()
+    def __getitem__(self, key: str) -> Any:
+        try:
+            return getattr(self, key)
+        except AttributeError:
+            raise KeyError(f"Unknown key: {key}")
+
+    def __setitem__(self, key: str, value: Any) -> None:
+        if hasattr(self, key):
+            setattr(self, key, value)
+        else:
+            raise KeyError(f"Unknown key: {key}")
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(self.__dataclass_fields__)
+
+    def __len__(self) -> int:
+        return len(self.__dataclass_fields__)
 
     def __post_init__(self):
         ALLOWED_VARIABLES = ["density", "impurity_frac", "power"]

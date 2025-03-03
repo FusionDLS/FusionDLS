@@ -130,9 +130,6 @@ class FrontLocationScan:
             )
             ax.legend()
 
-    def keys(self):
-        return self.__dataclass_fields__.keys()
-
     def plot_front_movement(
         self, ax=None, label="", parallel=False, relative=True, **kwargs
     ):
@@ -377,6 +374,3 @@ class FrontLocation:
             ax.grid()
 
         fig.tight_layout()
-
-    def keys(self):
-        return self.__dataclass_fields__.keys()

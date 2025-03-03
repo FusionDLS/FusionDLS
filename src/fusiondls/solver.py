@@ -1,6 +1,6 @@
 from collections import defaultdict
 from collections.abc import Iterator, Mapping
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from timeit import default_timer as timer
 from typing import Any
 
@@ -16,7 +16,7 @@ from .typing import FloatArray
 
 
 @dataclass
-class SimulationState:
+class SimulationState(Mapping):
     """A collection of all variables and data needed to a simulation.
 
     The state is passed around different functions, which allows more of the
@@ -98,9 +98,6 @@ class SimulationState:
             "upper_bound": [],
         }
 
-    def keys(self):
-        return self.__dataclass_fields__.keys()
-
     def update_log(self) -> None:
         """Update primary log"""
         for param in self.singleLog:
@@ -124,14 +121,29 @@ class SimulationState:
                 f"upper_bound: {log['upper_bound'][-1]:.3E}"
             )
 
-    # Return parameter from state
-    def get(self, param):
-        return self.__dict__[param]
+    def __getitem__(self, key: str) -> Any:
+        try:
+            return getattr(self, key)
+        except AttributeError:
+            raise KeyError(f"Unknown key: {key}")
+
+    def __setitem__(self, key: str, value: Any) -> None:
+        if hasattr(self, key):
+            setattr(self, key, value)
+        else:
+            raise KeyError(f"Unknown key: {key}")
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(self.__dataclass_fields__)
+
+    def __len__(self) -> int:
+        return len(self.__dataclass_fields__)
 
 
 @dataclass
 class SimulationOutput(Mapping):
     r"""Output from the fusiondls model.
+
     Most of the output are lists where each element corresponds
     to a front location.
 
@@ -192,19 +204,22 @@ class SimulationOutput(Mapping):
     runtime: float
 
     def __getitem__(self, name: str) -> Any:
-        return getattr(self, name)
+        try:
+            return getattr(self, name)
+        except AttributeError:
+            raise KeyError(f"Unknown key: {name}")
 
     def __setitem__(self, name: str, val: Any) -> None:
-        setattr(self, name, val)
+        if hasattr(self, name):
+            setattr(self, name, val)
+        else:
+            raise KeyError(f"Unknown key: {name}")
 
     def __iter__(self) -> Iterator[str]:
-        return iter(asdict(self))
+        return iter(self.__dataclass_fields__)
 
     def __len__(self) -> int:
-        return len(asdict(self))
-
-    def keys(self):
-        return self.__dataclass_fields__.keys()
+        return len(self.__dataclass_fields__)
 
     @property
     def cvar_norm(self) -> FloatArray:
@@ -216,7 +231,7 @@ def run_dls(
     geometry: MagneticGeometry,
     verbosity: int = 0,
     diagnostic_plot: bool = False,
-) -> dict[str, FloatArray]:
+) -> SimulationOutput:
     """Run the DLS-extended model.
 
     Returns the impurity fraction required for a given temperature at
@@ -249,7 +264,8 @@ def run_dls(
     # Initialise output dictionary
     output = defaultdict(list)
 
-    print("Solving...", end="")
+    if verbosity > 0:
+        print("Solving...", end="")
 
     """------SOLVE------"""
     # For each detachment front location:
@@ -259,7 +275,7 @@ def run_dls(
 
         if inputs.static_grid:
             geometry = start_geometry
-            point = int(np.argmin(abs(geometry.S - SparFront)))
+            point = int(np.argmin(abs(geometry.Spar - SparFront)))
         else:
             geometry = start_geometry.refine(
                 SparFront,
@@ -271,26 +287,27 @@ def run_dls(
 
             # Find index of front location on new grid
             SparFrontOld = inputs.SparRange[idx]
-            point = int(np.argmin(abs(geometry.S - SparFrontOld)))
+            point = int(np.argmin(abs(geometry.Spar - SparFrontOld)))
         st.point = point
 
-        print(f"{SparFront:.2f}...", end="")
+        if verbosity > 0:
+            print(f"{SparFront:.2f}...", end="")
 
         """------INITIAL GUESSES------"""
 
         # Current set of parallel position coordinates
-        st.s = geometry.S[point:]
-        output["Spar_front"].append(geometry.S[point])
+        st.s = geometry.Spar[point:]
+        output["Spar_front"].append(geometry.Spar[point])
         output["Spol_front"].append(geometry.Spol[point])
 
         # Inital guess for the value of qpll integrated across connection length
         qavLguess = 0.0
         if inputs.upstreamGrid:
-            if st.s[0] < geometry.S[geometry.Xpoint]:
+            if st.s[0] < geometry.Spar[geometry.Xpoint]:
                 qavLguess = (
-                    (inputs.qpllu0) * (geometry.S[geometry.Xpoint] - st.s[0])
-                    + (inputs.qpllu0 / 2) * (st.s[-1] - geometry.S[geometry.Xpoint])
-                ) / (st.s[-1] - geometry.S[0])
+                    (inputs.qpllu0) * (geometry.Spar[geometry.Xpoint] - st.s[0])
+                    + (inputs.qpllu0 / 2) * (st.s[-1] - geometry.Spar[geometry.Xpoint])
+                ) / (st.s[-1] - geometry.Spar[0])
             else:
                 qavLguess = inputs.qpllu0 / 2
         else:
@@ -330,7 +347,7 @@ def run_dls(
             qpllu0_guess = inputs.qpllu0
             # qradial_guess = qpllu0_guess / trapezoid(si.Btot[si.Xpoint:] / si.Btot[si.Xpoint], x = si.S[si.Xpoint:])
             qradial_guess = (qpllu0_guess / geometry.Btot[geometry.Xpoint]) / trapezoid(
-                1 / geometry.Btot[geometry.Xpoint :], x=geometry.S[geometry.Xpoint :]
+                1 / geometry.Btot[geometry.Xpoint :], x=geometry.Spar[geometry.Xpoint :]
             )
             st.cvar = 1 / qradial_guess
 
@@ -354,7 +371,7 @@ def run_dls(
         st.nu = inputs.nu0
         st.cz = inputs.cz0
         st.qradial = (inputs.qpllu0 / geometry.Btot[geometry.Xpoint]) / trapezoid(
-            1 / geometry.Btot[geometry.Xpoint :], x=geometry.S[geometry.Xpoint :]
+            1 / geometry.Btot[geometry.Xpoint :], x=geometry.Spar[geometry.Xpoint :]
         )
 
         st.update_log()
@@ -458,13 +475,13 @@ def run_dls(
                 )
 
         # Pad some profiles with zeros to ensure same length as S
-        output["Spar_profiles"].append(geometry.S)
-        output["Te_profiles"].append(pad_profile(geometry.S, st.T))
+        output["Spar_profiles"].append(geometry.Spar)
+        output["Te_profiles"].append(pad_profile(geometry.Spar, st.T))
         output["Qrad_profiles"].append(  # Radiation in W/m3
-            pad_profile(geometry.S, Qrad)
+            pad_profile(geometry.Spar, Qrad)
         )
         output["qpar_profiles"].append(  # Heat flux in W/m2
-            pad_profile(geometry.S, st.q)
+            pad_profile(geometry.Spar, st.q)
         )
         output["Spol_profiles"].append(geometry.Spol)
         output["Btot_profiles"].append(np.array(geometry.Btot))
@@ -476,7 +493,8 @@ def run_dls(
 
     t1 = timer()
     runtime = t1 - t0
-    print(f"Complete in {runtime:.1f} seconds")
+    if verbosity > 0:
+        print(f"Complete in {runtime:.1f} seconds")
     output["runtime"] = runtime
 
     # return output
@@ -513,7 +531,7 @@ def LengFunc(
     """
 
     qoverB, T = y
-    fieldValue = geometry.B(np.clip(s, geometry.S[0], geometry.S[-1]))
+    fieldValue = geometry.B(np.clip(s, geometry.Spar[0], geometry.Spar[-1]))
     Lfunc = inputs.cooling_curve
 
     # add a constant radial source of heat above the X point, which is
@@ -525,7 +543,7 @@ def LengFunc(
     # dqoverBds = dqoverBds/fieldValue
     dqoverBds = ((st.nu**2 * st.Tu**2) / T**2) * st.cz * Lfunc(T) / fieldValue
 
-    if inputs.upstreamGrid and s > geometry.S[geometry.Xpoint]:
+    if inputs.upstreamGrid and s > geometry.Spar[geometry.Xpoint]:
         # The second term here converts the x point qpar to a radial heat
         # source acting between midplane and the xpoint account for flux
         # expansion to Xpoint
@@ -575,7 +593,7 @@ def iterate(
         st.nu = st.cvar
 
     st.qradial = (inputs.qpllu0 / geometry.Btot[geometry.Xpoint]) / trapezoid(
-        1 / geometry.Btot[geometry.Xpoint :], x=geometry.S[geometry.Xpoint :]
+        1 / geometry.Btot[geometry.Xpoint :], x=geometry.Spar[geometry.Xpoint :]
     )
 
     if inputs.control_variable == "power":
@@ -583,7 +601,7 @@ def iterate(
         st.nu = inputs.nu0
         # This is needed so that too high a cvar gives positive error
         st.qradial = (1 / st.cvar / geometry.Btot[geometry.Xpoint]) / trapezoid(
-            1 / geometry.Btot[geometry.Xpoint :], x=geometry.S[geometry.Xpoint :]
+            1 / geometry.Btot[geometry.Xpoint :], x=geometry.Spar[geometry.Xpoint :]
         )
 
     if verbosity > 2:

@@ -6,7 +6,7 @@ from fusiondls.analytic_cooling_curves import LfuncKallenbachNe
 
 def test_invalid_control_variable():
     with pytest.raises(ValueError, match="bad_var"):
-        SimulationInputs("bad_var", [0], 0, 0, 0)
+        SimulationInputs("bad_var", [0], 0, 0, 0, cooling_curve="N")
 
 
 def test_cooling_curve():
@@ -25,3 +25,9 @@ def test_invalid_cooling_curve():
     """Test that invalid cooling curves are caught with useful errors"""
     with pytest.raises(ValueError, match="Unknown cooling curve 'hello'"):
         SimulationInputs("impurity_frac", [0], 0, 0, 0, cooling_curve="hello")
+
+
+def test_non_callable_cooling_curve():
+    """Test that an error is raised for non-callable cooling curves"""
+    with pytest.raises(ValueError, match="must be a callable"):
+        SimulationInputs("impurity_frac", [0], 0, 0, 0, cooling_curve=42)

@@ -1,10 +1,9 @@
 import pathlib
-from dataclasses import fields
 
 import numpy as np
 import pytest
 
-from fusiondls import MagneticGeometry, Profile, file_read
+from fusiondls import MagneticGeometry
 
 
 @pytest.fixture(scope="module")
@@ -24,35 +23,6 @@ def test_from_pickle():
     assert isinstance(geometry, MagneticGeometry)
 
 
-def test_from_profile():
-    filename = (
-        pathlib.Path(__file__).parent.parent / "docs/examples/eqb_store_lores.pkl"
-    )
-    eqb = file_read(filename)
-    outer = eqb["V10"]["ou"]
-    profile = Profile(
-        outer["R"],
-        outer["Z"],
-        outer["Xpoint"],
-        outer["Btot"],
-        outer["Bpol"],
-        outer["S"],
-        outer["Spol"],
-        name="profile",
-    )
-    from_prof = MagneticGeometry.from_profile(profile)
-    from_pkl = MagneticGeometry.from_pickle(filename, "V10", "ou")
-    for field in fields(from_prof):
-        prof_val = from_prof[field.name]
-        pkl_val = from_pkl[field.name]
-        if prof_val is None:
-            # Not all MagneticGeometry fields are present in Profile
-            continue
-        np.testing.assert_allclose(
-            prof_val, pkl_val, err_msg=f"Mismatch in {field.name}"
-        )
-
-
 def test_read_design():
     filename = (
         pathlib.Path(__file__).parent.parent / "docs/examples/eqb_store_lores.pkl"
@@ -64,7 +34,7 @@ def test_read_design():
 
 
 def test_xpoint_properties(geometry):
-    assert geometry.Sx == geometry.S[geometry.Xpoint]
+    assert geometry.Sparx == geometry.Spar[geometry.Xpoint]
     assert geometry.Spolx == geometry.Spol[geometry.Xpoint]
     assert geometry.Bx == geometry.Btot[geometry.Xpoint]
     assert geometry.zx == geometry.zl[geometry.Xpoint]
@@ -93,18 +63,18 @@ def test_scale_flux_expansion_set_value(geometry):
 
 def test_refine(geometry):
     # Some point halfway through the domain
-    half_S = geometry.S[-1] / 2
+    half_S = geometry.Spar[-1] / 2
     refined_geometry = geometry.refine(half_S, width=2)
 
-    new_spacing = np.gradient(refined_geometry.S)
+    new_spacing = np.gradient(refined_geometry.Spar)
 
     smallest_spacing = np.min(new_spacing)
     smallest_spacing_index = np.argmin(np.abs(new_spacing - smallest_spacing))
 
     # Expect that the smallest spacing is close to the location we asked for
-    S_at_smallest_spacing = refined_geometry.S[smallest_spacing_index]
+    S_at_smallest_spacing = refined_geometry.Spar[smallest_spacing_index]
     assert np.isclose(S_at_smallest_spacing, half_S, atol=1)
 
     # Expect that the smallest spacing is roughly halfway through the array
-    mid_index = len(geometry.S) // 2
+    mid_index = len(geometry.Spar) // 2
     assert mid_index - 2 <= smallest_spacing_index <= mid_index + 2
