@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 from pathlib import Path
-from typing import NamedTuple
+from typing import TYPE_CHECKING, NamedTuple
 
 import numpy as np
 from freegs import Equilibrium, critical, fieldtracer, jtor, machine
@@ -8,8 +10,10 @@ from matplotlib import path as mpath
 from numpy.typing import NDArray
 from scipy.interpolate import InterpolatedUnivariateSpline, RectBivariateSpline
 
-from . import MagneticGeometry
 from .typing import FloatArray
+
+if TYPE_CHECKING:
+    from . import MagneticGeometry
 
 
 class WallCoords(NamedTuple):
