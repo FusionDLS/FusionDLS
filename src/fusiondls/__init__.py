@@ -10,10 +10,12 @@ except PackageNotFoundError:
 from .analytic_cooling_curves import cooling_curves
 from .DLScommonTools import file_read, file_write, make_arrays
 from .geometry import MagneticGeometry
+from .geqdsk import GeqdskReader, read_geqdsk
 from .settings import SimulationInputs
 from .solver import SimulationOutput, run_dls
 
 __all__ = [
+    "GeqdskReader",
     "MagneticGeometry",
     "SimulationInputs",
     "SimulationOutput",
@@ -21,5 +23,6 @@ __all__ = [
     "file_read",
     "file_write",
     "make_arrays",
+    "read_geqdsk",
     "run_dls",
 ]
