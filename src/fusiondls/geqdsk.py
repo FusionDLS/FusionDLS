@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, NamedTuple
+from typing import NamedTuple
 
 import numpy as np
 from freegs import Equilibrium, critical, fieldtracer, jtor, machine
@@ -10,10 +10,8 @@ from matplotlib import path as mpath
 from numpy.typing import NDArray
 from scipy.interpolate import InterpolatedUnivariateSpline, RectBivariateSpline
 
+from . import MagneticGeometry
 from .typing import FloatArray
-
-if TYPE_CHECKING:
-    from . import MagneticGeometry
 
 
 class WallCoords(NamedTuple):
@@ -45,10 +43,25 @@ class GeqdskReader:
             data = geqdsk.read(fh)
 
         if wall is None:
-            # TODO Check rlim and zlim are in fact used for wall data
             if data.rlim is None or data.zlim is None:
                 raise ValueError("G-EQDSK file does not contain wall data.")
-            self.wall = WallCoords(R=data.rlim, Z=data.zlim)
+            rlim = np.asarray(data.rlim)
+            zlim = np.asarray(data.zlim)
+            # Ensure that the wall is closed
+            if rlim[0] != rlim[-1] or zlim[0] != zlim[-1]:
+                rlim = np.append(rlim, rlim[0])
+                zlim = np.append(zlim, zlim[0])
+            # Add intermediate points to smooth the wall.
+            # Also helps in cases where only the corners of a box are given.
+            rinter = rlim[:-1] + 0.5 * np.diff(rlim)
+            zinter = zlim[:-1] + 0.5 * np.diff(zlim)
+            rnew = np.empty(rlim.size + rinter.size, dtype=rlim.dtype)
+            znew = np.empty(zlim.size + zinter.size, dtype=zlim.dtype)
+            rnew[::2] = rlim
+            rnew[1::2] = rinter
+            znew[::2] = zlim
+            znew[1::2] = zinter
+            self.wall = WallCoords(R=rnew, Z=znew)
         else:
             self.wall = WallCoords(R=np.asarray(wall[0]), Z=np.asarray(wall[1]))
 
@@ -159,9 +172,10 @@ class GeqdskReader:
             raise ValueError(err)
 
         # Get parameters for MagneticGeometry
-        R = coords.R[:, 0]
-        Z = coords.Z[:, 0]
-        Spar = np.abs(coords.length[:, 0])
+        # Need to remove repeated points
+        R = np.unique(coords.R[:, 0])
+        Z = np.unique(coords.Z[:, 0])
+        Spar = np.abs(np.unique(coords.length[:, 0]))
         dR = np.diff(R, prepend=0.0)
         dZ = np.diff(Z, prepend=0.0)
         Spol = np.cumsum(np.sqrt(dR**2 + dZ**2))
