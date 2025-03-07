@@ -109,7 +109,7 @@ class GeqdskReader:
         ----------
         leg
             The divertor leg to trace. Either "ol" for outboard-lower, "ou" for
-            outboard-upper, "il" for inner-lower, or "iu" for inner-upper.
+            outboard-upper, "il" for inboard-lower, or "iu" for inboard-upper.
         solwidth
             The radius from the plasma edge to begin, in meters.
         npoints
@@ -125,8 +125,6 @@ class GeqdskReader:
             xpoint = max(self.xpoints, key=lambda x: x[1])
         else:
             xpoint = min(self.xpoints, key=lambda x: x[1])
-
-        ft = fieldtracer.FieldTracer(self.eq)
 
         r0, z0, psi0 = self.opoint
         psi_bdry = self.eq.psi_bndry
@@ -148,7 +146,6 @@ class GeqdskReader:
 
         # Starting location, just outside the separatrix
         rstart = rmid + solwidth if outer else rmid - solwidth
-        zstart = zmid
 
         # Sweep through 10 turns
         # This is probably overkill, but it's a simple way to ensure we get to
@@ -156,26 +153,27 @@ class GeqdskReader:
         angles = np.linspace(0.0, 20 * np.pi, npoints)
 
         # Follow field line
-        line = ft.follow([rstart], [zstart], angles)
-        coords = fieldtracer.LineCoordinates(
-            line[:, :, 0], line[:, :, 1], line[:, :, 2]
-        )
+        ft = fieldtracer.FieldTracer(self.eq)
+        line = ft.follow([rstart], [zmid], angles)
         # If we got it in the wrong direction, try again in the other direction
-        if (upper and coords.Z[-1, 0] < zmid) or (not upper and coords.Z[-1, 0] > zmid):
-            line = ft.follow([rstart], [zstart], angles, backward=True)
-            coords = fieldtracer.LineCoordinates(
-                line[:, :, 0], line[:, :, 1], line[:, :, 2]
-            )
+        if not self._valid_field_line(upper, line[:, 0, 1]):
+            line = ft.follow([rstart], [zmid], -angles)
         # If it's still wrong, then this leg couldn't be found
-        if (upper and coords.Z[-1, 0] < zmid) or (not upper and coords.Z[-1, 0] > zmid):
+        if not self._valid_field_line(upper, line[:, 0, 1]):
             err = f"Could not calculate field line for leg '{leg}'."
             raise ValueError(err)
+        R = line[:, :, 0]
+        Z = line[:, :, 1]
+        length = line[:, :, 2]
 
-        # Get parameters for MagneticGeometry
-        # Need to remove repeated points
-        R = np.unique(coords.R[:, 0])
-        Z = np.unique(coords.Z[:, 0])
-        Spar = np.abs(np.unique(coords.length[:, 0]))
+        # Remove repeated points at the end
+        max_length = length[-1]
+        end_idx = 1 + np.argmin(np.abs(length - max_length))
+        R = R[:end_idx]
+        Z = Z[:end_idx]
+        length = length[:end_idx]
+
+        # Get other parameters for MagneticGeometry
         dR = np.diff(R, prepend=0.0)
         dZ = np.diff(Z, prepend=0.0)
         Spol = np.cumsum(np.sqrt(dR**2 + dZ**2))
@@ -187,25 +185,32 @@ class GeqdskReader:
         return MagneticGeometry(
             R=R,
             Z=Z,
-            Spar=Spar,
+            Spar=length,
             Spol=Spol,
             Bpol=Bpol,
             Btot=Btot,
             Xpoint=int(xpoint_idx),
         )
 
+    @staticmethod
+    def _valid_field_line(upper: bool, Z: NDArray[np.floating]) -> bool:
+        # Converting to bool to keep type checker happy
+        if upper:
+            return bool(np.all(np.diff(Z) >= 0.0))
+        return bool(np.all(np.diff(Z) <= 0.0))
+
 
 def read_geqdsk(
     path: Path,
     wall: tuple[FloatArray, FloatArray] | None = None,
     solwidth: float = 1.0e-3,
-    npoints=1000,
+    npoints: int = 1000,
 ) -> dict[str, MagneticGeometry | None]:
     """Read a G-EQDSK file and return all field lines.
 
     Returns a dictionary with keys "ol", "ou", "il", and "iu" for the
-    outboard-lower, outboard-upper, inner-lower, and inner-upper field lines.
-    If a field line could not be calculated, the value will be ``None``.
+    outboard-lower, outboard-upper, inboard-lower, and inboard-upper field
+    lines. If a field line could not be calculated, the value will be ``None``.
 
     Parameters
     ----------
@@ -220,11 +225,10 @@ def read_geqdsk(
         Number of points to trace along the field line.
     """
     results = {}
+    reader = GeqdskReader(path, wall)
     for leg in ["ol", "ou", "il", "iu"]:
         try:
-            results[leg] = GeqdskReader(path, wall).trace_field_line(
-                leg, solwidth, npoints
-            )
+            results[leg] = reader.trace_field_line(leg, solwidth, npoints)
         except ValueError as exc:
             err = f"Could not calculate field line for leg '{leg}'."
             if exc.args[0] != err:
