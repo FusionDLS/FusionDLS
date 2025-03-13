@@ -88,6 +88,7 @@ profile = "black"
 
 [tool.ruff]
 extend-include = ["*.ipynb"]
+extend-exclude = ["_version.py"]
 target-version = "py310"
 
 [tool.ruff.lint]

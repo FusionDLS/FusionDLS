@@ -173,6 +173,11 @@ class GeqdskReader:
         Z = Z[:end_idx]
         length = length[:end_idx]
 
+        # Should go from the target to the midplane
+        R = R[::-1]
+        Z = Z[::-1]
+        length = length[-1] - length
+
         # Get other parameters for MagneticGeometry
         dR = np.diff(R, prepend=0.0)
         dZ = np.diff(Z, prepend=0.0)

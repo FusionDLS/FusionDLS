@@ -20,25 +20,25 @@ def test_single_null():
     assert geometries["ou"] is None
     assert geometries["il"] is not None
     assert geometries["ol"] is not None
-    # Field lines should begin at the midpoint (accurate to within a mm)
-    npt.assert_allclose(geometries["il"].Z[0], data.zmagx, atol=1e-3)
-    npt.assert_allclose(geometries["ol"].Z[0], data.zmagx, atol=1e-3)
-    # Field lines should end at the wall (accurate to within a cm)
+    # Field lines should start at the wall (accurate to within a cm)
     npt.assert_allclose(
-        np.min(np.abs(data.zlim - geometries["il"].Z[-1])), 0.0, atol=1e-2
+        np.min(np.abs(data.zlim - geometries["il"].Z[0])), 0.0, atol=1e-2
     )
     npt.assert_allclose(
-        np.min(np.abs(data.zlim - geometries["ol"].Z[-1])), 0.0, atol=1e-2
+        np.min(np.abs(data.zlim - geometries["ol"].Z[0])), 0.0, atol=1e-2
     )
-    # Field lines should only travel downwards
-    npt.assert_array_less(np.diff(geometries["il"].Z), 0.0)
-    npt.assert_array_less(np.diff(geometries["ol"].Z), 0.0)
-    # Expect x point somewhere between the magnetic axis and the wall
+    # Field lines should end at the midpoint (accurate to within a mm)
+    npt.assert_allclose(geometries["il"].Z[-1], data.zmagx, atol=1e-3)
+    npt.assert_allclose(geometries["ol"].Z[-1], data.zmagx, atol=1e-3)
+    # Field lines should only travel upwards
+    npt.assert_array_less(0.0, np.diff(geometries["il"].Z))
+    npt.assert_array_less(0.0, np.diff(geometries["ol"].Z))
+    # Expect x point somewhere between the midplane and the wall
     assert 0 < geometries["il"].Xpoint < len(geometries["il"].Spar)
     assert 0 < geometries["ol"].Xpoint < len(geometries["ol"].Spar)
-    # Expect end point to be to the right/left of the xpoint for ol/il
-    assert geometries["il"].R[-1] < geometries["il"].R[geometries["il"].Xpoint]
-    assert geometries["ol"].R[-1] > geometries["ol"].R[geometries["ol"].Xpoint]
+    # Expect target to be to the right/left of the xpoint for ol/il
+    assert geometries["il"].R[0] < geometries["il"].R[geometries["il"].Xpoint]
+    assert geometries["ol"].R[0] > geometries["ol"].R[geometries["ol"].Xpoint]
 
 
 @pytest.mark.parametrize("null_type", ["connected", "disconnected"])
@@ -52,36 +52,36 @@ def test_double_null(null_type: str):
     assert geometries["ou"] is not None
     assert geometries["il"] is not None
     assert geometries["ol"] is not None
-    # Field lines should begin at the midpoint (accurate to within a cm)
-    npt.assert_allclose(geometries["il"].Z[0], data.zmagx, atol=1e-2)
-    npt.assert_allclose(geometries["ol"].Z[0], data.zmagx, atol=1e-2)
-    npt.assert_allclose(geometries["iu"].Z[0], data.zmagx, atol=1e-2)
-    npt.assert_allclose(geometries["ou"].Z[0], data.zmagx, atol=1e-2)
-    # Field lines should end at the wall (accurate to within 1.5 cm)
+    # Field lines should start at the wall (accurate to within 1.5 cm)
     npt.assert_allclose(
-        np.min(np.abs(data.zlim - geometries["il"].Z[-1])), 0.0, atol=1.5e-2
+        np.min(np.abs(data.zlim - geometries["il"].Z[0])), 0.0, atol=1.5e-2
     )
     npt.assert_allclose(
-        np.min(np.abs(data.zlim - geometries["ol"].Z[-1])), 0.0, atol=1.5e-2
+        np.min(np.abs(data.zlim - geometries["ol"].Z[0])), 0.0, atol=1.5e-2
     )
     npt.assert_allclose(
-        np.min(np.abs(data.zlim - geometries["iu"].Z[-1])), 0.0, atol=1.5e-2
+        np.min(np.abs(data.zlim - geometries["iu"].Z[0])), 0.0, atol=1.5e-2
     )
     npt.assert_allclose(
-        np.min(np.abs(data.zlim - geometries["ou"].Z[-1])), 0.0, atol=1.5e-2
+        np.min(np.abs(data.zlim - geometries["ou"].Z[0])), 0.0, atol=1.5e-2
     )
-    # Field lines should only travel downwards for il/ol, upwards for iu/ou
-    npt.assert_array_less(np.diff(geometries["il"].Z), 0.0)
-    npt.assert_array_less(np.diff(geometries["ol"].Z), 0.0)
-    npt.assert_array_less(0.0, np.diff(geometries["iu"].Z))
-    npt.assert_array_less(0.0, np.diff(geometries["ou"].Z))
-    # Expect x point somewhere between the magnetic axis and the wall
+    # Field lines should end at the midpoint (accurate to within a cm)
+    npt.assert_allclose(geometries["il"].Z[-1], data.zmagx, atol=1e-2)
+    npt.assert_allclose(geometries["ol"].Z[-1], data.zmagx, atol=1e-2)
+    npt.assert_allclose(geometries["iu"].Z[-1], data.zmagx, atol=1e-2)
+    npt.assert_allclose(geometries["ou"].Z[-1], data.zmagx, atol=1e-2)
+    # Field lines should only travel upwards for il/ol, downwards for iu/ou
+    npt.assert_array_less(0.0, np.diff(geometries["il"].Z))
+    npt.assert_array_less(0.0, np.diff(geometries["ol"].Z))
+    npt.assert_array_less(np.diff(geometries["iu"].Z), 0.0)
+    npt.assert_array_less(np.diff(geometries["ou"].Z), 0.0)
+    # Expect x point somewhere between the midplane and the wall
     assert 0 < geometries["il"].Xpoint < len(geometries["il"].Spar)
     assert 0 < geometries["ol"].Xpoint < len(geometries["ol"].Spar)
     assert 0 < geometries["iu"].Xpoint < len(geometries["iu"].Spar)
     assert 0 < geometries["ou"].Xpoint < len(geometries["ou"].Spar)
-    # Expect end point to be to the right/left of the xpoint for outer/inner
-    assert geometries["il"].R[-1] < geometries["il"].R[geometries["il"].Xpoint]
-    assert geometries["iu"].R[-1] < geometries["iu"].R[geometries["iu"].Xpoint]
-    assert geometries["ol"].R[-1] > geometries["ol"].R[geometries["ol"].Xpoint]
-    assert geometries["ou"].R[-1] > geometries["ol"].R[geometries["ou"].Xpoint]
+    # Expect target to be to the right/left of the xpoint for outer/inner
+    assert geometries["il"].R[0] < geometries["il"].R[geometries["il"].Xpoint]
+    assert geometries["iu"].R[0] < geometries["iu"].R[geometries["iu"].Xpoint]
+    assert geometries["ol"].R[0] > geometries["ol"].R[geometries["ol"].Xpoint]
+    assert geometries["ou"].R[0] > geometries["ol"].R[geometries["ou"].Xpoint]
