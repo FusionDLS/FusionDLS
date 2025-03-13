@@ -256,6 +256,39 @@ class MagneticGeometry(Mapping):
             self._B = interpolate.interp1d(self.Spar, self.Btot, kind="cubic")
             return self._B(s)
 
+    # Generate new SparRange
+    def spar_range(
+        self, mode: str = "equally_spaced_poloidal", npoints: int = 2
+    ) -> NDArray[np.floating]:
+        """Create a range of parallel front positions to use in SimulationInputs.
+
+        Parameters
+        ----------
+        mode
+            Mode to create SparRange. Options are:
+
+            - "equally_spaced_poloidal": Points are equally spaced in poloidal plane
+            - "equally_spaced_parallel": Points are equally spaced in parallel plane
+            - "target_and_xpoint": Solve only at target and X-point
+            - "target": Solve only at target (i.e. point of detachment threshold)
+
+        npoints
+            Number of locations to solve for when using an equally spaced mode
+        """
+        if mode == "equally_spaced_poloidal":
+            SpolRange = np.linspace(0, self.Spolx, npoints)
+            SparRange = np.interp(SpolRange, self.Spol, self.Spar)
+        elif mode == "equally_spaced_parallel":
+            SparRange = np.linspace(0, self.Sparx, npoints)
+        elif mode == "target_and_xpoint":
+            SparRange = [0.0, self.Sparx]
+        elif mode == "target":
+            SparRange = [0.0]
+        else:
+            raise ValueError(f"Invalid SparRange mode: {mode}")
+
+        return np.asarray(SparRange)
+
     # Grid refinement
 
     def refine(

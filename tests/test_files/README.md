@@ -1,6 +1,6 @@
-# G-EQDSK Test Files
+# Test Files
 
-These files have been taken from [hypnotoad](https://github.com/boutproject/hypnotoad),
+G-EQDSK files have been taken from [hypnotoad](https://github.com/boutproject/hypnotoad),
 which is licensed under GPL-3.0. These files are for testing purposes only, and must not
 be included with any published source distribution. Copyright notice follows:
 
