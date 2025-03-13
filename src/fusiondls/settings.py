@@ -192,3 +192,57 @@ class SimulationInputs(Mapping):
         Tcool = np.append(0, Tcool)
         Lalpha = np.fromiter((self.cooling_curve(dT) for dT in Tcool), float)
         self.Lz = [Tcool, Lalpha]
+
+
+def make_SparRange(geometry, mode="equally_spaced_poloidal", num_locations=3):
+    """
+    Create a range of parallel front positions to use in SimulationInputs.
+
+    Note: when using equally_spaced_poloidal, the function finds the closest parallel
+    locations to a list of equally spaced poloidal ones. This can result in duplicates
+    due to resolution constraints which will be deleted, resulting in fewer locations
+    than desired.
+    TODO: fix the above in some way, maybe through refinement?
+
+    Parameters
+    -------
+    profile : MagneticGeometry
+        Magnetic geometry object, either created from an eqdsk file of SOLPS case
+    mode : str
+        Mode to create SparRange. Options are:
+        - "equally_spaced_poloidal": Points are equally spaced in poloidal plane
+        - "equally_spaced_parallel": Points are equally spaced in parallel plane
+        - "target_and_xpoint": Solve only at target and X-point
+        - "target": Solve only at target (i.e. point of detachment threshold)
+    num_locations : int
+        Number of locations to solve for when using an equally spaced mode
+
+    Returns
+    -------
+    SparRange : np.ndarray
+        Array of Spar locations to solve for
+    """
+    g = geometry
+
+    if mode == "equally_spaced_poloidal":
+        SpolRange = np.linspace(0, g["Spol"][g["Xpoint"]], num_locations)
+        SparRange = [
+            g["S"][np.argmin(np.abs(g["Spol"] - SpolRange[x]))]
+            for x, _ in enumerate(SpolRange)
+        ]
+        SparRange = np.unique(SparRange)  # Drop duplicates
+
+    elif mode == "equally_spaced_parallel":
+        SparRange = np.linspace(0, g["S"][g["Xpoint"]], num_locations)
+        SparRange = np.unique(SparRange)  # Drop duplicates
+
+    elif mode == "target_and_xpoint":
+        SparRange = [0, g["S"][g["Xpoint"]]]
+
+    elif mode == "target":
+        SparRange = [0]
+
+    else:
+        raise ValueError(f"Invalid SparRange mode: {mode}")
+
+    return np.asarray(SparRange)
