@@ -560,19 +560,19 @@ def iterate(
     st: SimulationState,
     verbosity: int = 0,
 ):
-    """
-    Solves the Lengyel function for q and T profiles along field line.
+    """Solves the Lengyel function for q and T profiles along field line.
+
     Calculates error1 by looking at upstream q and comparing it to 0
     (when upstreamGrid=True) or to qpllu0 (when upstreamGrid=False).
 
     State modifications:
-    - st.q : np.array, profile of heat flux along field line
-    - st.T : np.array, profile of temperature along field line
-    - st.Tucalc : float, upstream temperature for later use in outer loop
-      to calculate error0
-    - st.qpllu1 : float, upstream heat flux
-    - st.error1 : float, error in upstream heat flux
 
+    - ``st.q``: np.array, profile of heat flux along field line
+    - ``st.T``: np.array, profile of temperature along field line
+    - ``st.Tucalc``: float, upstream temperature for later use in outer
+      loop to calculate error0.
+    - ``st.qpllu1``: float, upstream heat flux
+    - ``st.error1``: float, error in upstream heat flux
 
     Parameters
     ----------
