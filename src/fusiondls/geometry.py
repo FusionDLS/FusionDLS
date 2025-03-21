@@ -75,6 +75,8 @@ class MagneticGeometry(Mapping):
         leg: str = "ol",
         solwidth: float = 1.0e-3,
         npoints=1000,
+        cocos: int | None = None,
+        clockwise_phi: bool = False,
     ) -> Self:
         """Read a single divertor leg from a G-EQDSK file.
 
@@ -91,10 +93,19 @@ class MagneticGeometry(Mapping):
             The radius from the plasma edge to begin, in meters.
         npoints
             Number of points to trace along the field line.
+        cocos
+            The COCOS convention used in the G-EQDSK file.  If ``None``, the
+            COCOS convention will be identified from the contents of the G-EQDSK
+            file and the value provided to ``clockwise_phi``.
+        clockwise_phi
+            Wheter the  direction of increasing toroidal angle is positive when
+            the tokamak is viewed from above. Used to infer the COCOS convention
+            when ``cocos`` is ``None``, and is otherwise ignored.
         """
         from .geqdsk import GeqdskReader
 
-        return GeqdskReader(path, wall).trace_field_line(leg, solwidth, npoints)
+        reader = GeqdskReader(path, wall=wall, cocos=cocos, clockwise_phi=clockwise_phi)
+        return reader.trace_field_line(leg, solwidth, npoints)
 
     @classmethod
     def from_pickle(cls, filename: PathLike, design: str, side: str) -> Self:

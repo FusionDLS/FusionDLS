@@ -27,6 +27,7 @@ classifiers = [
 
 requires-python = ">=3.10"
 dependencies = [
+    "contourpy",
     "numpy >= 1.23",
     "matplotlib >= 3.3.4",
     "scipy >= 1.10.1",
@@ -34,6 +35,7 @@ dependencies = [
     "freegs ~= 0.8",
     "freeqdsk ~= 0.5",
     "pandas",
+    "pyloidal ~= 0.2",
     "typing-extensions >= 4.6.0",
 ]
 
