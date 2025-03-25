@@ -36,10 +36,6 @@ def _transform_geqdsk(
             minor_radii=_get_minor_radii(data),
         )[0]
     transform = TransformCocos(cocos_in, cocos_out)
-    print(f"Transforming G-EQDSK file from COCOS {cocos_in} to {cocos_out}.")
-    print(
-        f"{transform.psi=}, {transform.b_toroidal=}, {transform.plasma_current=}, {transform.f=}, {transform.ffprime=}, {transform.pprime=}, {transform.q=}"
-    )
     return geqdsk.GEQDSKFile(
         comment=data.comment,
         shot=data.shot,
