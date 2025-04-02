@@ -68,6 +68,46 @@ class MagneticGeometry(Mapping):
     # Methods for constructing a MagneticGeometry object
 
     @classmethod
+    def from_geqdsk(
+        cls,
+        path: PathLike,
+        wall: tuple[FloatArray, FloatArray] | None = None,
+        leg: str = "ol",
+        solwidth: float = 1.0e-3,
+        npoints=1000,
+        cocos: int | None = None,
+        clockwise_phi: bool = False,
+    ) -> Self:
+        """Read a single divertor leg from a G-EQDSK file.
+
+        Parameters
+        ----------
+        path
+            Path to a G-EQDSK file
+        wall
+            Coordinates along the wall, in ``(R, Z)`` format. If ``None``, uses
+            boundary data from the G-EQDSK file.
+        leg
+            The divertor leg to trace, one of "ol", "ou", "il", or "iu".
+        solwidth
+            The radius from the plasma edge to begin, in meters.
+        npoints
+            Number of points to trace along the field line.
+        cocos
+            The COCOS convention used in the G-EQDSK file.  If ``None``, the
+            COCOS convention will be identified from the contents of the G-EQDSK
+            file and the value provided to ``clockwise_phi``.
+        clockwise_phi
+            Wheter the  direction of increasing toroidal angle is positive when
+            the tokamak is viewed from above. Used to infer the COCOS convention
+            when ``cocos`` is ``None``, and is otherwise ignored.
+        """
+        from .geqdsk import GeqdskReader
+
+        reader = GeqdskReader(path, wall=wall, cocos=cocos, clockwise_phi=clockwise_phi)
+        return reader.trace_field_line(leg, solwidth, npoints)
+
+    @classmethod
     def from_pickle(cls, filename: PathLike, design: str, side: str) -> Self:
         """Read a particular design and side from a pickle balance file."""
         with open(filename, "rb") as f:
