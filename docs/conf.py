@@ -5,6 +5,8 @@
 
 from importlib.metadata import version as get_version
 
+import fusiondls  # noqa: F401
+
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
@@ -36,6 +38,10 @@ autosummary_generate = True
 
 templates_path = ["_templates"]
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
+
+autodoc_default_options = {"ignore-module-all": True}
+autodoc_typehints = "description"
+autodoc_class_signature = "mixed"
 
 # Numpy-doc config
 napoleon_google_docstring = False
@@ -72,7 +78,7 @@ html_theme = "sphinx_book_theme"
 html_static_path = ["_static"]
 
 html_theme_options = {
-    "repository_url": "https://github.com/cydcowley/DLS-model",
+    "repository_url": "https://github.com/FusionDLS/FusionDLS",
     "repository_branch": "main",
     "path_to_docs": "docs",
     "use_edit_page_button": True,

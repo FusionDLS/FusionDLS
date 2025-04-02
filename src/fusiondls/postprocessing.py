@@ -7,23 +7,21 @@ from fusiondls.solver import SimulationOutput
 
 
 class FrontLocationScan:
-    """A collection of FrontLocation objects representing DLS solutions
-    at different front locations.
-        Contains the whole detachment front movement profile and calculates
-    useful statistics: detachment window and unstable region size.
-
-
-    Parameters
-    ----------
-    out : SimulationOutput
-        The SimulationOutputs output object from a DLS simulation.
-        Can contain an arbitrary number of front locations.
-    verbose : bool
-        If True, print warnings.
-
-    """
-
     def __init__(self, out: SimulationOutput, verbose: bool = True):
+        """A collection of FrontLocation objects representing DLS solutions
+        at different front locations.
+
+        Contains the whole detachment front movement profile and calculates
+        useful statistics: detachment window and unstable region size.
+
+        Parameters
+        ----------
+        out
+            The SimulationOutputs output object from a DLS simulation.
+            Can contain an arbitrary number of front locations.
+        verbose
+            If True, print warnings.
+        """
         self.inputs = out.inputs
 
         num_locations = len(out["Spar_profiles"])
