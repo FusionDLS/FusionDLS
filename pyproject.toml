@@ -1,6 +1,6 @@
 [build-system]
-requires = ["setuptools>=64", "setuptools_scm>=8"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"
 
 [project]
 name = "fusiondls"
@@ -27,12 +27,15 @@ classifiers = [
 
 requires-python = ">=3.10"
 dependencies = [
+    "contourpy",
     "numpy >= 1.23",
     "matplotlib >= 3.3.4",
     "scipy >= 1.10.1",
     "netCDF4 >= 1.5.6",
-    "freeqdsk >= 0.3",
+    "freegs ~= 0.8",
+    "freeqdsk ~= 0.5",
     "pandas",
+    "pyloidal ~= 0.2",
     "typing-extensions >= 4.6.0",
 ]
 
@@ -58,11 +61,12 @@ linting = [
 Source = "https://github.com/cydcowley/DLS-model"
 Tracker = "https://github.com/cydcowley/DLS-model/issues"
 
-[tool.setuptools.packages.find]
-where = ["src"]
+[tool.hatch.version]
+source = "vcs"
 
-[tool.setuptools_scm]
-write_to = "src/fusiondls/_version.py"
+[tool.hatch.build.targets.sdist]
+include = ["src/"]
+exclude = ["*.nc", "*.eqdsk", "*.egg-info"]
 
 [tool.coverage.run]
 relative_files = true
@@ -86,6 +90,7 @@ profile = "black"
 
 [tool.ruff]
 extend-include = ["*.ipynb"]
+extend-exclude = ["_version.py"]
 target-version = "py310"
 
 [tool.ruff.lint]
