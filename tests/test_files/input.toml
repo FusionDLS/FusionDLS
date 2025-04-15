@@ -1,0 +1,31 @@
+[fusiondls]
+control_variable = "density"
+SparRange = {mode = "equally_spaced_parallel", npoints = 5}
+qpllu0 = 1.0e9
+nu0 = 1.0e20
+cz0 = 0.02
+cooling_curve = "KallenbachAr"
+gamma_sheath = 7.0
+Tt = 0.5
+kappa0 = 2500.0
+mi = 3.3435837768e-27 # deuterium mass in kg
+Ctol = 1e-3
+Ttol = 1e-3
+atol = 1e-10
+rtol = 1e-5
+solver = "RK23"
+URF = 1.0
+timeout = 20
+upstreamGrid = true
+grid_refinement_ratio = 5.0
+grid_refinement_width = 1.0
+grid_resolution = 500
+static_grid = false
+front_sheath = false
+qpllt_fraction = 0.05
+
+[fusiondls.MagneticGeometry.pickle]
+path = "eqb_store.pkl"
+design = "V10"
+side = "ou"
+

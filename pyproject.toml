@@ -36,6 +36,7 @@ dependencies = [
     "freeqdsk ~= 0.5",
     "pandas",
     "pyloidal ~= 0.2",
+    "tomli",
     "typing-extensions >= 4.6.0",
 ]
 
@@ -58,8 +59,11 @@ linting = [
 ]
 
 [project.urls]
-Source = "https://github.com/cydcowley/DLS-model"
-Tracker = "https://github.com/cydcowley/DLS-model/issues"
+Source = "https://github.com/FusionDLS/FusionDLS"
+Tracker = "https://github.com/FusionDLS/FusionDLS/issues"
+
+[project.scripts]
+fusiondls = "fusiondls.cli:main"
 
 [tool.hatch.version]
 source = "vcs"
