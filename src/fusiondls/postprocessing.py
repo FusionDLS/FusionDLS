@@ -263,7 +263,7 @@ class FrontLocation:
         )
         s["BxBt"] = s["Bx"] / s["Bf"]  # Total flux expansion
         s["BxBteff"] = s["Bx"] / s["Beff"]
-        s["Lc"] = dls["Spol"].iloc[-1]  # Total connection length
+        s["Lc"] = dls["Spar"].iloc[-1]  # Total connection length
         s["Wradial"] = out["state"].qradial  # Radial heat source [W/m3]
         s["Tu"] = dls["Te"].iloc[-1]  # Upstream temperature [eV]
 
