@@ -22,7 +22,7 @@ features:
 - Radial heat source above the X-point
 - Example B field profiles for three STEP configurations
 
-To get started, check out the notebook ``Example 1 - basics``.
+To get started, check out the notebook basic_use_.
 
 .. toctree::
    :maxdepth: 2
@@ -41,10 +41,11 @@ To get started, check out the notebook ``Example 1 - basics``.
 
    API Reference <api>
 
-
 Indices and tables
 ==================
 
 * :ref:`genindex`
 * :ref:`modindex`
 * :ref:`search`
+
+.. _basic_use: examples/basic_use.html
