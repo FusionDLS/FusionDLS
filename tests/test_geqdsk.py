@@ -8,7 +8,7 @@ from freeqdsk import geqdsk
 from fusiondls import MagneticGeometry, read_geqdsk
 from fusiondls.geqdsk import _transform_geqdsk
 
-TEST_DIR = Path(__file__).parent / "geqdsk_test_files"
+TEST_DIR = Path(__file__).parent / "test_files"
 
 
 def test_single_null():
