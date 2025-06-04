@@ -1,17 +1,21 @@
-# FusionDLS - The Detachment Location Sensitivity Model
+# FusionDLS - Detachment Location Sensitivity
 
-This is a version of the DLS model (Lipschultz 2016) based on the work of Cyd Cowley (Cowley 2022) and Ryoko Osawa, as used in the STEP report "STEP: Impact of magnetic topology on detachment performance and sensitivity".
+This is DLS-Extended, a reduced 1D model based on the original DLS model (Lipschultz 2016, Cowley 2022, Myatra 2023).
 
-There are example notebooks provided which go through some basic and some more advanced use cases of the code. This version of the DLS features:
-- A thermal front of finite width
-- An efficient bisection algorithm solver
-- Cooling curves for neon, argon and nitrogen valid up to 300eV
-- Ability to include radiation above the X-point
-- Radial heat source above the X-point
-- Example B field profiles for three STEP configurations
+To get started, please review the examples, which we also use as tests:
 
-You can find the previous version of the DLS model along with an early MATLAB build in the branch "old".
+### Verification comparison against analytical DLS solution
+https://github.com/FusionDLS/FusionDLS/blob/main/docs/examples/analytic_test.ipynb
 
-To get started, check out the notebook Example 1 - basics.
+### Basic use - analysis of individual front location solution and a front location scan
+https://github.com/FusionDLS/FusionDLS/blob/main/docs/examples/basic_use.ipynb
 
-Before finalising changes to the model, please ensure the physics is working correctly by running the Analytic_Benchmark.ipynb notebook!
+### Manipulating the magnetic geometry to investigate divertor design
+https://github.com/FusionDLS/FusionDLS/blob/main/docs/examples/geometry_manipulation.ipynb
+
+### Reading GEQDSK files
+https://github.com/FusionDLS/FusionDLS/blob/main/docs/examples/geqdsk.ipynb
+
+## Docs
+The examples are also on readthedocs (note: docs are WIP and may not contain all the examples):
+https://fusiondls.readthedocs.io/en/latest/
