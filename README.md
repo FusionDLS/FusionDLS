@@ -1,4 +1,4 @@
-# FusionDLS - Detachment Location Sensitivity
+# FusionDLS - Reduced model for divertor detachment analysis
 
 This is DLS-Extended, a reduced 1D model based on the original DLS model (Lipschultz 2016, Cowley 2022, Myatra 2023).
 
