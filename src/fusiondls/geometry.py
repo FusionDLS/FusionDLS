@@ -494,7 +494,7 @@ class MagneticGeometry(Mapping):
 
         Specify either a scale factor or required connection length.
 
-        Not that this will not modify :math:`R` and `:math:`Z` coordinates, so
+        Not that this will not modify :math:`R` and :math:`Z` coordinates, so
         these will be invalid in the new object.
 
         Parameters
