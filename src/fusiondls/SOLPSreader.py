@@ -8,7 +8,7 @@ from scipy import interpolate
 from . import MagneticGeometry
 
 
-def unpackConfigurationMK(
+def read_balance(
     File,
     Type,
     polModulator=1,
@@ -19,30 +19,47 @@ def unpackConfigurationMK(
     absolute_B=True,
 ):
     """
-    Extract interpolated variables along the SOL for connected double null configurations
-    File = balance file path
-    Type = iu, il, ou, ol, box: inner upper and lower, outer upper and lower, or slab geometry
-    polModulator: multiplier on poloidal B field
-    sepadd: code returns the nth sol ring outside the separatrix, where n = sepadd
-    convention: target_to_midplane has target at s=0, midplane_to_target has midplane at s=0
-    diagnostic_plot: plot a figure for a visual check
-    absolute_B: return Bpol and Btot as absolute values
+    Extract field line geometry from a SOLPS-ITER balance file.
 
-    Outputs:
-    Bpol: Poloidal B field
-    Btot: Total B field
-    R: R coordinate along SOL segment/side
-    Z: Z coordinates along SOL segment/side
-    Xpoint: index of Xpoint in Bpol, Btot, R, Z, etc.
-    Bx: Total B field at Xpoint
-    zl: coordinates in Z space along SOL segment/side
-    zx: Xpoint z coordinate
-    Spol: poloidal distance
-    S: parallel distance
-    R_full: R coordinate of all cell centres in the grid
-    Z_full: Z coordinate of all cell centres in the grid
-    R_ring: R coordinate of all cell centres in the chosen SOL ring
-    Z_ring: Z coordinate of all cell centres in the chosen SOL ring
+    Parameters
+    ----------
+    File : str
+        Path to the balance file.
+    Type : str
+        One of 'iu', 'il', 'ou', 'ol', or 'box': inner upper/lower, outer upper/lower, or slab geometry.
+    polModulator : float, optional
+        Multiplier on poloidal B field (default: 1).
+    sepadd : int, optional
+        Returns the nth SOL ring outside the separatrix (default: 0).
+    resolution : int, optional
+        Number of points for interpolation (default: 300).
+    convention : str, optional
+        'target_to_midplane' (target at s=0) or 'midplane_to_target' (midplane at s=0) (default: 'target_to_midplane').
+    diagnostic_plot : bool, optional
+        If True, plot a figure for a visual check (default: False).
+    absolute_B : bool, optional
+        If True, return Bpol and Btot as absolute values (default: True).
+
+    Returns
+    -------
+    MagneticGeometry
+        MagneticGeometry object for the selected SOL segment/side.
+
+    Notes
+    -----
+    Only implemented for connected double null geometry.
+
+    The returned MagneticGeometry object contains:
+        - Bpol: Poloidal B field
+        - Btot: Total B field
+        - R: R coordinate along SOL segment/side
+        - Z: Z coordinate along SOL segment/side
+        - Xpoint: Index of X-point in arrays
+        - Spar: Parallel distance
+        - Spol: Poloidal distance
+        - R_full: R coordinates of all cell centres in the grid
+        - Z_full: Z coordinates of all cell centres in the grid
+        - name: SOL segment/side name
     """
 
     """------DATA EXTRACTION"""
@@ -268,11 +285,10 @@ def unpackConfigurationMK(
             Bpol=d["Bpol"],
             Spar=d["S"],
             Spol=d["Spol"],
+            R_full=full["R"],
+            Z_full=full["Z"],
             name=side,
         )
-
-        profiles[side]["full_R"] = full["R"]
-        profiles[side]["full_Z"] = full["Z"]
 
     # Output by geometry type
     if Type != "box":
