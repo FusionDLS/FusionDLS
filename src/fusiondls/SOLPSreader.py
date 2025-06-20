@@ -8,7 +8,7 @@ from scipy import interpolate
 from . import MagneticGeometry
 
 
-def unpackConfigurationMK(
+def read_balance(
     File,
     Type,
     polModulator=1,
