@@ -268,11 +268,10 @@ def unpackConfigurationMK(
             Bpol=d["Bpol"],
             Spar=d["S"],
             Spol=d["Spol"],
+            R_full=full["R"],
+            Z_full=full["Z"],
             name=side,
         )
-
-        profiles[side]["full_R"] = full["R"]
-        profiles[side]["full_Z"] = full["Z"]
 
     # Output by geometry type
     if Type != "box":
