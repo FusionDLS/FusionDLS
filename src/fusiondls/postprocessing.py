@@ -33,7 +33,31 @@ class FrontLocationScan:
         self.data["Spar"] = out["Spar_front"]
         self.data["Spol"] = out["Spol_front"]
         self.data["cvar"] = out["cvar"]  # control variable
-        self.data["crel"] = out["cvar"] / out["cvar"][0]  # Relative control variable
+
+        ## DLS outputs "cvar" as the variable being solved for, but this is not actually
+        # the "Control Variable" as defined in paper, which combines all three actuators
+        if self.inputs.control_variable == "power":
+            self.data["cvar"] = (
+                self.inputs.nu0
+                * np.sqrt(self.inputs.cz0)
+                / self.data["cvar"] ** (5 / 7)
+            )
+        elif self.inputs.control_variable == "density":
+            self.data["cvar"] = (
+                self.data["cvar"]
+                * np.sqrt(self.inputs.cz0)
+                / self.inputs.qpllu0 ** (5 / 7)
+            )
+        elif self.inputs.control_variable == "impurity_frac":
+            self.data["cvar"] = (
+                self.inputs.nu0
+                * np.sqrt(self.data["cvar"])
+                / self.inputs.qpllu0 ** (5 / 7)
+            )
+
+        self.data["crel"] = (
+            self.data["cvar"] / self.data["cvar"].iloc[0]
+        )  # Relative control variable
 
         if 0 not in self.data["Spar"]:
             raise Exception("No solution found at Spar = 0")
@@ -143,6 +167,8 @@ class FrontLocationScan:
             If True, plot the parallel front movement, otherwise poloidal
         relative : bool
             If True, plot the relative control parameter (crel). Otherwise cvar.
+        invert_crel : bool
+            Invert the relative control variable, e.g. for power.
         kwargs : dict
             Additional plot settings passed to ax.plot().
         """
@@ -159,7 +185,7 @@ class FrontLocationScan:
             ylabel = "$S_{pol} [m]$"
 
         if relative:
-            x = data["cvar"] / data["cvar"].iloc[0]
+            x = data["crel"]
             xlabel = "$C_{rel}$"
         else:
             x = data["cvar"]

@@ -83,9 +83,6 @@ class SimulationInputs(Mapping):
     taken to set this correctly.
     """
 
-    gamma_sheath: float = 7
-    """Heat transfer coefficient of the virtual target [-]"""
-
     Tt: float = 0.5
     """Desired virtual target temperature. Aim for <1eV [:math:`eV`]"""
 
@@ -153,6 +150,9 @@ class SimulationInputs(Mapping):
 
     front_sheath: bool = False
     """Enables a sheath gamma style model for heat flux through the front."""
+
+    gamma_sheath: float = 7
+    """Heat transfer coefficient for the front sheath heat flux [-]"""
 
     qpllt_fraction: float = 0.05
     """Fraction of the upstream heat flux at the target.
